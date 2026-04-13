@@ -1,0 +1,194 @@
+{
+    "uws": "1.0.0",
+    "info": {
+        "title": "Sample UWS Workflow",
+        "summary": "Demonstrates multi-service operations with structural constructs",
+        "version": "1.0.0"
+    },
+    "sourceDescriptions": [
+        {
+            "name": "petstore_api",
+            "url": "./petstore.yaml",
+            "type": "openapi"
+        }
+    ],
+    "provider": {
+        "name": "petstore",
+        "serverUrl": "https://api.petstore.example.com",
+        "appendices": {
+            "region": "us-east-1"
+        }
+    },
+    "variables": {
+        "env": "production",
+        "timeout": 30,
+        "tags": ["api", "demo"]
+    },
+    "security": [
+        {
+            "name": "bearer_auth",
+            "scheme": {
+                "type": "http",
+                "scheme": "bearer"
+            }
+        }
+    ],
+    "operations": [
+        {
+            "operationId": "list_pets",
+            "serviceType": "http",
+            "sourceDescription": "petstore_api",
+            "method": "GET",
+            "path": "/pets",
+            "isJson": true,
+            "queryPars": {
+                "type": "object",
+                "properties": {
+                    "limit": { "type": "integer" },
+                    "status": { "type": "string" }
+                }
+            },
+            "request": {
+                "limit": 10,
+                "status": "available"
+            },
+            "responseBody": {
+                "type": "object",
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "id": { "type": "integer" },
+                                "name": { "type": "string" }
+                            }
+                        }
+                    }
+                }
+            },
+            "successCriteria": [
+                { "condition": "$statusCode == 200" }
+            ],
+            "onFailure": [
+                {
+                    "name": "retry_list",
+                    "type": "retry",
+                    "retryAfter": 2,
+                    "retryLimit": 3
+                }
+            ],
+            "outputs": {
+                "petList": "$response.body.items"
+            }
+        },
+        {
+            "operationId": "create_pet",
+            "serviceType": "http",
+            "sourceDescription": "petstore_api",
+            "method": "POST",
+            "path": "/pets",
+            "isJson": true,
+            "payloadRequired": true,
+            "dependsOn": ["list_pets"],
+            "when": "length(list_pets.received_body.items) < 100",
+            "request": {
+                "name": "Buddy",
+                "tag": "dog"
+            },
+            "successCriteria": [
+                { "condition": "$statusCode == 201" }
+            ],
+            "onSuccess": [
+                {
+                    "name": "goto_validate",
+                    "type": "goto",
+                    "workflowId": "parallel_checks"
+                }
+            ],
+            "onFailure": [
+                {
+                    "name": "end_on_error",
+                    "type": "end"
+                }
+            ]
+        },
+        {
+            "operationId": "check_disk",
+            "serviceType": "cmd",
+            "command": "df",
+            "arguments": ["-h", "/"],
+            "workingDir": "/tmp",
+            "successCriteria": [
+                { "condition": "$exitCode == 0" },
+                { "condition": "^/dev/", "type": "regex", "context": "$response.body" }
+            ]
+        },
+        {
+            "operationId": "compute_hash",
+            "serviceType": "fnct",
+            "function": "crypto.SHA256",
+            "arguments": ["input_data"],
+            "dependsOn": ["list_pets"],
+            "successCriteria": [
+                { "condition": "$returnValue != null" }
+            ]
+        }
+    ],
+    "workflows": [
+        {
+            "workflowId": "parallel_checks",
+            "type": "parallel",
+            "description": "Run validation and logging in parallel after pet creation",
+            "inputs": {
+                "type": "object",
+                "properties": {
+                    "petId": { "type": "integer" }
+                },
+                "required": ["petId"]
+            },
+            "dependsOn": ["create_pet"],
+            "steps": [
+                {
+                    "stepId": "validate_pet",
+                    "type": "http",
+                    "description": "Validate the newly created pet record",
+                    "operationRef": "create_pet",
+                    "body": {
+                        "path": "/pets/validate"
+                    },
+                    "outputs": {
+                        "isValid": "$response.body.valid"
+                    }
+                },
+                {
+                    "stepId": "log_action",
+                    "type": "cmd",
+                    "description": "Log the pet creation event",
+                    "body": {
+                        "command": "echo",
+                        "arguments": ["Pet created"]
+                    }
+                }
+            ],
+            "outputs": {
+                "validationResult": "$steps.validate_pet.outputs.isValid"
+            }
+        }
+    ],
+    "triggers": [
+        {
+            "triggerId": "pet_webhook",
+            "path": "/webhooks/pets",
+            "methods": ["POST"],
+            "authentication": "bearer",
+            "routes": [
+                {
+                    "output": "0",
+                    "to": ["list_pets", "create_pet"]
+                }
+            ]
+        }
+    ],
+    "x-generator": "udon-cli"
+}
