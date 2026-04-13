@@ -11,26 +11,26 @@ type Operation struct {
 	ServiceType       string         `json:"serviceType" yaml:"serviceType" hcl:"serviceType"`
 	SourceDescription string         `json:"sourceDescription,omitempty" yaml:"sourceDescription,omitempty" hcl:"sourceDescription,optional"`
 	Description       string         `json:"description,omitempty" yaml:"description,omitempty" hcl:"description,optional"`
-	IsJSON      bool           `json:"isJson,omitempty" yaml:"isJson,omitempty" hcl:"isJson,optional"`
-	Host        string         `json:"host,omitempty" yaml:"host,omitempty" hcl:"host,optional"`
-	Method      string         `json:"method,omitempty" yaml:"method,omitempty" hcl:"method,optional"`
-	Path        string         `json:"path,omitempty" yaml:"path,omitempty" hcl:"path,optional"`
-	Provider    *Provider      `json:"provider,omitempty" yaml:"provider,omitempty" hcl:"provider,block"`
-	Request     map[string]any `json:"request,omitempty" yaml:"request,omitempty" hcl:"request,optional"`
+	IsJSON            bool           `json:"isJson,omitempty" yaml:"isJson,omitempty" hcl:"isJson,optional"`
+	Host              string         `json:"host,omitempty" yaml:"host,omitempty" hcl:"host,optional"`
+	Method            string         `json:"method,omitempty" yaml:"method,omitempty" hcl:"method,optional"`
+	Path              string         `json:"path,omitempty" yaml:"path,omitempty" hcl:"path,optional"`
+	Provider          *Provider      `json:"provider,omitempty" yaml:"provider,omitempty" hcl:"provider,block"`
+	Request           map[string]any `json:"request,omitempty" yaml:"request,omitempty" hcl:"request,optional"`
 
 	// HTTP parameter schemas
-	Security          []*SecurityRequirement `json:"security,omitempty" yaml:"security,omitempty" hcl:"security,block"`
-	QueryPars         *ParamSchema           `json:"queryPars,omitempty" yaml:"queryPars,omitempty" hcl:"queryPars,block"`
-	PathPars          *ParamSchema           `json:"pathPars,omitempty" yaml:"pathPars,omitempty" hcl:"pathPars,block"`
-	HeaderPars        *ParamSchema           `json:"headerPars,omitempty" yaml:"headerPars,omitempty" hcl:"headerPars,block"`
-	CookiePars        *ParamSchema           `json:"cookiePars,omitempty" yaml:"cookiePars,omitempty" hcl:"cookiePars,block"`
-	PayloadPars       *ParamSchema           `json:"payloadPars,omitempty" yaml:"payloadPars,omitempty" hcl:"payloadPars,block"`
-	PayloadRequired   bool                   `json:"payloadRequired,omitempty" yaml:"payloadRequired,omitempty" hcl:"payloadRequired,optional"`
-	RequestMediaType  string                 `json:"requestMediaType,omitempty" yaml:"requestMediaType,omitempty" hcl:"requestMediaType,optional"`
-	ResponseMediaType string                 `json:"responseMediaType,omitempty" yaml:"responseMediaType,omitempty" hcl:"responseMediaType,optional"`
-	ResponseBody      *ParamSchema           `json:"responseBody,omitempty" yaml:"responseBody,omitempty" hcl:"responseBody,block"`
-	ResponseHeaders   *ParamSchema           `json:"responseHeaders,omitempty" yaml:"responseHeaders,omitempty" hcl:"responseHeaders,block"`
-	ResponseStatusCode *int                  `json:"responseStatusCode,omitempty" yaml:"responseStatusCode,omitempty" hcl:"responseStatusCode,optional"`
+	Security           []*SecurityRequirement `json:"security,omitempty" yaml:"security,omitempty" hcl:"security,block"`
+	QueryPars          *ParamSchema           `json:"queryPars,omitempty" yaml:"queryPars,omitempty" hcl:"queryPars,block"`
+	PathPars           *ParamSchema           `json:"pathPars,omitempty" yaml:"pathPars,omitempty" hcl:"pathPars,block"`
+	HeaderPars         *ParamSchema           `json:"headerPars,omitempty" yaml:"headerPars,omitempty" hcl:"headerPars,block"`
+	CookiePars         *ParamSchema           `json:"cookiePars,omitempty" yaml:"cookiePars,omitempty" hcl:"cookiePars,block"`
+	PayloadPars        *ParamSchema           `json:"payloadPars,omitempty" yaml:"payloadPars,omitempty" hcl:"payloadPars,block"`
+	PayloadRequired    bool                   `json:"payloadRequired,omitempty" yaml:"payloadRequired,omitempty" hcl:"payloadRequired,optional"`
+	RequestMediaType   string                 `json:"requestMediaType,omitempty" yaml:"requestMediaType,omitempty" hcl:"requestMediaType,optional"`
+	ResponseMediaType  string                 `json:"responseMediaType,omitempty" yaml:"responseMediaType,omitempty" hcl:"responseMediaType,optional"`
+	ResponseBody       *ParamSchema           `json:"responseBody,omitempty" yaml:"responseBody,omitempty" hcl:"responseBody,block"`
+	ResponseHeaders    *ParamSchema           `json:"responseHeaders,omitempty" yaml:"responseHeaders,omitempty" hcl:"responseHeaders,block"`
+	ResponseStatusCode *int                   `json:"responseStatusCode,omitempty" yaml:"responseStatusCode,omitempty" hcl:"responseStatusCode,optional"`
 
 	// SSH/Cmd/Fnct fields
 	Command    string `json:"command,omitempty" yaml:"command,omitempty" hcl:"command,optional"`

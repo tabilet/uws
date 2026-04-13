@@ -24,6 +24,8 @@ if !result.Valid() {
 
 Validation checks required root fields, duplicate identifiers, known service and structural types, selected reference integrity, action/criterion rules, trigger routes, security scheme shape, and selected schema-alignment constraints.
 
+`uws.json` provides structural JSON Schema validation. Use the Go validator for semantic checks such as duplicate identifiers, component/root operation collisions, and reference integrity.
+
 ## Conversion
 
 The `convert` package exposes JSON, YAML, and HCL helpers:

@@ -27,6 +27,8 @@ func TestSchemaConformance_KeyValidatorRules(t *testing.T) {
 	stepRequired := step["required"].([]any)
 	require.Contains(t, stepRequired, "stepId")
 	require.Contains(t, stepRequired, "type")
+	stepType := step["properties"].(map[string]any)["type"].(map[string]any)
+	require.ElementsMatch(t, append(mapKeys(ValidServiceTypes), mapKeys(validWorkflowTypes)...), stepType["enum"].([]any))
 
 	criterion := defs["criterion-object"].(map[string]any)
 	criterionRequired := criterion["required"].([]any)
@@ -34,9 +36,18 @@ func TestSchemaConformance_KeyValidatorRules(t *testing.T) {
 
 	route := defs["trigger-route-object"].(map[string]any)
 	require.Equal(t, "#/$defs/specification-extensions", route["$ref"])
+	require.Contains(t, route["required"].([]any), "to")
 
 	result := defs["structural-result-object"].(map[string]any)
 	require.Equal(t, "#/$defs/specification-extensions", result["$ref"])
+}
+
+func mapKeys(m map[string]bool) []any {
+	keys := make([]any, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	return keys
 }
 
 func TestSchemaConformance_ValidatorMatchesSelectedRules(t *testing.T) {

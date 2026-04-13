@@ -163,6 +163,10 @@ func (d *Document) collectDocumentIDs(idx *validationIndex, result *ValidationRe
 				result.addError(fmt.Sprintf("components.operations.%s", name), fmt.Sprintf("component name %q is not valid", name))
 			}
 			if op != nil && op.OperationID != "" {
+				componentPath := fmt.Sprintf("components.operations.%s.operationId", name)
+				if idx.operations[op.OperationID] {
+					result.addError(componentPath, fmt.Sprintf("duplicate operationId %q", op.OperationID))
+				}
 				idx.operations[op.OperationID] = true
 			}
 		}
@@ -340,7 +344,7 @@ func validateOperationFields(op *Operation, path string, result *ValidationResul
 }
 
 func isValidHTTPMethod(method string) bool {
-	switch strings.ToUpper(method) {
+	switch method {
 	case "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE":
 		return true
 	}
@@ -444,6 +448,9 @@ func (t *Trigger) validate(path string, idx *validationIndex, result *Validation
 func (r *TriggerRoute) validate(path string, idx *validationIndex, result *ValidationResult) {
 	if r.Output == "" {
 		result.addError(path+".output", "is required")
+	}
+	if len(r.To) == 0 {
+		result.addError(path+".to", "must contain at least one operationId")
 	}
 	for i, target := range r.To {
 		if target == "" {

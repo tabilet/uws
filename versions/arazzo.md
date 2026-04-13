@@ -199,10 +199,11 @@ There are no native parallel, conditional, loop, or branching constructs. Comple
 
 ### UWS: Rich Structural Constructs
 
-UWS provides five workflow types as first-class constructs:
+UWS provides six workflow types as first-class constructs:
 
 | Type | Description |
 |------|-------------|
+| `sequence` | Execute steps in order |
 | `parallel` | Execute steps concurrently |
 | `switch` | Branch on conditions via `cases` and `default` |
 | `merge` | Combine results from parallel branches |
@@ -459,7 +460,7 @@ Both specifications support reusable components, but with different scopes:
 | securitySchemes | No | Yes |
 | variables | No | Yes |
 
-Arazzo components are referenced via runtime expressions (`$components.parameters.myParam`) and support value overrides at the reference site. UWS components are referenced by name (e.g., via `operationRef` on a Step).
+Arazzo components are referenced via runtime expressions (`$components.parameters.myParam`) and support value overrides at the reference site. In the UWS beta, component map keys are storage keys: `operationRef` resolves by the referenced operation's `operationId`, and `SecurityRequirement.name` does not automatically resolve `components.securitySchemes`.
 
 ---
 

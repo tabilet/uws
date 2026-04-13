@@ -1,5 +1,5 @@
 {
-    "$id": "https://github.com/genelet/udon/uws/1.0/schema",
+    "$id": "https://github.com/tabilet/uws/1.0/schema",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "description": "The description of Udon Workflow Specification (UWS) v1.0.x documents",
     "type": "object",
@@ -331,7 +331,8 @@
                             "serviceType": {
                                 "const": "http"
                             }
-                        }
+                        },
+                        "required": ["serviceType"]
                     },
                     "then": {
                         "required": ["method"]
@@ -343,7 +344,8 @@
                             "serviceType": {
                                 "enum": ["ssh", "cmd"]
                             }
-                        }
+                        },
+                        "required": ["serviceType"]
                     },
                     "then": {
                         "required": ["command"]
@@ -355,7 +357,8 @@
                             "serviceType": {
                                 "const": "fnct"
                             }
-                        }
+                        },
+                        "required": ["serviceType"]
                     },
                     "then": {
                         "required": ["function"]
@@ -441,7 +444,14 @@
                 },
                 "type": {
                     "description": "Step type (service type or structural)",
-                    "type": "string"
+                    "enum": [
+                        "http", "ssh", "cmd", "fnct",
+                        "fileio", "ftp", "sftp", "scp", "smtp",
+                        "dns", "sql", "s3", "docker", "ldap",
+                        "llm", "mcp",
+                        "ioreadcloser", "ioreadwritecloser", "iowriter",
+                        "sequence", "parallel", "switch", "merge", "loop", "await"
+                    ]
                 },
                 "description": {
                     "description": "A description of the step's purpose",
@@ -568,10 +578,11 @@
                 "to": {
                     "description": "Downstream operation names",
                     "type": "array",
+                    "minItems": 1,
                     "items": { "type": "string" }
                 }
             },
-            "required": ["output"],
+            "required": ["output", "to"],
             "$ref": "#/$defs/specification-extensions",
             "unevaluatedProperties": false
         },
@@ -630,6 +641,41 @@
                 }
             },
             "required": ["type"],
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "type": { "const": "oauth2" }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": {
+                        "required": ["flows"]
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "type": { "const": "apiKey" }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": {
+                        "required": ["name", "in"]
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "type": { "const": "http" }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": {
+                        "required": ["scheme"]
+                    }
+                }
+            ],
             "$ref": "#/$defs/specification-extensions",
             "unevaluatedProperties": false
         },
@@ -753,6 +799,19 @@
                 }
             },
             "required": ["condition"],
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "type": { "enum": ["regex", "jsonpath", "xpath"] }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": {
+                        "required": ["context"]
+                    }
+                }
+            ],
             "$ref": "#/$defs/specification-extensions",
             "unevaluatedProperties": false
         },
@@ -795,6 +854,33 @@
                 }
             },
             "required": ["name", "type"],
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "type": { "const": "goto" }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": {
+                        "oneOf": [
+                            { "required": ["workflowId"] },
+                            { "required": ["stepId"] }
+                        ]
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "type": { "const": "retry" }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": {
+                        "required": ["retryLimit"]
+                    }
+                }
+            ],
             "$ref": "#/$defs/specification-extensions",
             "unevaluatedProperties": false
         },
@@ -827,6 +913,22 @@
                 }
             },
             "required": ["name", "type"],
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "type": { "const": "goto" }
+                        },
+                        "required": ["type"]
+                    },
+                    "then": {
+                        "oneOf": [
+                            { "required": ["workflowId"] },
+                            { "required": ["stepId"] }
+                        ]
+                    }
+                }
+            ],
             "$ref": "#/$defs/specification-extensions",
             "unevaluatedProperties": false
         },

@@ -153,6 +153,22 @@ func TestDocument_Extensions(t *testing.T) {
 	assert.Equal(t, float64(1), doc.Operations[0].Extensions["x-tier"])
 }
 
+func TestDocument_MarshalRejectsInvalidExtensionKey(t *testing.T) {
+	doc := validDocument()
+	doc.Extensions = map[string]any{"not-x": "bad"}
+
+	_, err := json.Marshal(doc)
+	require.ErrorContains(t, err, "must start with x-")
+}
+
+func TestDocument_MarshalRejectsFixedFieldExtensionOverride(t *testing.T) {
+	doc := validDocument()
+	doc.Operations[0].Extensions = map[string]any{"operationId": "hijack"}
+
+	_, err := json.Marshal(doc)
+	require.ErrorContains(t, err, "must start with x-")
+}
+
 func TestDocument_SampleFile(t *testing.T) {
 	data, err := os.ReadFile("../testdata/sample.uws.json")
 	require.NoError(t, err)
@@ -492,9 +508,9 @@ func TestWorkflow_InputsAndOutputs(t *testing.T) {
 		},
 		Steps: []*Step{
 			{
-				StepID:      "create",
-				Type:        "http",
-				Description: "Create the pet",
+				StepID:       "create",
+				Type:         "http",
+				Description:  "Create the pet",
 				OperationRef: "create_pet",
 				Outputs: map[string]string{
 					"petId": "$response.body#/id",

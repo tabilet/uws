@@ -3,6 +3,7 @@ package uws1
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 )
 
@@ -47,6 +48,12 @@ func marshalWithExtensions(v any, extensions map[string]any) ([]byte, error) {
 	}
 
 	for key, value := range extensions {
+		if !strings.HasPrefix(key, "x-") {
+			return nil, fmt.Errorf("extension key %q must start with x-", key)
+		}
+		if _, exists := m[key]; exists {
+			return nil, fmt.Errorf("extension key %q conflicts with a fixed field", key)
+		}
 		extData, err := json.Marshal(value)
 		if err != nil {
 			return nil, err

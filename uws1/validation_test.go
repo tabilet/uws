@@ -105,6 +105,12 @@ func TestValidate_InvalidHTTPMethod(t *testing.T) {
 	assert.ErrorContains(t, doc.Validate(), "invalid http method")
 }
 
+func TestValidate_HTTPMethodRequiresUppercase(t *testing.T) {
+	doc := validDocument()
+	doc.Operations[0].Method = "get"
+	assert.ErrorContains(t, doc.Validate(), "invalid http method")
+}
+
 func TestValidate_SSHRequiresCommand(t *testing.T) {
 	doc := validDocument()
 	doc.Operations[0].ServiceType = "ssh"
@@ -145,6 +151,16 @@ func TestValidate_DuplicateTriggerID(t *testing.T) {
 		{TriggerID: "t1"},
 	}
 	assert.ErrorContains(t, doc.Validate(), "duplicate triggerId")
+}
+
+func TestValidate_ComponentOperationIDCollision(t *testing.T) {
+	doc := validDocument()
+	doc.Components = &Components{
+		Operations: map[string]*Operation{
+			"reused": {OperationID: "get_data", ServiceType: "http", Method: "GET"},
+		},
+	}
+	assert.ErrorContains(t, doc.Validate(), "duplicate operationId")
 }
 
 func TestValidate_MultiService(t *testing.T) {
@@ -287,6 +303,21 @@ func TestValidate_OnFailure_GotoRequiresTarget(t *testing.T) {
 	assert.ErrorContains(t, doc.Validate(), "goto requires workflowId or stepId")
 }
 
+func TestValidate_OnFailure_GotoRejectsBothTargets(t *testing.T) {
+	doc := validDocument()
+	doc.Workflows = []*Workflow{
+		{
+			WorkflowID: "error_handler",
+			Type:       "parallel",
+			Steps:      []*Step{{StepID: "fallback_step", Type: "cmd", Body: map[string]any{"command": "true"}}},
+		},
+	}
+	doc.Operations[0].OnFailure = []*FailureAction{
+		{Name: "action", Type: "goto", WorkflowID: "error_handler", StepID: "fallback_step"},
+	}
+	assert.ErrorContains(t, doc.Validate(), "goto cannot specify both workflowId and stepId")
+}
+
 func TestValidate_OnFailure_GotoWithWorkflowID(t *testing.T) {
 	doc := validDocument()
 	doc.Workflows = []*Workflow{{WorkflowID: "error_handler", Type: "parallel"}}
@@ -368,6 +399,21 @@ func TestValidate_OnSuccess_GotoRequiresTarget(t *testing.T) {
 	assert.ErrorContains(t, doc.Validate(), "goto requires workflowId or stepId")
 }
 
+func TestValidate_OnSuccess_GotoRejectsBothTargets(t *testing.T) {
+	doc := validDocument()
+	doc.Workflows = []*Workflow{
+		{
+			WorkflowID: "next",
+			Type:       "parallel",
+			Steps:      []*Step{{StepID: "next_step", Type: "cmd", Body: map[string]any{"command": "true"}}},
+		},
+	}
+	doc.Operations[0].OnSuccess = []*SuccessAction{
+		{Name: "action", Type: "goto", WorkflowID: "next", StepID: "next_step"},
+	}
+	assert.ErrorContains(t, doc.Validate(), "goto cannot specify both workflowId and stepId")
+}
+
 func TestValidateResult_AccumulatesErrors(t *testing.T) {
 	doc := &Document{
 		UWS:  "2.0.0",
@@ -427,6 +473,54 @@ func TestValidate_WorkflowAndStepReferences(t *testing.T) {
 	assert.ErrorContains(t, err, "references unknown operationId")
 }
 
+func TestValidate_ComponentOperationRefUsesOperationID(t *testing.T) {
+	doc := validDocument()
+	doc.Components = &Components{
+		Operations: map[string]*Operation{
+			"reusable_key": {OperationID: "reusable_operation", ServiceType: "cmd", Command: "true"},
+		},
+	}
+	doc.Workflows = []*Workflow{
+		{
+			WorkflowID: "wf",
+			Type:       "sequence",
+			Steps:      []*Step{{StepID: "s", Type: "cmd", OperationRef: "reusable_operation"}},
+		},
+	}
+
+	assert.NoError(t, doc.Validate())
+}
+
+func TestValidate_ComponentOperationRefDoesNotUseMapKey(t *testing.T) {
+	doc := validDocument()
+	doc.Components = &Components{
+		Operations: map[string]*Operation{
+			"reusable_key": {OperationID: "reusable_operation", ServiceType: "cmd", Command: "true"},
+		},
+	}
+	doc.Workflows = []*Workflow{
+		{
+			WorkflowID: "wf",
+			Type:       "sequence",
+			Steps:      []*Step{{StepID: "s", Type: "cmd", OperationRef: "reusable_key"}},
+		},
+	}
+
+	assert.ErrorContains(t, doc.Validate(), "references unknown operationId")
+}
+
+func TestValidate_InvalidStepType(t *testing.T) {
+	doc := validDocument()
+	doc.Workflows = []*Workflow{
+		{
+			WorkflowID: "wf",
+			Type:       "sequence",
+			Steps:      []*Step{{StepID: "bad", Type: "not-a-step-type"}},
+		},
+	}
+	assert.ErrorContains(t, doc.Validate(), "not-a-step-type")
+}
+
 func TestValidate_SequenceWorkflow(t *testing.T) {
 	doc := validDocument()
 	doc.Workflows = []*Workflow{
@@ -459,6 +553,19 @@ func TestValidate_TriggerRouteReferencesOperation(t *testing.T) {
 	assert.ErrorContains(t, doc.Validate(), "references unknown operationId")
 }
 
+func TestValidate_TriggerRouteRequiresTarget(t *testing.T) {
+	doc := validDocument()
+	doc.Triggers = []*Trigger{
+		{
+			TriggerID: "webhook",
+			Routes: []*TriggerRoute{
+				{Output: "0"},
+			},
+		},
+	}
+	assert.ErrorContains(t, doc.Validate(), "must contain at least one operationId")
+}
+
 func TestValidate_SecuritySchemeRules(t *testing.T) {
 	doc := validDocument()
 	doc.Security = []*SecurityRequirement{
@@ -482,6 +589,18 @@ func TestValidate_SecuritySchemeRules(t *testing.T) {
 	assert.ErrorContains(t, err, "name is required for apiKey")
 	assert.ErrorContains(t, err, "body")
 	assert.ErrorContains(t, err, "tokenUrl")
+}
+
+func TestValidate_SecurityRequirementWithoutInlineSchemeIsMetadataOnly(t *testing.T) {
+	doc := validDocument()
+	doc.Components = &Components{
+		SecuritySchemes: map[string]*SecurityScheme{
+			"api_key": {Type: "apiKey", Name: "X-API-Key", In: "header"},
+		},
+	}
+	doc.Security = []*SecurityRequirement{{Name: "api_key"}}
+
+	assert.NoError(t, doc.Validate())
 }
 
 func TestValidate_StructuralResultKind(t *testing.T) {
