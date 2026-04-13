@@ -38,7 +38,7 @@
             }
         },
         "workflows": {
-            "description": "Structural workflow constructs (parallel, switch, merge, loop)",
+            "description": "Workflow control-flow constructs (sequence, parallel, switch, merge, loop, await)",
             "type": "array",
             "uniqueItems": true,
             "items": {
@@ -46,7 +46,7 @@
             }
         },
         "triggers": {
-            "description": "Workflow entry points (webhooks, polls)",
+            "description": "Workflow entry points, such as webhook-style triggers",
             "type": "array",
             "uniqueItems": true,
             "items": {
@@ -366,7 +366,7 @@
             "unevaluatedProperties": false
         },
         "workflow-object": {
-            "description": "A structural workflow construct (parallel, switch, merge, loop, await)",
+            "description": "A workflow control-flow construct (sequence, parallel, switch, merge, loop, await)",
             "type": "object",
             "properties": {
                 "workflowId": {
@@ -374,8 +374,8 @@
                     "type": "string"
                 },
                 "type": {
-                    "description": "Structural construct type",
-                    "enum": ["parallel", "switch", "merge", "loop", "await"]
+                    "description": "Workflow construct type",
+                    "enum": ["sequence", "parallel", "switch", "merge", "loop", "await"]
                 },
                 "description": {
                     "description": "A description of the workflow's purpose",

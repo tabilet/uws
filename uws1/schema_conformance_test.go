@@ -21,7 +21,7 @@ func TestSchemaConformance_KeyValidatorRules(t *testing.T) {
 	require.Contains(t, workflowRequired, "workflowId")
 	require.Contains(t, workflowRequired, "type")
 	workflowType := workflow["properties"].(map[string]any)["type"].(map[string]any)
-	require.ElementsMatch(t, []any{"parallel", "switch", "merge", "loop", "await"}, workflowType["enum"].([]any))
+	require.ElementsMatch(t, []any{"sequence", "parallel", "switch", "merge", "loop", "await"}, workflowType["enum"].([]any))
 
 	step := defs["step-object"].(map[string]any)
 	stepRequired := step["required"].([]any)

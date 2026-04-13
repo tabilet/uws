@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// Workflow describes a structural construct (parallel, switch, merge, loop, await).
+// Workflow describes a control-flow construct (sequence, parallel, switch, merge, loop, await).
 type Workflow struct {
 	WorkflowID  string            `json:"workflowId" yaml:"workflowId" hcl:"workflowId,label"`
 	Type        string            `json:"type" yaml:"type" hcl:"type"`

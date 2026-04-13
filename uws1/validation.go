@@ -54,6 +54,7 @@ var ValidServiceTypes = map[string]bool{
 }
 
 var validWorkflowTypes = map[string]bool{
+	"sequence": true,
 	"parallel": true,
 	"switch":   true,
 	"merge":    true,

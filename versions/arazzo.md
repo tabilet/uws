@@ -11,8 +11,8 @@ Both specifications define machine-readable formats for describing sequences of 
 | **Purpose** | API call sequencing | Multi-service workflow orchestration |
 | **Protocol scope** | HTTP only (via OpenAPI) | HTTP, SSH, Cmd, Fnct, and 15+ other service types |
 | **Operation definition** | Referenced from external OpenAPI specs | Defined inline, self-contained |
-| **Control flow** | Sequential steps | Parallel, switch, merge, loop, await |
-| **Error handling** | First-class success/failure actions with retry | Implicit (HTTP status codes, `when` expressions) |
+| **Control flow** | Sequential steps | Sequence, parallel, switch, merge, loop, await |
+| **Error handling** | First-class success/failure actions with retry | Operation-level success criteria and success/failure actions |
 | **Source documents** | Required (at least one) | Optional (provenance tracking) |
 
 ---
@@ -65,8 +65,8 @@ Both specifications define machine-readable formats for describing sequences of 
 | provider | No | Default service endpoint |
 | variables | No | Global variables |
 | operations | Yes | At least one operation |
-| workflows | No | Structural control-flow constructs |
-| triggers | No | Entry points (webhooks, polls) |
+| workflows | No | Workflow control-flow constructs |
+| triggers | No | Entry points, such as webhooks |
 | security | No | Global security requirements |
 | results | No | Structural result declarations |
 | components | No | Reusable operations, security schemes, variables |
@@ -282,15 +282,16 @@ Criteria support four expression types: `simple`, `regex`, `jsonpath`, `xpath`. 
 
 Actions can be conditional (with their own `criteria`) and support three types: `end`, `goto`, `retry`. Retry actions support `retryAfter` (seconds) and `retryLimit`. Actions can be defined at the workflow level (as defaults) and overridden per step.
 
-### UWS: Implicit Error Handling
+### UWS: Operation-Level Error Handling
 
-UWS does not define success criteria, success actions, or failure actions as specification objects. Error handling is managed through:
+UWS defines success criteria, success actions, and failure actions on operations. These provide portable operation-level checks and routing while keeping workflow and step objects focused on control-flow structure.
 
-- **`responseStatusCode`** — the expected HTTP status code (implicit success check)
-- **`when`** — conditional expressions that can skip operations based on upstream results
-- **Runtime behavior** — the executing engine (udon) handles errors according to its own policies
+- **`successCriteria`** — explicit checks evaluated after an operation runs
+- **`onFailure`** — operation-level `end`, `goto`, or `retry` actions
+- **`onSuccess`** — operation-level `end` or `goto` actions
+- **`responseStatusCode`** — the expected HTTP status code for HTTP operations
 
-**Trade-off:** Arazzo provides portable, specification-level error handling that any conforming runtime must implement. UWS defers error handling to the runtime, keeping the specification simpler but less prescriptive about failure recovery.
+**Trade-off:** Arazzo provides step-, workflow-, and component-scoped action objects. UWS currently keeps actions operation-local, which is simpler for multi-protocol execution but less reusable than Arazzo's handler model.
 
 ---
 
@@ -422,7 +423,7 @@ UWS defines trigger objects for workflow entry points. Arazzo has no equivalent 
 }
 ```
 
-Triggers define how external events (webhooks, polls) initiate workflow execution and route their outputs to specific operations.
+Triggers define how external events, such as webhooks, initiate workflow execution and route their outputs to specific operations.
 
 ---
 
@@ -487,16 +488,19 @@ Arazzo defines a formal expression syntax:
 
 ### UWS
 
-UWS uses runtime expressions in `when`, `forEach`, `wait`, `workflow`, and `outputs` fields. The expression syntax is less formally specified:
+UWS uses runtime expressions in `when`, `forEach`, `wait`, `workflow`, `outputs`, and `successCriteria` fields. It extends Arazzo-style runtime expressions for multi-protocol operations:
 
 | Expression | Description |
 |------------|-------------|
-| `$response.body.{path}` | Value from response body (dot notation) |
-| `$steps.{stepId}.received_body` | Response body from a previous step |
+| `$response.body#/json/pointer` | Value from response body via JSON Pointer |
+| `$request.body#/json/pointer` | Value from request body via JSON Pointer |
+| `$inputs.{name}` | Workflow input value |
+| `$steps.{stepId}.outputs.{name}` | Output from a previous step |
+| `$operations.{operationId}.outputs.{name}` | Output from a named operation |
 | `length(...)` | Built-in functions |
 | Comparisons | `<`, `>`, `==`, etc. |
 
-UWS expressions use dot notation rather than JSON Pointers, and the full expression language is defined by the runtime engine (udon) rather than the specification itself.
+UWS uses JSON Pointers for request and response bodies. UWS documents generated from HCL may also contain HCL-compatible expression strings in runtime expression fields; such expressions require a runtime that supports those functions and evaluation rules.
 
 ---
 
@@ -570,12 +574,12 @@ A UWS Workflow is a structural control-flow construct — it describes _how_ ste
 
 | Aspect | Arazzo Workflow | UWS Workflow |
 |--------|----------------|--------------|
-| Purpose | Sequence of API calls | Structural control-flow pattern |
+| Purpose | Sequence of API calls | Control-flow pattern |
 | Required fields | `workflowId`, `steps` | `workflowId`, `type` |
-| Type field | None (always sequential) | `parallel`, `switch`, `merge`, `loop`, `await` |
-| Inputs | JSON Schema for workflow parameters | None (uses global variables) |
-| Success/failure handlers | Yes (workflow-level defaults) | No |
-| Outputs | Yes (map to expressions) | No (uses Structural Result objects) |
+| Type field | None (always sequential) | `sequence`, `parallel`, `switch`, `merge`, `loop`, `await` |
+| Inputs | JSON Schema for workflow parameters | JSON Schema for workflow parameters |
+| Success/failure handlers | Yes (workflow-level defaults) | No at workflow level; operation-level actions are supported |
+| Outputs | Yes (map to expressions) | Yes (map to expressions) |
 | Steps | At least one required | Optional (switch uses `cases`) |
 | Branching | Via goto actions | Via `cases` and `default` |
 | Looping | Via goto actions | Via `type: "loop"` with `items`, `batchSize` |
@@ -596,10 +600,10 @@ A UWS Workflow is a structural control-flow construct — it describes _how_ ste
 | description | CommonMark description | Not present |
 | parameters | Explicit Parameter objects | Not present (uses operation's request) |
 | requestBody | Explicit RequestBody with replacements | Not present |
-| successCriteria | Criterion array | Not present |
-| onSuccess | SuccessAction array | Not present |
-| onFailure | FailureAction array | Not present |
-| outputs | Map to runtime expressions | Not present (at operation level) |
+| successCriteria | Criterion array | Not present on steps; present on operations |
+| onSuccess | SuccessAction array | Not present on steps; present on operations |
+| onFailure | FailureAction array | Not present on steps; present on operations |
+| outputs | Map to runtime expressions | Map to runtime expressions |
 | when | Not present | Conditional expression |
 | forEach | Not present | Iteration expression |
 | wait | Not present | Wait duration |
@@ -632,9 +636,9 @@ UWS is designed for **multi-protocol workflow orchestration**. It assumes:
 - Operations span multiple protocols (HTTP, SSH, commands, functions, and more).
 - Operations are self-contained and carry their own schemas and configuration.
 - Control flow is a first-class concern — parallel execution, branching, looping, and merging are native structural constructs.
-- Error handling is deferred to the runtime engine rather than specified in the document.
+- Operation-level error handling is specified with success criteria and success/failure actions.
 - Security, triggers, and providers are part of the workflow definition rather than external concerns.
-- The specification is descriptive rather than prescriptive — it defines what to execute, with the runtime deciding how to handle errors and edge cases.
+- The specification is descriptive rather than prescriptive about full runtime behavior — it defines what to execute while leaving engine-specific edge-case policies to implementations.
 
 ### Expression Language and HCL
 
@@ -677,7 +681,8 @@ This distinction affects tooling:
 |----------|----------------|
 | Orchestrating OpenAPI-described REST APIs | Arazzo |
 | Mixing HTTP calls with shell commands, functions, or file operations | UWS |
-| Specifying retry policies and success criteria in the workflow document | Arazzo |
+| Specifying step/workflow-level retry policies and reusable success criteria handlers | Arazzo |
+| Specifying operation-level retry policies and success criteria in a multi-protocol document | UWS |
 | Parallel execution, conditional branching, or loop patterns | UWS |
 | Documenting API integration sequences for external consumers | Arazzo |
 | Defining internal automation workflows with multiple service types | UWS |

@@ -427,6 +427,25 @@ func TestValidate_WorkflowAndStepReferences(t *testing.T) {
 	assert.ErrorContains(t, err, "references unknown operationId")
 }
 
+func TestValidate_SequenceWorkflow(t *testing.T) {
+	doc := validDocument()
+	doc.Workflows = []*Workflow{
+		{
+			WorkflowID: "main",
+			Type:       "sequence",
+			Steps: []*Step{
+				{
+					StepID:       "get_data",
+					Type:         "http",
+					OperationRef: "get_data",
+				},
+			},
+		},
+	}
+
+	assert.NoError(t, doc.Validate())
+}
+
 func TestValidate_TriggerRouteReferencesOperation(t *testing.T) {
 	doc := validDocument()
 	doc.Triggers = []*Trigger{
