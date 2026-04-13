@@ -289,6 +289,7 @@ func TestValidate_OnFailure_GotoRequiresTarget(t *testing.T) {
 
 func TestValidate_OnFailure_GotoWithWorkflowID(t *testing.T) {
 	doc := validDocument()
+	doc.Workflows = []*Workflow{{WorkflowID: "error_handler", Type: "parallel"}}
 	doc.Operations[0].OnFailure = []*FailureAction{
 		{Name: "action", Type: "goto", WorkflowID: "error_handler"},
 	}
@@ -297,6 +298,13 @@ func TestValidate_OnFailure_GotoWithWorkflowID(t *testing.T) {
 
 func TestValidate_OnFailure_GotoWithStepID(t *testing.T) {
 	doc := validDocument()
+	doc.Workflows = []*Workflow{
+		{
+			WorkflowID: "error_handler",
+			Type:       "parallel",
+			Steps:      []*Step{{StepID: "fallback_step", Type: "cmd", Body: map[string]any{"command": "true"}}},
+		},
+	}
 	doc.Operations[0].OnFailure = []*FailureAction{
 		{Name: "action", Type: "goto", StepID: "fallback_step"},
 	}
@@ -328,6 +336,7 @@ func TestValidate_OnFailure_NestedCriteria(t *testing.T) {
 
 func TestValidate_OnSuccess_Valid(t *testing.T) {
 	doc := validDocument()
+	doc.Workflows = []*Workflow{{WorkflowID: "next", Type: "parallel"}}
 	doc.Operations[0].OnSuccess = []*SuccessAction{
 		{Name: "continue", Type: "end"},
 		{Name: "route", Type: "goto", WorkflowID: "next"},
@@ -357,4 +366,107 @@ func TestValidate_OnSuccess_GotoRequiresTarget(t *testing.T) {
 		{Name: "action", Type: "goto"},
 	}
 	assert.ErrorContains(t, doc.Validate(), "goto requires workflowId or stepId")
+}
+
+func TestValidateResult_AccumulatesErrors(t *testing.T) {
+	doc := &Document{
+		UWS:  "2.0.0",
+		Info: &Info{},
+		Operations: []*Operation{
+			{OperationID: "op", ServiceType: "http", Method: "PUSH"},
+			{OperationID: "op", ServiceType: "fnct"},
+		},
+	}
+
+	result := doc.ValidateResult()
+	assert.False(t, result.Valid())
+	assert.GreaterOrEqual(t, len(result.Errors), 4)
+	assert.ErrorContains(t, result, "version")
+	assert.ErrorContains(t, result, "info.title")
+	assert.ErrorContains(t, result, "duplicate operationId")
+	assert.ErrorContains(t, result, "invalid http method")
+	assert.ErrorContains(t, result, "fnct operations require function")
+}
+
+func TestValidate_SourceDescriptions_InvalidNamePattern(t *testing.T) {
+	doc := validDocument()
+	doc.SourceDescriptions = []*SourceDescription{
+		{Name: "bad name", URL: "./spec.yaml"},
+	}
+	assert.ErrorContains(t, doc.Validate(), "must match pattern")
+}
+
+func TestValidate_CriterionTypedRequiresContext(t *testing.T) {
+	doc := validDocument()
+	doc.Operations[0].SuccessCriteria = []*Criterion{
+		{Condition: "^ok", Type: CriterionRegex},
+	}
+	assert.ErrorContains(t, doc.Validate(), "context is required")
+}
+
+func TestValidate_WorkflowAndStepReferences(t *testing.T) {
+	doc := validDocument()
+	doc.Workflows = []*Workflow{
+		{
+			WorkflowID: "wf",
+			Type:       "parallel",
+			DependsOn:  []string{"missing_dependency"},
+			Steps: []*Step{
+				{
+					StepID:       "step",
+					Type:         "http",
+					OperationRef: "missing_operation",
+					DependsOn:    []string{"missing_step"},
+				},
+			},
+		},
+	}
+
+	err := doc.Validate()
+	assert.ErrorContains(t, err, "references unknown dependency")
+	assert.ErrorContains(t, err, "references unknown operationId")
+}
+
+func TestValidate_TriggerRouteReferencesOperation(t *testing.T) {
+	doc := validDocument()
+	doc.Triggers = []*Trigger{
+		{
+			TriggerID: "webhook",
+			Routes: []*TriggerRoute{
+				{Output: "0", To: []string{"missing"}},
+			},
+		},
+	}
+	assert.ErrorContains(t, doc.Validate(), "references unknown operationId")
+}
+
+func TestValidate_SecuritySchemeRules(t *testing.T) {
+	doc := validDocument()
+	doc.Security = []*SecurityRequirement{
+		{
+			Name: "api_key",
+			Scheme: &SecurityScheme{
+				Type: "apiKey",
+				In:   "body",
+			},
+		},
+		{
+			Name: "oauth",
+			Scheme: &SecurityScheme{
+				Type:  "oauth2",
+				Flows: &OAuthFlows{AuthorizationCode: &OAuthFlow{AuthorizationURL: "https://auth.example.com"}},
+			},
+		},
+	}
+
+	err := doc.Validate()
+	assert.ErrorContains(t, err, "name is required for apiKey")
+	assert.ErrorContains(t, err, "body")
+	assert.ErrorContains(t, err, "tokenUrl")
+}
+
+func TestValidate_StructuralResultKind(t *testing.T) {
+	doc := validDocument()
+	doc.Results = []*StructuralResult{{Name: "out", Kind: "parallel"}}
+	assert.ErrorContains(t, doc.Validate(), "parallel")
 }

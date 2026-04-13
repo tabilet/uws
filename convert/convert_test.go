@@ -2,6 +2,7 @@ package convert
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -40,6 +41,171 @@ func TestJSONToHCL(t *testing.T) {
 	}
 	if !strings.Contains(hclStr, "operation") {
 		t.Error("HCL output missing 'operation' block")
+	}
+}
+
+func TestMarshalHCLDoesNotMutateDocument(t *testing.T) {
+	doc := &uws1.Document{
+		UWS:  "1.0.0",
+		Info: &uws1.Info{Title: "Mutation Test", Summary: "Line 1\nLine 2", Version: "1.0.0"},
+		Provider: &uws1.Provider{
+			Appendices: map[string]any{"$provider": "kept"},
+		},
+		Variables: map[string]any{"$root": "kept"},
+		Operations: []*uws1.Operation{
+			{
+				OperationID: "op1",
+				ServiceType: "http",
+				Method:      "GET",
+				Description: "Line 1\nLine 2",
+				Request:     map[string]any{"$request": map[string]any{"nested": "value"}},
+			},
+		},
+		Workflows: []*uws1.Workflow{
+			{
+				WorkflowID: "wf",
+				Type:       "parallel",
+				Steps: []*uws1.Step{
+					{StepID: "step", Type: "http", Body: map[string]any{"$body": "kept"}},
+				},
+			},
+		},
+	}
+	original, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatalf("Failed to snapshot original document: %v", err)
+	}
+
+	if _, err := MarshalHCL(doc); err != nil {
+		t.Fatalf("MarshalHCL failed: %v", err)
+	}
+	after, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatalf("Failed to snapshot document after MarshalHCL: %v", err)
+	}
+
+	if !reflect.DeepEqual(original, after) {
+		t.Fatalf("MarshalHCL mutated the source document:\noriginal=%s\nafter=%s", original, after)
+	}
+}
+
+func TestHCLConversionTransformsNestedWorkflowBodies(t *testing.T) {
+	jsonData := []byte(`{
+		"uws": "1.0.0",
+		"info": {"title": "Nested Body Test", "version": "1.0.0"},
+		"operations": [{"operationId": "op1", "serviceType": "http", "method": "GET"}],
+		"workflows": [
+			{
+				"workflowId": "wf",
+				"type": "switch",
+				"steps": [
+					{
+						"stepId": "outer",
+						"type": "switch",
+						"cases": [
+							{
+								"name": "case_a",
+								"body": {"$case": "value"},
+								"steps": [
+									{
+										"stepId": "inner",
+										"type": "http",
+										"body": {"$inner": {"line": "a\nb"}}
+									}
+								]
+							}
+						],
+						"default": [
+							{"stepId": "fallback", "type": "cmd", "body": {"$default": "value"}}
+						]
+					}
+				]
+			}
+		]
+	}`)
+
+	hclData, err := JSONToHCL(jsonData)
+	if err != nil {
+		t.Fatalf("JSONToHCL failed: %v", err)
+	}
+	hcl := string(hclData)
+	for _, want := range []string{"__dollar__case", "__dollar__inner", "__dollar__default"} {
+		if !strings.Contains(hcl, want) {
+			t.Fatalf("HCL output missing nested transformed key %q:\n%s", want, hcl)
+		}
+	}
+
+	jsonData2, err := HCLToJSON(hclData)
+	if err != nil {
+		t.Fatalf("HCLToJSON failed: %v", err)
+	}
+	var doc uws1.Document
+	if err := json.Unmarshal(jsonData2, &doc); err != nil {
+		t.Fatalf("Failed to parse JSON output: %v", err)
+	}
+	nestedCase := doc.Workflows[0].Steps[0].Cases[0]
+	if _, ok := nestedCase.Body["$case"]; !ok {
+		t.Fatal("Expected nested case $case key after round-trip")
+	}
+	if _, ok := nestedCase.Steps[0].Body["$inner"]; !ok {
+		t.Fatal("Expected nested step $inner key after round-trip")
+	}
+	if _, ok := doc.Workflows[0].Steps[0].Default[0].Body["$default"]; !ok {
+		t.Fatal("Expected nested default $default key after round-trip")
+	}
+}
+
+func TestYAMLHelpersPreserveExtensions(t *testing.T) {
+	yamlData := []byte(`
+uws: 1.0.0
+info:
+  title: YAML Test
+  version: 1.0.0
+  x-info: true
+operations:
+  - operationId: op1
+    serviceType: http
+    method: GET
+    x-tier: 2
+triggers:
+  - triggerId: webhook
+    routes:
+      - output: "0"
+        to: [op1]
+        x-route: yes
+results:
+  - name: out
+    kind: merge
+    x-result: kept
+x-root: yaml
+`)
+
+	var doc uws1.Document
+	if err := UnmarshalYAML(yamlData, &doc); err != nil {
+		t.Fatalf("UnmarshalYAML failed: %v", err)
+	}
+	if doc.Extensions["x-root"] != "yaml" {
+		t.Fatalf("Expected root extension, got %#v", doc.Extensions)
+	}
+	if doc.Info.Extensions["x-info"] != true {
+		t.Fatalf("Expected info extension, got %#v", doc.Info.Extensions)
+	}
+	if doc.Operations[0].Extensions["x-tier"] != float64(2) {
+		t.Fatalf("Expected operation extension, got %#v", doc.Operations[0].Extensions)
+	}
+	if doc.Triggers[0].Routes[0].Extensions["x-route"] != "yes" {
+		t.Fatalf("Expected route extension, got %#v", doc.Triggers[0].Routes[0].Extensions)
+	}
+	if doc.Results[0].Extensions["x-result"] != "kept" {
+		t.Fatalf("Expected result extension, got %#v", doc.Results[0].Extensions)
+	}
+
+	encoded, err := MarshalYAML(&doc)
+	if err != nil {
+		t.Fatalf("MarshalYAML failed: %v", err)
+	}
+	if !strings.Contains(string(encoded), "x-root") || !strings.Contains(string(encoded), "x-result") {
+		t.Fatalf("YAML output did not preserve extensions:\n%s", encoded)
 	}
 }
 

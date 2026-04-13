@@ -44,6 +44,33 @@ func (t Trigger) MarshalJSON() ([]byte, error) {
 
 // TriggerRoute maps a trigger output to downstream operations.
 type TriggerRoute struct {
-	Output string   `json:"output" yaml:"output" hcl:"output"`
-	To     []string `json:"to,omitempty" yaml:"to,omitempty" hcl:"to,optional"`
+	Output     string         `json:"output" yaml:"output" hcl:"output"`
+	To         []string       `json:"to,omitempty" yaml:"to,omitempty" hcl:"to,optional"`
+	Extensions map[string]any `json:"-" yaml:"-" hcl:"-"`
+}
+
+type triggerRouteAlias TriggerRoute
+
+var triggerRouteKnownFields = []string{
+	"output", "to",
+}
+
+func (t *TriggerRoute) UnmarshalJSON(data []byte) error {
+	var alias triggerRouteAlias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return fmt.Errorf("unmarshaling triggerRoute: %w", err)
+	}
+	*t = TriggerRoute(alias)
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return fmt.Errorf("unmarshaling triggerRoute extensions: %w", err)
+	}
+	t.Extensions = extractExtensions(raw, triggerRouteKnownFields)
+	return nil
+}
+
+func (t TriggerRoute) MarshalJSON() ([]byte, error) {
+	alias := triggerRouteAlias(t)
+	return marshalWithExtensions(&alias, t.Extensions)
 }

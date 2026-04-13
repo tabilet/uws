@@ -572,6 +572,7 @@
                 }
             },
             "required": ["output"],
+            "$ref": "#/$defs/specification-extensions",
             "unevaluatedProperties": false
         },
         "security-requirement-object": {
@@ -710,6 +711,7 @@
                     "enum": ["switch", "merge", "loop"]
                 }
             },
+            "$ref": "#/$defs/specification-extensions",
             "unevaluatedProperties": false
         },
         "components-object": {
