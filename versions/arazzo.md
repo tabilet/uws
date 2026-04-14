@@ -12,6 +12,8 @@ UWS is not a replacement for OpenAPI and should not duplicate OpenAPI operation 
 
 Arazzo is an API-call sequencing specification. UWS is an OpenAPI-backed workflow overlay intended for workflow authoring and execution tooling such as `udon`.
 
+The narrowed UWS core is intentionally HTTP/OpenAPI-first: executable core operations bind to OpenAPI, while non-OpenAPI behavior is expressed through implementation-owned `x-*` profiles.
+
 UWS keeps a simpler local operation model:
 
 ```json
@@ -61,7 +63,7 @@ UWS core does not define these fields on operations:
 - security requirements
 - command/function runtime fields
 
-Those details are resolved from the referenced OpenAPI document or handled by `x-*` implementation extensions.
+For OpenAPI-bound operations, those details are resolved from the referenced OpenAPI document. For extension-owned operations, they belong in `x-*` implementation profiles.
 
 ## Structural Workflows
 
@@ -80,7 +82,7 @@ Workflow steps call operations with `operationRef`. Step `type` is reserved for 
 
 UWS uses `x-*` extensions for non-core behavior. Examples include local commands, in-process functions, file I/O, SSH, SQL, LLM calls, provider credentials, or product-specific runtime metadata.
 
-When an operation omits `sourceDescription` and OpenAPI operation binding fields, it is extension-owned and MUST include `x-uws-operation-profile` so implementations can identify which profile owns execution.
+When an operation omits `sourceDescription` and OpenAPI operation binding fields, it is extension-owned and MUST include `x-uws-operation-profile` with at least one non-whitespace character so implementations can identify which profile owns execution.
 
 Example:
 
@@ -101,4 +103,4 @@ The core schema preserves this extension but does not validate or execute it.
 
 Use Arazzo when you want an OpenAPI Initiative workflow document focused on API-call sequencing.
 
-Use UWS when you want a compact workflow interchange document for OpenAPI-backed workflow execution, structural control flow, triggers, and extension-friendly runtime profiles.
+Use UWS when you want a compact workflow interchange document for OpenAPI-backed HTTP workflow execution, structural control flow, triggers, and extension-friendly runtime profiles.
