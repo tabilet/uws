@@ -140,6 +140,23 @@ func TestValidate_OperationBindingRules(t *testing.T) {
 		assert.ErrorContains(t, doc.Validate(), "requires an OpenAPI binding or x-uws-operation-profile")
 	})
 
+	t.Run("extension-owned operation requires non-whitespace profile marker", func(t *testing.T) {
+		doc := &Document{
+			UWS:  "1.0.0",
+			Info: &Info{Title: "Extension", Version: "1.0.0"},
+			Operations: []*Operation{
+				{
+					OperationID: "build_email",
+					Extensions: map[string]any{
+						ExtensionOperationProfile: "   ",
+						"x-udon-runtime":          map[string]any{"type": "fnct", "function": "mail_raw"},
+					},
+				},
+			},
+		}
+		assert.ErrorContains(t, doc.Validate(), "requires an OpenAPI binding or x-uws-operation-profile")
+	})
+
 	t.Run("non pointer operation ref", func(t *testing.T) {
 		doc := validDocument()
 		doc.Operations[0].OpenAPIOperationID = ""

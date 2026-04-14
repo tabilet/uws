@@ -101,6 +101,19 @@ func TestSchemaConformance_JSONSchemaValidator(t *testing.T) {
 	}`))
 	require.NoError(t, schema.Validate(extensionOnly))
 
+	extensionWhitespaceProfile := decodeJSONValue(t, []byte(`{
+		"uws": "1.0.0",
+		"info": {"title": "Extension", "version": "1.0.0"},
+		"operations": [
+			{
+				"operationId": "build_email",
+				"x-uws-operation-profile": "   ",
+				"x-udon-runtime": {"type": "fnct", "function": "mail_raw"}
+			}
+		]
+	}`))
+	require.Error(t, schema.Validate(extensionWhitespaceProfile))
+
 	extensionWithoutProfile := decodeJSONValue(t, []byte(`{
 		"uws": "1.0.0",
 		"info": {"title": "Extension", "version": "1.0.0"},
