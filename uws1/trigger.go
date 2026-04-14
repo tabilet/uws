@@ -12,6 +12,7 @@ type Trigger struct {
 	Methods        []string        `json:"methods,omitempty" yaml:"methods,omitempty" hcl:"methods,optional"`
 	Authentication string          `json:"authentication,omitempty" yaml:"authentication,omitempty" hcl:"authentication,optional"`
 	Options        map[string]any  `json:"options,omitempty" yaml:"options,omitempty" hcl:"options,optional"`
+	Outputs        []string        `json:"outputs,omitempty" yaml:"outputs,omitempty" hcl:"outputs,optional"`
 	Routes         []*TriggerRoute `json:"routes,omitempty" yaml:"routes,omitempty" hcl:"route,block"`
 	Extensions     map[string]any  `json:"-" yaml:"-" hcl:"-"`
 }
@@ -19,7 +20,7 @@ type Trigger struct {
 type triggerAlias Trigger
 
 var triggerKnownFields = []string{
-	"triggerId", "path", "methods", "authentication", "options", "routes",
+	"triggerId", "path", "methods", "authentication", "options", "outputs", "routes",
 }
 
 func (t *Trigger) UnmarshalJSON(data []byte) error {

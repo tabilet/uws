@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -71,6 +72,8 @@ var validStructuralResultKinds = map[string]bool{
 type validationIndex struct {
 	operations         map[string]bool
 	workflows          map[string]bool
+	workflowTypes      map[string]string
+	workflowSteps      map[string]map[string]string
 	steps              map[string]bool
 	triggers           map[string]bool
 	parallelGroups     map[string]bool
@@ -118,6 +121,8 @@ func newValidationIndex() *validationIndex {
 	return &validationIndex{
 		operations:         make(map[string]bool),
 		workflows:          make(map[string]bool),
+		workflowTypes:      make(map[string]string),
+		workflowSteps:      make(map[string]map[string]string),
 		steps:              make(map[string]bool),
 		triggers:           make(map[string]bool),
 		parallelGroups:     make(map[string]bool),
@@ -168,6 +173,15 @@ func (d *Document) collectDocumentIDs(idx *validationIndex, result *ValidationRe
 				result.addError(path+".workflowId", fmt.Sprintf("duplicate workflowId %q", wf.WorkflowID))
 			}
 			idx.workflows[wf.WorkflowID] = true
+			idx.workflowTypes[wf.WorkflowID] = wf.Type
+			idx.workflowSteps[wf.WorkflowID] = make(map[string]string)
+			collectWorkflowStepTypes(wf.WorkflowID, wf.Steps, idx)
+			collectWorkflowStepTypes(wf.WorkflowID, wf.Default, idx)
+			for _, c := range wf.Cases {
+				if c != nil {
+					collectWorkflowStepTypes(wf.WorkflowID, c.Steps, idx)
+				}
+			}
 		}
 		collectStepIDs(wf.Steps, path+".steps", idx, result)
 		collectCaseStepIDs(wf.Cases, path+".cases", idx, result)
@@ -185,6 +199,22 @@ func (d *Document) collectDocumentIDs(idx *validationIndex, result *ValidationRe
 				result.addError(path+".triggerId", fmt.Sprintf("duplicate triggerId %q", trigger.TriggerID))
 			}
 			idx.triggers[trigger.TriggerID] = true
+		}
+	}
+}
+
+func collectWorkflowStepTypes(workflowID string, steps []*Step, idx *validationIndex) {
+	for _, step := range steps {
+		if step == nil || step.StepID == "" {
+			continue
+		}
+		idx.workflowSteps[workflowID][step.StepID] = step.Type
+		collectWorkflowStepTypes(workflowID, step.Steps, idx)
+		collectWorkflowStepTypes(workflowID, step.Default, idx)
+		for _, c := range step.Cases {
+			if c != nil {
+				collectWorkflowStepTypes(workflowID, c.Steps, idx)
+			}
 		}
 	}
 }
@@ -246,12 +276,14 @@ func (d *Document) validateDocumentReferences(idx *validationIndex, result *Vali
 		}
 		trigger.validate(path, idx, result)
 	}
+	seenResultNames := make(map[string]bool)
 	for i, resultDecl := range d.Results {
-		if resultDecl != nil {
-			resultDecl.validate(fmt.Sprintf("results[%d]", i), result)
-		} else {
-			result.addError(fmt.Sprintf("results[%d]", i), "is nil")
+		resultPath := fmt.Sprintf("results[%d]", i)
+		if resultDecl == nil {
+			result.addError(resultPath, "is nil")
+			continue
 		}
+		resultDecl.validate(resultPath, idx, seenResultNames, result)
 	}
 	if d.Components != nil {
 		d.Components.validate("components", result)
@@ -289,11 +321,10 @@ func (op *Operation) validate(path string, idx *validationIndex, result *Validat
 	hasSource := op.SourceDescription != ""
 	hasOpenAPIOperationID := op.OpenAPIOperationID != ""
 	hasOpenAPIOperationRef := op.OpenAPIOperationRef != ""
-	hasOpenAPIBinding := hasSource || hasOpenAPIOperationID || hasOpenAPIOperationRef
 	switch {
 	case hasOpenAPIOperationID && hasOpenAPIOperationRef:
 		result.addError(path, "cannot specify both openapiOperationId and openapiOperationRef")
-	case hasOpenAPIBinding:
+	case op.HasOpenAPIBinding():
 		if !hasSource {
 			result.addError(path+".sourceDescription", "is required for OpenAPI-bound operations")
 		} else if !idx.sourceDescriptions[op.SourceDescription] {
@@ -305,7 +336,7 @@ func (op *Operation) validate(path string, idx *validationIndex, result *Validat
 		if hasOpenAPIOperationRef && !strings.HasPrefix(op.OpenAPIOperationRef, "#/") {
 			result.addError(path+".openapiOperationRef", "must be a JSON Pointer fragment beginning with #/")
 		}
-	case !hasExtensionOperationProfile(op.Extensions):
+	case !op.IsExtensionOwned():
 		result.addError(path, "requires an OpenAPI binding or x-uws-operation-profile for extension-owned operations")
 	}
 	validateRequest(op.Request, path+".request", result)
@@ -332,18 +363,6 @@ func validateRequest(request map[string]any, path string, result *ValidationResu
 			}
 		}
 	}
-}
-
-func hasExtensionOperationProfile(extensions map[string]any) bool {
-	if len(extensions) == 0 {
-		return false
-	}
-	value, ok := extensions[ExtensionOperationProfile]
-	if !ok {
-		return false
-	}
-	text, ok := value.(string)
-	return ok && strings.TrimSpace(text) != ""
 }
 
 func isObjectValue(value any) bool {
@@ -388,12 +407,53 @@ func (w *Workflow) validate(path string, idx *validationIndex, result *Validatio
 		result.addError(path+".type", "is required")
 	} else if !validWorkflowTypes[w.Type] {
 		result.addError(path+".type", fmt.Sprintf("%q is not valid", w.Type))
+	} else {
+		validateStructuralTypeFields(w.Type, w.Items, w.Wait, len(w.Cases) > 0, len(w.Default) > 0, path, result)
 	}
 	validateDependencyList(w.DependsOn, path+".dependsOn", idx, result)
 	validateOutputs(w.Outputs, path+".outputs", result)
 	validateSteps(w.Steps, path+".steps", idx, result)
 	validateCases(w.Cases, path+".cases", idx, result)
 	validateSteps(w.Default, path+".default", idx, result)
+}
+
+// validateStructuralTypeFields enforces §4.5.6.3 constraints on a workflow or
+// step that declares a structural type. The caller passes the relevant fields;
+// empty strings indicate the field is unset.
+func validateStructuralTypeFields(typeName, items, wait string, hasCases, hasDefault bool, path string, result *ValidationResult) {
+	switch typeName {
+	case "loop":
+		if strings.TrimSpace(items) == "" {
+			result.addError(path+".items", "is required for loop")
+		}
+		if hasCases {
+			result.addError(path+".cases", "is not valid on loop")
+		}
+		if hasDefault {
+			result.addError(path+".default", "is not valid on loop")
+		}
+	case "await":
+		if strings.TrimSpace(wait) == "" {
+			result.addError(path+".wait", "is required for await")
+		}
+		if hasCases {
+			result.addError(path+".cases", "is not valid on await")
+		}
+		if hasDefault {
+			result.addError(path+".default", "is not valid on await")
+		}
+		if strings.TrimSpace(items) != "" {
+			result.addError(path+".items", "is not valid on await")
+		}
+	case "switch":
+		if strings.TrimSpace(items) != "" {
+			result.addError(path+".items", "is not valid on switch")
+		}
+	case "sequence", "parallel", "merge":
+		if strings.TrimSpace(items) != "" {
+			result.addError(path+".items", fmt.Sprintf("is not valid on %s", typeName))
+		}
+	}
 }
 
 func validateSteps(steps []*Step, path string, idx *validationIndex, result *ValidationResult) {
@@ -409,8 +469,12 @@ func (s *Step) validate(path string, idx *validationIndex, result *ValidationRes
 	if s.StepID == "" {
 		result.addError(path+".stepId", "is required")
 	}
-	if s.Type != "" && !validWorkflowTypes[s.Type] {
-		result.addError(path+".type", fmt.Sprintf("%q is not valid", s.Type))
+	if s.Type != "" {
+		if !validWorkflowTypes[s.Type] {
+			result.addError(path+".type", fmt.Sprintf("%q is not valid", s.Type))
+		} else {
+			validateStructuralTypeFields(s.Type, s.Items, s.Wait, len(s.Cases) > 0, len(s.Default) > 0, path, result)
+		}
 	}
 	if s.OperationRef != "" && !idx.operations[s.OperationRef] {
 		result.addError(path+".operationRef", fmt.Sprintf("references unknown operationId %q", s.OperationRef))
@@ -442,19 +506,41 @@ func (t *Trigger) validate(path string, idx *validationIndex, result *Validation
 	if t.TriggerID == "" {
 		result.addError(path+".triggerId", "is required")
 	}
+	outputs := make(map[string]bool, len(t.Outputs))
+	for i, name := range t.Outputs {
+		outputPath := fmt.Sprintf("%s.outputs[%d]", path, i)
+		if name == "" {
+			result.addError(outputPath, "is required")
+			continue
+		}
+		if !outputNamePattern.MatchString(name) {
+			result.addError(outputPath, fmt.Sprintf("output name %q is not valid", name))
+			continue
+		}
+		if outputs[name] {
+			result.addError(outputPath, fmt.Sprintf("duplicate output %q", name))
+			continue
+		}
+		outputs[name] = true
+	}
+	if len(t.Routes) > 0 && len(t.Outputs) == 0 {
+		result.addError(path+".outputs", "is required when routes is set")
+	}
 	for i, route := range t.Routes {
 		routePath := fmt.Sprintf("%s.routes[%d]", path, i)
 		if route == nil {
 			result.addError(routePath, "is nil")
 			continue
 		}
-		route.validate(routePath, idx, result)
+		route.validate(routePath, t.Outputs, outputs, idx, result)
 	}
 }
 
-func (r *TriggerRoute) validate(path string, idx *validationIndex, result *ValidationResult) {
+func (r *TriggerRoute) validate(path string, outputList []string, outputs map[string]bool, idx *validationIndex, result *ValidationResult) {
 	if r.Output == "" {
 		result.addError(path+".output", "is required")
+	} else if len(outputList) > 0 && !resolveTriggerOutput(r.Output, outputList, outputs) {
+		result.addError(path+".output", fmt.Sprintf("%q is not a declared trigger output", r.Output))
 	}
 	if len(r.To) == 0 {
 		result.addError(path+".to", "must contain at least one operationId")
@@ -468,9 +554,64 @@ func (r *TriggerRoute) validate(path string, idx *validationIndex, result *Valid
 	}
 }
 
-func (r *StructuralResult) validate(path string, result *ValidationResult) {
-	if r.Kind != "" && !validStructuralResultKinds[r.Kind] {
+func resolveTriggerOutput(output string, outputList []string, outputs map[string]bool) bool {
+	if outputs[output] {
+		return true
+	}
+	if idx, err := strconv.Atoi(output); err == nil && idx >= 0 && idx < len(outputList) {
+		return true
+	}
+	return false
+}
+
+func (r *StructuralResult) validate(path string, idx *validationIndex, seenNames map[string]bool, result *ValidationResult) {
+	if r.Name == "" {
+		result.addError(path+".name", "is required")
+	} else {
+		if !componentNamePattern.MatchString(r.Name) {
+			result.addError(path+".name", fmt.Sprintf("%q is not valid", r.Name))
+		}
+		if seenNames[r.Name] {
+			result.addError(path+".name", fmt.Sprintf("duplicate result name %q", r.Name))
+		}
+		seenNames[r.Name] = true
+	}
+	if r.Kind == "" {
+		result.addError(path+".kind", "is required")
+	} else if !validStructuralResultKinds[r.Kind] {
 		result.addError(path+".kind", fmt.Sprintf("%q is not valid", r.Kind))
+	}
+	if r.From == "" {
+		result.addError(path+".from", "is required")
+		return
+	}
+	workflowID, stepID, _ := strings.Cut(r.From, ".")
+	if workflowID == "" {
+		result.addError(path+".from", fmt.Sprintf("%q is not a valid workflowId or workflowId.stepId", r.From))
+		return
+	}
+	if !idx.workflows[workflowID] {
+		result.addError(path+".from", fmt.Sprintf("references unknown workflowId %q", workflowID))
+		return
+	}
+	var resolvedType string
+	if stepID == "" {
+		resolvedType = idx.workflowTypes[workflowID]
+	} else {
+		stepTypes, ok := idx.workflowSteps[workflowID]
+		if !ok {
+			result.addError(path+".from", fmt.Sprintf("references unknown stepId %q in workflow %q", stepID, workflowID))
+			return
+		}
+		stepType, stepFound := stepTypes[stepID]
+		if !stepFound {
+			result.addError(path+".from", fmt.Sprintf("references unknown stepId %q in workflow %q", stepID, workflowID))
+			return
+		}
+		resolvedType = stepType
+	}
+	if r.Kind != "" && resolvedType != "" && resolvedType != r.Kind {
+		result.addError(path+".kind", fmt.Sprintf("kind %q does not match %q type %q", r.Kind, r.From, resolvedType))
 	}
 }
 

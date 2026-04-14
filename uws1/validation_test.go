@@ -38,6 +38,56 @@ func TestValidate_OpenAPIOperationRefValid(t *testing.T) {
 	assert.NoError(t, doc.Validate())
 }
 
+func TestOperationBindingHelpers(t *testing.T) {
+	var nilOp *Operation
+	assert.False(t, nilOp.HasOpenAPIBinding())
+	assert.False(t, nilOp.HasCompleteOpenAPIBinding())
+	assert.Empty(t, nilOp.ExtensionProfile())
+	assert.False(t, nilOp.IsExtensionOwned())
+
+	openAPIBound := &Operation{
+		SourceDescription:  "api",
+		OpenAPIOperationID: "getData",
+	}
+	assert.True(t, openAPIBound.HasOpenAPIBinding())
+	assert.True(t, openAPIBound.HasCompleteOpenAPIBinding())
+	assert.Empty(t, openAPIBound.ExtensionProfile())
+	assert.False(t, openAPIBound.IsExtensionOwned())
+
+	partialOpenAPIBinding := &Operation{OpenAPIOperationID: "getData"}
+	assert.True(t, partialOpenAPIBinding.HasOpenAPIBinding())
+	assert.False(t, partialOpenAPIBinding.HasCompleteOpenAPIBinding())
+	assert.False(t, partialOpenAPIBinding.IsExtensionOwned())
+
+	conflictingOpenAPIBinding := &Operation{
+		SourceDescription:   "api",
+		OpenAPIOperationID:  "getData",
+		OpenAPIOperationRef: "#/paths/~1data/get",
+	}
+	assert.True(t, conflictingOpenAPIBinding.HasOpenAPIBinding())
+	assert.False(t, conflictingOpenAPIBinding.HasCompleteOpenAPIBinding())
+
+	extensionOwned := &Operation{
+		Extensions: map[string]any{ExtensionOperationProfile: " udon "},
+	}
+	assert.False(t, extensionOwned.HasOpenAPIBinding())
+	assert.False(t, extensionOwned.HasCompleteOpenAPIBinding())
+	assert.Equal(t, "udon", extensionOwned.ExtensionProfile())
+	assert.True(t, extensionOwned.IsExtensionOwned())
+
+	whitespaceProfile := &Operation{
+		Extensions: map[string]any{ExtensionOperationProfile: "   "},
+	}
+	assert.Empty(t, whitespaceProfile.ExtensionProfile())
+	assert.False(t, whitespaceProfile.IsExtensionOwned())
+
+	nonStringProfile := &Operation{
+		Extensions: map[string]any{ExtensionOperationProfile: 1},
+	}
+	assert.Empty(t, nonStringProfile.ExtensionProfile())
+	assert.False(t, nonStringProfile.IsExtensionOwned())
+}
+
 func TestValidate_MissingRootFields(t *testing.T) {
 	doc := validDocument()
 	doc.UWS = ""
@@ -364,13 +414,28 @@ func TestValidate_GotoRejectsBothTargets(t *testing.T) {
 }
 
 func TestValidate_TriggerRoutes(t *testing.T) {
-	t.Run("valid", func(t *testing.T) {
+	t.Run("valid named output", func(t *testing.T) {
 		doc := validDocument()
 		doc.Triggers = []*Trigger{
 			{
 				TriggerID: "webhook",
+				Outputs:   []string{"primary"},
 				Routes: []*TriggerRoute{
-					{Output: "0", To: []string{"get_data"}},
+					{Output: "primary", To: []string{"get_data"}},
+				},
+			},
+		}
+		assert.NoError(t, doc.Validate())
+	})
+
+	t.Run("valid decimal index output", func(t *testing.T) {
+		doc := validDocument()
+		doc.Triggers = []*Trigger{
+			{
+				TriggerID: "webhook",
+				Outputs:   []string{"primary", "secondary"},
+				Routes: []*TriggerRoute{
+					{Output: "1", To: []string{"get_data"}},
 				},
 			},
 		}
@@ -382,8 +447,9 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 		doc.Triggers = []*Trigger{
 			{
 				TriggerID: "webhook",
+				Outputs:   []string{"primary"},
 				Routes: []*TriggerRoute{
-					{Output: "0", To: []string{"missing"}},
+					{Output: "primary", To: []string{"missing"}},
 				},
 			},
 		}
@@ -395,13 +461,229 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 		doc.Triggers = []*Trigger{
 			{
 				TriggerID: "webhook",
+				Outputs:   []string{"primary"},
 				Routes: []*TriggerRoute{
-					{Output: "0"},
+					{Output: "primary"},
 				},
 			},
 		}
 		assert.ErrorContains(t, doc.Validate(), "must contain at least one operationId")
 	})
+
+	t.Run("routes without outputs declaration", func(t *testing.T) {
+		doc := validDocument()
+		doc.Triggers = []*Trigger{
+			{
+				TriggerID: "webhook",
+				Routes: []*TriggerRoute{
+					{Output: "primary", To: []string{"get_data"}},
+				},
+			},
+		}
+		assert.ErrorContains(t, doc.Validate(), "outputs is required when routes is set")
+	})
+
+	t.Run("route output not declared", func(t *testing.T) {
+		doc := validDocument()
+		doc.Triggers = []*Trigger{
+			{
+				TriggerID: "webhook",
+				Outputs:   []string{"primary"},
+				Routes: []*TriggerRoute{
+					{Output: "other", To: []string{"get_data"}},
+				},
+			},
+		}
+		assert.ErrorContains(t, doc.Validate(), `"other" is not a declared trigger output`)
+	})
+
+	t.Run("index out of range", func(t *testing.T) {
+		doc := validDocument()
+		doc.Triggers = []*Trigger{
+			{
+				TriggerID: "webhook",
+				Outputs:   []string{"primary"},
+				Routes: []*TriggerRoute{
+					{Output: "5", To: []string{"get_data"}},
+				},
+			},
+		}
+		assert.ErrorContains(t, doc.Validate(), `"5" is not a declared trigger output`)
+	})
+
+	t.Run("duplicate outputs rejected", func(t *testing.T) {
+		doc := validDocument()
+		doc.Triggers = []*Trigger{
+			{
+				TriggerID: "webhook",
+				Outputs:   []string{"primary", "primary"},
+				Routes: []*TriggerRoute{
+					{Output: "primary", To: []string{"get_data"}},
+				},
+			},
+		}
+		assert.ErrorContains(t, doc.Validate(), `duplicate output "primary"`)
+	})
+}
+
+func TestValidate_StructuralTypeConstraints(t *testing.T) {
+	t.Run("loop requires items", func(t *testing.T) {
+		doc := validDocument()
+		doc.Workflows = []*Workflow{
+			{WorkflowID: "loop_wf", Type: "loop"},
+		}
+		assert.ErrorContains(t, doc.Validate(), "items is required for loop")
+	})
+
+	t.Run("loop with items is valid", func(t *testing.T) {
+		doc := validDocument()
+		doc.Workflows = []*Workflow{
+			{WorkflowID: "loop_wf", Type: "loop", Items: "$variables.tags"},
+		}
+		assert.NoError(t, doc.Validate())
+	})
+
+	t.Run("await requires wait", func(t *testing.T) {
+		doc := validDocument()
+		doc.Workflows = []*Workflow{
+			{WorkflowID: "await_wf", Type: "await"},
+		}
+		assert.ErrorContains(t, doc.Validate(), "wait is required for await")
+	})
+
+	t.Run("await with wait is valid", func(t *testing.T) {
+		doc := validDocument()
+		doc.Workflows = []*Workflow{
+			{WorkflowID: "await_wf", Type: "await", Wait: "$response.statusCode == 200"},
+		}
+		assert.NoError(t, doc.Validate())
+	})
+
+	t.Run("switch rejects items", func(t *testing.T) {
+		doc := validDocument()
+		doc.Workflows = []*Workflow{
+			{WorkflowID: "sw", Type: "switch", Items: "$variables.tags"},
+		}
+		assert.ErrorContains(t, doc.Validate(), "items is not valid on switch")
+	})
+
+	t.Run("step with loop type requires items", func(t *testing.T) {
+		doc := validDocument()
+		doc.Workflows = []*Workflow{
+			{
+				WorkflowID: "wf",
+				Type:       "parallel",
+				Steps:      []*Step{{StepID: "loop_step", Type: "loop"}},
+			},
+		}
+		assert.ErrorContains(t, doc.Validate(), "items is required for loop")
+	})
+}
+
+func TestValidate_StructuralResult(t *testing.T) {
+	baseDoc := func() *Document {
+		doc := validDocument()
+		doc.Workflows = []*Workflow{
+			{
+				WorkflowID: "wf_merge",
+				Type:       "merge",
+			},
+			{
+				WorkflowID: "wf_parallel",
+				Type:       "parallel",
+				Steps:      []*Step{{StepID: "merge_step", Type: "merge"}},
+			},
+		}
+		return doc
+	}
+
+	t.Run("valid workflow reference", func(t *testing.T) {
+		doc := baseDoc()
+		doc.Results = []*StructuralResult{
+			{Name: "out", Kind: "merge", From: "wf_merge"},
+		}
+		assert.NoError(t, doc.Validate())
+	})
+
+	t.Run("valid step reference", func(t *testing.T) {
+		doc := baseDoc()
+		doc.Results = []*StructuralResult{
+			{Name: "out", Kind: "merge", From: "wf_parallel.merge_step"},
+		}
+		assert.NoError(t, doc.Validate())
+	})
+
+	t.Run("missing from", func(t *testing.T) {
+		doc := baseDoc()
+		doc.Results = []*StructuralResult{
+			{Name: "out", Kind: "merge"},
+		}
+		assert.ErrorContains(t, doc.Validate(), "from is required")
+	})
+
+	t.Run("missing name", func(t *testing.T) {
+		doc := baseDoc()
+		doc.Results = []*StructuralResult{
+			{Kind: "merge", From: "wf_merge"},
+		}
+		assert.ErrorContains(t, doc.Validate(), "name is required")
+	})
+
+	t.Run("missing kind", func(t *testing.T) {
+		doc := baseDoc()
+		doc.Results = []*StructuralResult{
+			{Name: "out", From: "wf_merge"},
+		}
+		assert.ErrorContains(t, doc.Validate(), "kind is required")
+	})
+
+	t.Run("invalid kind", func(t *testing.T) {
+		doc := baseDoc()
+		doc.Results = []*StructuralResult{
+			{Name: "out", Kind: "parallel", From: "wf_merge"},
+		}
+		assert.ErrorContains(t, doc.Validate(), `"parallel" is not valid`)
+	})
+
+	t.Run("unknown workflow", func(t *testing.T) {
+		doc := baseDoc()
+		doc.Results = []*StructuralResult{
+			{Name: "out", Kind: "merge", From: "missing_wf"},
+		}
+		assert.ErrorContains(t, doc.Validate(), `references unknown workflowId "missing_wf"`)
+	})
+
+	t.Run("unknown step in workflow", func(t *testing.T) {
+		doc := baseDoc()
+		doc.Results = []*StructuralResult{
+			{Name: "out", Kind: "merge", From: "wf_parallel.missing_step"},
+		}
+		assert.ErrorContains(t, doc.Validate(), `references unknown stepId "missing_step"`)
+	})
+
+	t.Run("kind mismatch with workflow type", func(t *testing.T) {
+		doc := baseDoc()
+		doc.Results = []*StructuralResult{
+			{Name: "out", Kind: "loop", From: "wf_merge"},
+		}
+		assert.ErrorContains(t, doc.Validate(), `kind "loop" does not match`)
+	})
+
+	t.Run("duplicate name", func(t *testing.T) {
+		doc := baseDoc()
+		doc.Results = []*StructuralResult{
+			{Name: "out", Kind: "merge", From: "wf_merge"},
+			{Name: "out", Kind: "merge", From: "wf_parallel.merge_step"},
+		}
+		assert.ErrorContains(t, doc.Validate(), `duplicate result name "out"`)
+	})
+}
+
+func TestValidate_OpenAPIOperationRefRequiresPointer(t *testing.T) {
+	doc := validDocument()
+	doc.Operations[0].OpenAPIOperationID = ""
+	doc.Operations[0].OpenAPIOperationRef = "paths/~1data/get"
+	assert.ErrorContains(t, doc.Validate(), "must be a JSON Pointer fragment beginning with #/")
 }
 
 func TestValidate_ComponentsVariables(t *testing.T) {

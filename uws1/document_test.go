@@ -48,8 +48,9 @@ func TestDocument_RoundTrip(t *testing.T) {
 				TriggerID: "webhook_1",
 				Path:      "/hooks/test",
 				Methods:   []string{"POST"},
+				Outputs:   []string{"primary"},
 				Routes: []*TriggerRoute{
-					{Output: "0", To: []string{"get_users"}},
+					{Output: "primary", To: []string{"get_users"}},
 				},
 			},
 		},
@@ -64,7 +65,7 @@ func TestDocument_RoundTrip(t *testing.T) {
 			},
 		},
 		Results: []*StructuralResult{
-			{Name: "merge_out", Kind: "merge"},
+			{Name: "merge_out", Kind: "merge", From: "parallel_block", Value: "$outputs.merge_out"},
 		},
 		Extensions: map[string]any{
 			"x-source": "test",
@@ -90,11 +91,14 @@ func TestDocument_RoundTrip(t *testing.T) {
 	assert.Equal(t, "#/paths/~1users/post", decoded.Operations[1].OpenAPIOperationRef)
 	assert.Len(t, decoded.Triggers, 1)
 	assert.Equal(t, "webhook_1", decoded.Triggers[0].TriggerID)
+	assert.Equal(t, []string{"primary"}, decoded.Triggers[0].Outputs)
 	assert.Len(t, decoded.Workflows, 1)
 	assert.Equal(t, "parallel_block", decoded.Workflows[0].WorkflowID)
 	assert.Len(t, decoded.Workflows[0].Steps, 2)
 	assert.Len(t, decoded.Results, 1)
 	assert.Equal(t, "merge_out", decoded.Results[0].Name)
+	assert.Equal(t, "parallel_block", decoded.Results[0].From)
+	assert.Equal(t, "$outputs.merge_out", decoded.Results[0].Value)
 	assert.Equal(t, "test", decoded.Extensions["x-source"])
 }
 

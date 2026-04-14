@@ -51,6 +51,14 @@ func TestSchemaConformance_KeyValidatorRules(t *testing.T) {
 
 	result := defs["structural-result-object"].(map[string]any)
 	require.Equal(t, "#/$defs/specification-extensions", result["$ref"])
+	resultRequired := result["required"].([]any)
+	require.Contains(t, resultRequired, "name")
+	require.Contains(t, resultRequired, "kind")
+	require.Contains(t, resultRequired, "from")
+	require.Contains(t, result["properties"].(map[string]any), "value")
+
+	trigger := defs["trigger-object"].(map[string]any)
+	require.Contains(t, trigger["properties"].(map[string]any), "outputs")
 }
 
 func mapKeys(m map[string]bool) []any {
@@ -72,12 +80,12 @@ func TestSchemaConformance_ValidatorMatchesSelectedRules(t *testing.T) {
 	require.NotContains(t, err.Error(), "steps[0].type is required")
 
 	doc = validDocument()
-	doc.Triggers = []*Trigger{{TriggerID: "t", Routes: []*TriggerRoute{{}}}}
+	doc.Triggers = []*Trigger{{TriggerID: "t", Outputs: []string{"primary"}, Routes: []*TriggerRoute{{}}}}
 	require.ErrorContains(t, doc.Validate(), "routes[0].output is required")
 
 	doc = validDocument()
 	doc.Results = []*StructuralResult{{Kind: "await"}}
-	require.ErrorContains(t, doc.Validate(), "await")
+	require.ErrorContains(t, doc.Validate(), `"await" is not valid`)
 }
 
 func TestSchemaConformance_JSONSchemaValidator(t *testing.T) {

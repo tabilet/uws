@@ -7,15 +7,17 @@ import (
 
 // StructuralResult declares a named output from a structural workflow construct.
 type StructuralResult struct {
-	Name       string         `json:"name,omitempty" yaml:"name,omitempty" hcl:"name,optional"`
-	Kind       string         `json:"kind,omitempty" yaml:"kind,omitempty" hcl:"kind,optional"`
+	Name       string         `json:"name" yaml:"name" hcl:"name,label"`
+	Kind       string         `json:"kind" yaml:"kind" hcl:"kind"`
+	From       string         `json:"from" yaml:"from" hcl:"from"`
+	Value      string         `json:"value,omitempty" yaml:"value,omitempty" hcl:"value,optional"`
 	Extensions map[string]any `json:"-" yaml:"-" hcl:"-"`
 }
 
 type structuralResultAlias StructuralResult
 
 var structuralResultKnownFields = []string{
-	"name", "kind",
+	"name", "kind", "from", "value",
 }
 
 func (s *StructuralResult) UnmarshalJSON(data []byte) error {

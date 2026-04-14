@@ -3,6 +3,7 @@ package uws1
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // Operation describes a UWS-local operation bound to an OpenAPI operation.
@@ -30,6 +31,46 @@ type Operation struct {
 	// Outputs map friendly names to runtime expressions.
 	Outputs    map[string]string `json:"outputs,omitempty" yaml:"outputs,omitempty" hcl:"outputs,optional"`
 	Extensions map[string]any    `json:"-" yaml:"-" hcl:"-"`
+}
+
+// HasOpenAPIBinding reports whether the operation includes any OpenAPI binding
+// field. A partial binding is still a binding and will be rejected by validation.
+func (o *Operation) HasOpenAPIBinding() bool {
+	return o != nil && (o.SourceDescription != "" || o.OpenAPIOperationID != "" || o.OpenAPIOperationRef != "")
+}
+
+// HasCompleteOpenAPIBinding reports whether the operation has a source
+// description and exactly one OpenAPI operation selector.
+func (o *Operation) HasCompleteOpenAPIBinding() bool {
+	if o == nil || o.SourceDescription == "" {
+		return false
+	}
+	hasID := o.OpenAPIOperationID != ""
+	hasRef := o.OpenAPIOperationRef != ""
+	return hasID != hasRef
+}
+
+// ExtensionProfile returns the normalized operation profile marker used by
+// extension-owned operations.
+func (o *Operation) ExtensionProfile() string {
+	if o == nil || len(o.Extensions) == 0 {
+		return ""
+	}
+	value, ok := o.Extensions[ExtensionOperationProfile]
+	if !ok {
+		return ""
+	}
+	text, ok := value.(string)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(text)
+}
+
+// IsExtensionOwned reports whether this operation is intentionally owned by an
+// extension profile rather than an OpenAPI operation binding.
+func (o *Operation) IsExtensionOwned() bool {
+	return o != nil && !o.HasOpenAPIBinding() && o.ExtensionProfile() != ""
 }
 
 type operationAlias Operation

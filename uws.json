@@ -1,5 +1,5 @@
 {
-    "$id": "https://github.com/tabilet/uws/1.0/schema",
+    "$id": "https://spec.udon-workflow.org/1.0/schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "description": "The description of OpenAPI-backed Udon Workflow Specification (UWS) v1.0.x documents",
     "type": "object",
@@ -336,6 +336,9 @@
                 "workflowId",
                 "type"
             ],
+            "allOf": [
+                { "$ref": "#/$defs/structural-type-constraints" }
+            ],
             "$ref": "#/$defs/specification-extensions",
             "unevaluatedProperties": false
         },
@@ -399,6 +402,12 @@
                 }
             },
             "required": ["stepId"],
+            "allOf": [
+                {
+                    "if": { "required": ["type"] },
+                    "then": { "$ref": "#/$defs/structural-type-constraints" }
+                }
+            ],
             "$ref": "#/$defs/specification-extensions",
             "unevaluatedProperties": false
         },
@@ -454,6 +463,15 @@
                     "type": "object",
                     "additionalProperties": true
                 },
+                "outputs": {
+                    "description": "Ordered list of output labels the trigger may emit",
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                        "type": "string",
+                        "pattern": "^[a-zA-Z0-9._-]+$"
+                    }
+                },
                 "routes": {
                     "description": "Output-to-operation routing",
                     "type": "array",
@@ -461,6 +479,12 @@
                 }
             },
             "required": ["triggerId"],
+            "allOf": [
+                {
+                    "if": { "required": ["routes"] },
+                    "then": { "required": ["outputs"] }
+                }
+            ],
             "$ref": "#/$defs/specification-extensions",
             "unevaluatedProperties": false
         },
@@ -519,12 +543,27 @@
             "description": "Output from a structural construct (switch, merge, loop)",
             "type": "object",
             "properties": {
-                "name": { "type": "string" },
+                "name": {
+                    "description": "Result name, unique within results[]",
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9._-]+$"
+                },
                 "kind": {
+                    "description": "Structural construct kind",
                     "type": "string",
                     "enum": ["switch", "merge", "loop"]
+                },
+                "from": {
+                    "description": "workflowId or workflowId.stepId of the emitting construct",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "value": {
+                    "description": "Runtime expression selecting the exposed value",
+                    "type": "string"
                 }
             },
+            "required": ["name", "kind", "from"],
             "$ref": "#/$defs/specification-extensions",
             "unevaluatedProperties": false
         },
@@ -697,6 +736,43 @@
             "patternProperties": {
                 "^x-": true
             }
+        },
+        "structural-type-constraints": {
+            "description": "Per-type field constraints for structural workflows and steps (see spec §4.5.6.3)",
+            "allOf": [
+                {
+                    "if": { "properties": { "type": { "const": "loop" } }, "required": ["type"] },
+                    "then": {
+                        "required": ["items"],
+                        "not": {
+                            "anyOf": [
+                                { "required": ["cases"] },
+                                { "required": ["default"] }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "if": { "properties": { "type": { "const": "await" } }, "required": ["type"] },
+                    "then": {
+                        "required": ["wait"],
+                        "not": {
+                            "anyOf": [
+                                { "required": ["cases"] },
+                                { "required": ["default"] },
+                                { "required": ["items"] }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "if": {
+                        "properties": { "type": { "enum": ["sequence", "parallel", "switch", "merge"] } },
+                        "required": ["type"]
+                    },
+                    "then": { "not": { "required": ["items"] } }
+                }
+            ]
         }
     }
 }

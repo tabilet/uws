@@ -96,9 +96,9 @@
           }
         },
         {
-          "stepId": "post_validation",
-          "type": "sequence",
-          "description": "Structural follow-up step"
+          "stepId": "merge_validation",
+          "type": "merge",
+          "description": "Combine validation outputs"
         }
       ],
       "outputs": {
@@ -112,12 +112,21 @@
       "path": "/webhooks/pets",
       "methods": ["POST"],
       "authentication": "bearer",
+      "outputs": ["received"],
       "routes": [
         {
-          "output": "0",
+          "output": "received",
           "to": ["list_pets", "create_pet"]
         }
       ]
+    }
+  ],
+  "results": [
+    {
+      "name": "validation_merge",
+      "kind": "merge",
+      "from": "parallel_checks.merge_validation",
+      "value": "$steps.merge_validation.outputs"
     }
   ],
   "x-generator": "udon-cli"
