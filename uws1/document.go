@@ -7,25 +7,23 @@ import (
 
 // Document is the root object of a UWS 1.x document.
 type Document struct {
-	UWS                string                 `json:"uws" yaml:"uws" hcl:"uws"`
-	Info               *Info                  `json:"info" yaml:"info" hcl:"info,block"`
-	SourceDescriptions []*SourceDescription   `json:"sourceDescriptions,omitempty" yaml:"sourceDescriptions,omitempty" hcl:"sourceDescription,block"`
-	Provider           *Provider              `json:"provider,omitempty" yaml:"provider,omitempty" hcl:"provider,block"`
-	Variables          map[string]any         `json:"variables,omitempty" yaml:"variables,omitempty" hcl:"variables,optional"`
-	Operations         []*Operation           `json:"operations" yaml:"operations" hcl:"operation,block"`
-	Workflows          []*Workflow            `json:"workflows,omitempty" yaml:"workflows,omitempty" hcl:"workflow,block"`
-	Triggers           []*Trigger             `json:"triggers,omitempty" yaml:"triggers,omitempty" hcl:"trigger,block"`
-	Security           []*SecurityRequirement `json:"security,omitempty" yaml:"security,omitempty" hcl:"security,block"`
-	Results            []*StructuralResult    `json:"results,omitempty" yaml:"results,omitempty" hcl:"result,block"`
-	Components         *Components            `json:"components,omitempty" yaml:"components,omitempty" hcl:"components,block"`
-	Extensions         map[string]any         `json:"-" yaml:"-" hcl:"-"`
+	UWS                string               `json:"uws" yaml:"uws" hcl:"uws"`
+	Info               *Info                `json:"info" yaml:"info" hcl:"info,block"`
+	SourceDescriptions []*SourceDescription `json:"sourceDescriptions,omitempty" yaml:"sourceDescriptions,omitempty" hcl:"sourceDescription,block"`
+	Variables          map[string]any       `json:"variables,omitempty" yaml:"variables,omitempty" hcl:"variables,optional"`
+	Operations         []*Operation         `json:"operations" yaml:"operations" hcl:"operation,block"`
+	Workflows          []*Workflow          `json:"workflows,omitempty" yaml:"workflows,omitempty" hcl:"workflow,block"`
+	Triggers           []*Trigger           `json:"triggers,omitempty" yaml:"triggers,omitempty" hcl:"trigger,block"`
+	Results            []*StructuralResult  `json:"results,omitempty" yaml:"results,omitempty" hcl:"result,block"`
+	Components         *Components          `json:"components,omitempty" yaml:"components,omitempty" hcl:"components,block"`
+	Extensions         map[string]any       `json:"-" yaml:"-" hcl:"-"`
 }
 
 type documentAlias Document
 
 var documentKnownFields = []string{
-	"uws", "info", "sourceDescriptions", "provider", "variables",
-	"operations", "workflows", "triggers", "security", "results",
+	"uws", "info", "sourceDescriptions", "variables",
+	"operations", "workflows", "triggers", "results",
 	"components",
 }
 
@@ -39,6 +37,9 @@ func (d *Document) UnmarshalJSON(data []byte) error {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return fmt.Errorf("unmarshaling document extensions: %w", err)
+	}
+	if err := rejectUnknownFields(raw, documentKnownFields, "document"); err != nil {
+		return err
 	}
 	d.Extensions = extractExtensions(raw, documentKnownFields)
 	return nil
@@ -74,6 +75,9 @@ func (i *Info) UnmarshalJSON(data []byte) error {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return fmt.Errorf("unmarshaling info extensions: %w", err)
+	}
+	if err := rejectUnknownFields(raw, infoKnownFields, "info"); err != nil {
+		return err
 	}
 	i.Extensions = extractExtensions(raw, infoKnownFields)
 	return nil

@@ -33,6 +33,9 @@ func (t *Trigger) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return fmt.Errorf("unmarshaling trigger extensions: %w", err)
 	}
+	if err := rejectUnknownFields(raw, triggerKnownFields, "trigger"); err != nil {
+		return err
+	}
 	t.Extensions = extractExtensions(raw, triggerKnownFields)
 	return nil
 }
@@ -65,6 +68,9 @@ func (t *TriggerRoute) UnmarshalJSON(data []byte) error {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return fmt.Errorf("unmarshaling triggerRoute extensions: %w", err)
+	}
+	if err := rejectUnknownFields(raw, triggerRouteKnownFields, "triggerRoute"); err != nil {
+		return err
 	}
 	t.Extensions = extractExtensions(raw, triggerRouteKnownFields)
 	return nil

@@ -19,8 +19,9 @@ func TestRoundTripSampleFile(t *testing.T) {
 	if err := json.Unmarshal(jsonData, &doc1); err != nil {
 		t.Fatalf("Failed to unmarshal JSON: %v", err)
 	}
+	doc1.Extensions = nil
 
-	// Re-marshal to normalize (extensions stripped, etc.)
+	// Re-marshal a core-only copy because UWS HCL conversion rejects x-* extensions.
 	jsonData1, err := json.Marshal(&doc1)
 	if err != nil {
 		t.Fatalf("Failed to re-marshal to JSON: %v", err)
@@ -92,9 +93,17 @@ func compareUWSDocs(t *testing.T, doc1, doc2 *uws1.Document) {
 				t.Errorf("Operations[%d].OperationID mismatch: got %q, want %q",
 					i, o2.OperationID, o1.OperationID)
 			}
-			if o1.ServiceType != o2.ServiceType {
-				t.Errorf("Operations[%d].ServiceType mismatch: got %q, want %q",
-					i, o2.ServiceType, o1.ServiceType)
+			if o1.SourceDescription != o2.SourceDescription {
+				t.Errorf("Operations[%d].SourceDescription mismatch: got %q, want %q",
+					i, o2.SourceDescription, o1.SourceDescription)
+			}
+			if o1.OpenAPIOperationID != o2.OpenAPIOperationID {
+				t.Errorf("Operations[%d].OpenAPIOperationID mismatch: got %q, want %q",
+					i, o2.OpenAPIOperationID, o1.OpenAPIOperationID)
+			}
+			if o1.OpenAPIOperationRef != o2.OpenAPIOperationRef {
+				t.Errorf("Operations[%d].OpenAPIOperationRef mismatch: got %q, want %q",
+					i, o2.OpenAPIOperationRef, o1.OpenAPIOperationRef)
 			}
 			if len(o1.SuccessCriteria) != len(o2.SuccessCriteria) {
 				t.Errorf("Operations[%d].SuccessCriteria count mismatch: got %d, want %d",

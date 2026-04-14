@@ -1,7 +1,7 @@
 {
     "$id": "https://github.com/tabilet/uws/1.0/schema",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "description": "The description of Udon Workflow Specification (UWS) v1.0.x documents",
+    "description": "The description of OpenAPI-backed Udon Workflow Specification (UWS) v1.0.x documents",
     "type": "object",
     "properties": {
         "uws": {
@@ -13,15 +13,13 @@
             "$ref": "#/$defs/info"
         },
         "sourceDescriptions": {
-            "description": "Source documents (e.g. OpenAPI specifications) that operations reference",
+            "description": "OpenAPI source documents that operations reference",
             "type": "array",
             "uniqueItems": true,
+            "minItems": 1,
             "items": {
                 "$ref": "#/$defs/source-description-object"
             }
-        },
-        "provider": {
-            "$ref": "#/$defs/provider-object"
         },
         "variables": {
             "description": "Global variables available to all operations",
@@ -29,7 +27,7 @@
             "additionalProperties": true
         },
         "operations": {
-            "description": "An ordered list of service operations",
+            "description": "An ordered list of workflow operations",
             "type": "array",
             "uniqueItems": true,
             "minItems": 1,
@@ -53,14 +51,6 @@
                 "$ref": "#/$defs/trigger-object"
             }
         },
-        "security": {
-            "description": "Global security requirements applied to all HTTP operations",
-            "type": "array",
-            "uniqueItems": true,
-            "items": {
-                "$ref": "#/$defs/security-requirement-object"
-            }
-        },
         "results": {
             "description": "Output declarations from structural constructs",
             "type": "array",
@@ -81,7 +71,7 @@
     "unevaluatedProperties": false,
     "$defs": {
         "source-description-object": {
-            "description": "Identifies a source document (typically an OpenAPI specification) that operations reference",
+            "description": "Identifies an OpenAPI source document that operations reference",
             "type": "object",
             "properties": {
                 "name": {
@@ -96,7 +86,7 @@
                 },
                 "type": {
                     "description": "The type of source description",
-                    "enum": ["openapi", "arazzo"]
+                    "enum": ["openapi"]
                 }
             },
             "required": ["name", "url"],
@@ -131,138 +121,33 @@
             "$ref": "#/$defs/specification-extensions",
             "unevaluatedProperties": false
         },
-        "provider-object": {
-            "description": "Default service endpoint and credentials",
-            "type": "object",
-            "properties": {
-                "name": {
-                    "description": "Provider identifier",
-                    "type": "string"
-                },
-                "serverUrl": {
-                    "description": "Base API URL",
-                    "type": "string",
-                    "format": "uri"
-                },
-                "appendices": {
-                    "description": "Provider-specific configuration (credentials, region, etc.)",
-                    "type": "object",
-                    "additionalProperties": true
-                }
-            },
-            "$ref": "#/$defs/specification-extensions",
-            "unevaluatedProperties": false
-        },
         "operation-object": {
-            "description": "A single service call (HTTP, SSH, Cmd, or Fnct)",
+            "description": "A UWS-local operation bound to an OpenAPI operation",
             "type": "object",
             "properties": {
                 "operationId": {
-                    "description": "Unique operation identifier",
+                    "description": "Unique UWS-local operation identifier",
                     "type": "string"
                 },
                 "sourceDescription": {
-                    "description": "Name of a source description whose operations this operation is derived from",
+                    "description": "Name of the OpenAPI source description whose operation this operation is bound to",
                     "type": "string"
                 },
-                "serviceType": {
-                    "description": "The service type for this operation",
-                    "enum": [
-                        "http", "ssh", "cmd", "fnct",
-                        "fileio", "ftp", "sftp", "scp", "smtp",
-                        "dns", "sql", "s3", "docker", "ldap",
-                        "llm", "mcp",
-                        "ioreadcloser", "ioreadwritecloser", "iowriter"
-                    ]
+                "openapiOperationId": {
+                    "description": "OpenAPI operationId to execute",
+                    "type": "string"
+                },
+                "openapiOperationRef": {
+                    "description": "JSON Pointer fragment to an OpenAPI operation",
+                    "type": "string",
+                    "pattern": "^#/"
                 },
                 "description": {
                     "description": "Operation description",
                     "type": "string"
                 },
-                "isJson": {
-                    "description": "Whether the response is JSON",
-                    "type": "boolean"
-                },
-                "host": {
-                    "description": "Remote host",
-                    "type": "string"
-                },
-                "method": {
-                    "description": "HTTP method",
-                    "type": "string",
-                    "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE"]
-                },
-                "path": {
-                    "description": "URL path or command path",
-                    "type": "string"
-                },
-                "provider": {
-                    "$ref": "#/$defs/provider-object"
-                },
                 "request": {
-                    "description": "Request parameters/body as key-value pairs",
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "security": {
-                    "description": "Operation-level security (overrides global)",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/$defs/security-requirement-object"
-                    }
-                },
-                "queryPars": {
-                    "$ref": "#/$defs/param-schema-object"
-                },
-                "pathPars": {
-                    "$ref": "#/$defs/param-schema-object"
-                },
-                "headerPars": {
-                    "$ref": "#/$defs/param-schema-object"
-                },
-                "cookiePars": {
-                    "$ref": "#/$defs/param-schema-object"
-                },
-                "payloadPars": {
-                    "$ref": "#/$defs/param-schema-object"
-                },
-                "payloadRequired": {
-                    "description": "Whether the request payload is mandatory",
-                    "type": "boolean"
-                },
-                "requestMediaType": {
-                    "description": "Request content type",
-                    "type": "string"
-                },
-                "responseMediaType": {
-                    "description": "Response content type",
-                    "type": "string"
-                },
-                "responseBody": {
-                    "$ref": "#/$defs/param-schema-object"
-                },
-                "responseHeaders": {
-                    "$ref": "#/$defs/param-schema-object"
-                },
-                "responseStatusCode": {
-                    "description": "Expected response status code",
-                    "type": "integer"
-                },
-                "command": {
-                    "description": "Command to execute (SSH/Cmd)",
-                    "type": "string"
-                },
-                "arguments": {
-                    "description": "Command or function arguments",
-                    "type": "array"
-                },
-                "workingDir": {
-                    "description": "Working directory for Cmd operations",
-                    "type": "string"
-                },
-                "function": {
-                    "description": "Function name for Fnct operations",
-                    "type": "string"
+                    "$ref": "#/$defs/request-binding-object"
                 },
                 "dependsOn": {
                     "description": "Operations or groups that must complete first",
@@ -318,55 +203,74 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "x-uws-operation-profile": {
+                    "description": "Implementation profile name for extension-owned operations",
+                    "type": "string",
+                    "minLength": 1
                 }
             },
             "required": [
-                "operationId",
-                "serviceType"
+                "operationId"
             ],
-            "allOf": [
+            "oneOf": [
                 {
-                    "if": {
-                        "properties": {
-                            "serviceType": {
-                                "const": "http"
-                            }
-                        },
-                        "required": ["serviceType"]
-                    },
-                    "then": {
-                        "required": ["method"]
-                    }
+                    "description": "OpenAPI-bound operation selected by operationId",
+                    "required": ["sourceDescription", "openapiOperationId"],
+                    "not": {"required": ["openapiOperationRef"]}
                 },
                 {
-                    "if": {
-                        "properties": {
-                            "serviceType": {
-                                "enum": ["ssh", "cmd"]
-                            }
-                        },
-                        "required": ["serviceType"]
-                    },
-                    "then": {
-                        "required": ["command"]
-                    }
+                    "description": "OpenAPI-bound operation selected by JSON Pointer",
+                    "required": ["sourceDescription", "openapiOperationRef"],
+                    "not": {"required": ["openapiOperationId"]}
                 },
                 {
-                    "if": {
-                        "properties": {
-                            "serviceType": {
-                                "const": "fnct"
-                            }
-                        },
-                        "required": ["serviceType"]
-                    },
-                    "then": {
-                        "required": ["function"]
+                    "description": "Extension-owned operation selected by an implementation profile",
+                    "required": ["x-uws-operation-profile"],
+                    "not": {
+                        "anyOf": [
+                            {"required": ["sourceDescription"]},
+                            {"required": ["openapiOperationId"]},
+                            {"required": ["openapiOperationRef"]}
+                        ]
                     }
                 }
             ],
             "$ref": "#/$defs/specification-extensions",
             "unevaluatedProperties": false
+        },
+        "request-binding-object": {
+            "description": "Request values grouped by OpenAPI parameter location and body",
+            "type": "object",
+            "properties": {
+                "path": {
+                    "description": "Values for OpenAPI path parameters",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "query": {
+                    "description": "Values for OpenAPI query parameters",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "header": {
+                    "description": "Values for OpenAPI header parameters",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "cookie": {
+                    "description": "Values for OpenAPI cookie parameters",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "body": {
+                    "description": "Request body value"
+                }
+            },
+            "patternProperties": {
+                "^x-": true
+            },
+            "additionalProperties": false
         },
         "workflow-object": {
             "description": "A workflow control-flow construct (sequence, parallel, switch, merge, loop, await)",
@@ -443,13 +347,8 @@
                     "type": "string"
                 },
                 "type": {
-                    "description": "Step type (service type or structural)",
+                    "description": "Structural step type. Operation calls use operationRef instead.",
                     "enum": [
-                        "http", "ssh", "cmd", "fnct",
-                        "fileio", "ftp", "sftp", "scp", "smtp",
-                        "dns", "sql", "s3", "docker", "ldap",
-                        "llm", "mcp",
-                        "ioreadcloser", "ioreadwritecloser", "iowriter",
                         "sequence", "parallel", "switch", "merge", "loop", "await"
                     ]
                 },
@@ -498,10 +397,7 @@
                     }
                 }
             },
-            "required": [
-                "stepId",
-                "type"
-            ],
+            "required": ["stepId"],
             "$ref": "#/$defs/specification-extensions",
             "unevaluatedProperties": false
         },
@@ -586,135 +482,6 @@
             "$ref": "#/$defs/specification-extensions",
             "unevaluatedProperties": false
         },
-        "security-requirement-object": {
-            "description": "A security requirement referencing a security scheme",
-            "type": "object",
-            "properties": {
-                "name": {
-                    "description": "Security requirement name",
-                    "type": "string"
-                },
-                "scopes": {
-                    "type": "array",
-                    "items": { "type": "string" }
-                },
-                "scheme": {
-                    "$ref": "#/$defs/security-scheme-object"
-                },
-                "initialize": {
-                    "description": "Attribute to capture from auth response",
-                    "type": "string"
-                },
-                "dataFile": {
-                    "description": "Path to credentials data file",
-                    "type": "string"
-                }
-            },
-            "$ref": "#/$defs/specification-extensions",
-            "unevaluatedProperties": false
-        },
-        "security-scheme-object": {
-            "description": "A security scheme definition",
-            "type": "object",
-            "properties": {
-                "type": {
-                    "description": "Security scheme type",
-                    "enum": ["oauth2", "apiKey", "http"]
-                },
-                "name": {
-                    "description": "Parameter name (for apiKey)",
-                    "type": "string"
-                },
-                "in": {
-                    "description": "Parameter location (for apiKey)",
-                    "enum": ["header", "query", "cookie"]
-                },
-                "scheme": {
-                    "description": "HTTP auth scheme (bearer, basic)",
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "flows": {
-                    "$ref": "#/$defs/oauth-flows-object"
-                }
-            },
-            "required": ["type"],
-            "allOf": [
-                {
-                    "if": {
-                        "properties": {
-                            "type": { "const": "oauth2" }
-                        },
-                        "required": ["type"]
-                    },
-                    "then": {
-                        "required": ["flows"]
-                    }
-                },
-                {
-                    "if": {
-                        "properties": {
-                            "type": { "const": "apiKey" }
-                        },
-                        "required": ["type"]
-                    },
-                    "then": {
-                        "required": ["name", "in"]
-                    }
-                },
-                {
-                    "if": {
-                        "properties": {
-                            "type": { "const": "http" }
-                        },
-                        "required": ["type"]
-                    },
-                    "then": {
-                        "required": ["scheme"]
-                    }
-                }
-            ],
-            "$ref": "#/$defs/specification-extensions",
-            "unevaluatedProperties": false
-        },
-        "oauth-flows-object": {
-            "description": "Available OAuth2 flows",
-            "type": "object",
-            "properties": {
-                "password": { "$ref": "#/$defs/oauth-flow-object" },
-                "implicit": { "$ref": "#/$defs/oauth-flow-object" },
-                "authorizationCode": { "$ref": "#/$defs/oauth-flow-object" },
-                "clientCredentials": { "$ref": "#/$defs/oauth-flow-object" }
-            },
-            "$ref": "#/$defs/specification-extensions",
-            "unevaluatedProperties": false
-        },
-        "oauth-flow-object": {
-            "description": "A single OAuth2 flow",
-            "type": "object",
-            "properties": {
-                "authorizationUrl": {
-                    "type": "string",
-                    "format": "uri"
-                },
-                "tokenUrl": {
-                    "type": "string",
-                    "format": "uri"
-                },
-                "refreshUrl": {
-                    "type": "string",
-                    "format": "uri"
-                },
-                "scopes": {
-                    "type": "object",
-                    "additionalProperties": { "type": "string" }
-                }
-            },
-            "$ref": "#/$defs/specification-extensions",
-            "unevaluatedProperties": false
-        },
         "param-schema-object": {
             "description": "An HTTP parameter or payload schema (recursive)",
             "type": "object",
@@ -764,14 +531,6 @@
             "description": "Reusable objects scoped to the UWS document",
             "type": "object",
             "properties": {
-                "operations": {
-                    "type": "object",
-                    "additionalProperties": { "$ref": "#/$defs/operation-object" }
-                },
-                "securitySchemes": {
-                    "type": "object",
-                    "additionalProperties": { "$ref": "#/$defs/security-scheme-object" }
-                },
                 "variables": {
                     "type": "object",
                     "additionalProperties": true

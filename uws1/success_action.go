@@ -33,6 +33,9 @@ func (s *SuccessAction) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return fmt.Errorf("unmarshaling successAction extensions: %w", err)
 	}
+	if err := rejectUnknownFields(raw, successActionKnownFields, "successAction"); err != nil {
+		return err
+	}
 	s.Extensions = extractExtensions(raw, successActionKnownFields)
 	return nil
 }

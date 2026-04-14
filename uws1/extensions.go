@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+const ExtensionOperationProfile = "x-uws-operation-profile"
+
 // extractExtensions extracts x-* extension fields from a raw JSON map.
 // It filters out known fields and returns only extension fields.
 func extractExtensions(raw map[string]json.RawMessage, knownFields []string) map[string]any {
@@ -29,6 +31,20 @@ func extractExtensions(raw map[string]json.RawMessage, knownFields []string) map
 		return nil
 	}
 	return extensions
+}
+
+func rejectUnknownFields(raw map[string]json.RawMessage, knownFields []string, object string) error {
+	known := make(map[string]bool, len(knownFields))
+	for _, field := range knownFields {
+		known[field] = true
+	}
+	for key := range raw {
+		if known[key] || strings.HasPrefix(key, "x-") {
+			continue
+		}
+		return fmt.Errorf("%s field %q is not defined by UWS core; use an x-* extension for non-core metadata", object, key)
+	}
+	return nil
 }
 
 // marshalWithExtensions marshals an object along with its x-* extensions.

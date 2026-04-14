@@ -7,16 +7,14 @@ import (
 
 // Components holds reusable objects scoped to the UWS document.
 type Components struct {
-	Operations      map[string]*Operation      `json:"operations,omitempty" yaml:"operations,omitempty" hcl:"operations,optional"`
-	SecuritySchemes map[string]*SecurityScheme `json:"securitySchemes,omitempty" yaml:"securitySchemes,omitempty" hcl:"securitySchemes,optional"`
-	Variables       map[string]any             `json:"variables,omitempty" yaml:"variables,omitempty" hcl:"variables,optional"`
-	Extensions      map[string]any             `json:"-" yaml:"-" hcl:"-"`
+	Variables  map[string]any `json:"variables,omitempty" yaml:"variables,omitempty" hcl:"variables,optional"`
+	Extensions map[string]any `json:"-" yaml:"-" hcl:"-"`
 }
 
 type componentsAlias Components
 
 var componentsKnownFields = []string{
-	"operations", "securitySchemes", "variables",
+	"variables",
 }
 
 func (c *Components) UnmarshalJSON(data []byte) error {
@@ -29,6 +27,9 @@ func (c *Components) UnmarshalJSON(data []byte) error {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return fmt.Errorf("unmarshaling components extensions: %w", err)
+	}
+	if err := rejectUnknownFields(raw, componentsKnownFields, "components"); err != nil {
+		return err
 	}
 	c.Extensions = extractExtensions(raw, componentsKnownFields)
 	return nil

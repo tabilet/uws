@@ -29,6 +29,9 @@ func (s *StructuralResult) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return fmt.Errorf("unmarshaling structuralResult extensions: %w", err)
 	}
+	if err := rejectUnknownFields(raw, structuralResultKnownFields, "structuralResult"); err != nil {
+		return err
+	}
 	s.Extensions = extractExtensions(raw, structuralResultKnownFields)
 	return nil
 }

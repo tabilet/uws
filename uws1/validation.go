@@ -2,6 +2,7 @@ package uws1
 
 import (
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 )
@@ -44,13 +45,12 @@ var (
 	outputNamePattern    = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 )
 
-// ValidServiceTypes lists the service types recognized by UWS 1.x.
-var ValidServiceTypes = map[string]bool{
-	"http": true, "ssh": true, "cmd": true, "fnct": true,
-	"fileio": true, "ftp": true, "sftp": true, "scp": true,
-	"smtp": true, "dns": true, "sql": true, "s3": true,
-	"docker": true, "ldap": true, "llm": true, "mcp": true,
-	"ioreadcloser": true, "ioreadwritecloser": true, "iowriter": true,
+var standardRequestKeys = map[string]bool{
+	"path":   true,
+	"query":  true,
+	"header": true,
+	"cookie": true,
+	"body":   true,
 }
 
 var validWorkflowTypes = map[string]bool{
@@ -157,21 +157,6 @@ func (d *Document) collectDocumentIDs(idx *validationIndex, result *ValidationRe
 		}
 	}
 
-	if d.Components != nil {
-		for name, op := range d.Components.Operations {
-			if !componentNamePattern.MatchString(name) {
-				result.addError(fmt.Sprintf("components.operations.%s", name), fmt.Sprintf("component name %q is not valid", name))
-			}
-			if op != nil && op.OperationID != "" {
-				componentPath := fmt.Sprintf("components.operations.%s.operationId", name)
-				if idx.operations[op.OperationID] {
-					result.addError(componentPath, fmt.Sprintf("duplicate operationId %q", op.OperationID))
-				}
-				idx.operations[op.OperationID] = true
-			}
-		}
-	}
-
 	for i, wf := range d.Workflows {
 		path := fmt.Sprintf("workflows[%d]", i)
 		if wf == nil {
@@ -261,13 +246,6 @@ func (d *Document) validateDocumentReferences(idx *validationIndex, result *Vali
 		}
 		trigger.validate(path, idx, result)
 	}
-	for i, security := range d.Security {
-		if security != nil {
-			security.validate(fmt.Sprintf("security[%d]", i), result)
-		} else {
-			result.addError(fmt.Sprintf("security[%d]", i), "is nil")
-		}
-	}
 	for i, resultDecl := range d.Results {
 		if resultDecl != nil {
 			resultDecl.validate(fmt.Sprintf("results[%d]", i), result)
@@ -276,7 +254,7 @@ func (d *Document) validateDocumentReferences(idx *validationIndex, result *Vali
 		}
 	}
 	if d.Components != nil {
-		d.Components.validate("components", idx, result)
+		d.Components.validate("components", result)
 	}
 }
 
@@ -298,8 +276,8 @@ func (s *SourceDescription) validate(path string, result *ValidationResult) {
 	if s.URL == "" {
 		result.addError(path+".url", "is required")
 	}
-	if s.Type != "" && s.Type != SourceDescriptionTypeOpenAPI && s.Type != SourceDescriptionTypeArazzo {
-		result.addError(path+".type", fmt.Sprintf("%q is not valid (must be openapi or arazzo)", s.Type))
+	if s.Type != "" && s.Type != SourceDescriptionTypeOpenAPI {
+		result.addError(path+".type", fmt.Sprintf("%q is not valid (must be openapi)", s.Type))
 	}
 }
 
@@ -307,48 +285,79 @@ func (op *Operation) validate(path string, idx *validationIndex, result *Validat
 	if op.OperationID == "" {
 		result.addError(path+".operationId", "is required")
 	}
-	if op.ServiceType == "" {
-		result.addError(path+".serviceType", "is required")
-	} else if !ValidServiceTypes[op.ServiceType] {
-		result.addError(path+".serviceType", fmt.Sprintf("%q is not valid", op.ServiceType))
+
+	hasSource := op.SourceDescription != ""
+	hasOpenAPIOperationID := op.OpenAPIOperationID != ""
+	hasOpenAPIOperationRef := op.OpenAPIOperationRef != ""
+	hasOpenAPIBinding := hasSource || hasOpenAPIOperationID || hasOpenAPIOperationRef
+	switch {
+	case hasOpenAPIOperationID && hasOpenAPIOperationRef:
+		result.addError(path, "cannot specify both openapiOperationId and openapiOperationRef")
+	case hasOpenAPIBinding:
+		if !hasSource {
+			result.addError(path+".sourceDescription", "is required for OpenAPI-bound operations")
+		} else if !idx.sourceDescriptions[op.SourceDescription] {
+			result.addError(path+".sourceDescription", fmt.Sprintf("references unknown sourceDescription %q", op.SourceDescription))
+		}
+		if !hasOpenAPIOperationID && !hasOpenAPIOperationRef {
+			result.addError(path, "requires exactly one of openapiOperationId or openapiOperationRef for OpenAPI-bound operations")
+		}
+		if hasOpenAPIOperationRef && !strings.HasPrefix(op.OpenAPIOperationRef, "#/") {
+			result.addError(path+".openapiOperationRef", "must be a JSON Pointer fragment beginning with #/")
+		}
+	case !hasExtensionOperationProfile(op.Extensions):
+		result.addError(path, "requires an OpenAPI binding or x-uws-operation-profile for extension-owned operations")
 	}
-	if op.SourceDescription != "" && !idx.sourceDescriptions[op.SourceDescription] {
-		result.addError(path+".sourceDescription", fmt.Sprintf("references unknown sourceDescription %q", op.SourceDescription))
-	}
-	validateOperationFields(op, path, result)
+	validateRequest(op.Request, path+".request", result)
 	validateDependencyList(op.DependsOn, path+".dependsOn", idx, result)
 	validateCriteria(op.SuccessCriteria, path+".successCriteria", result)
 	validateFailureActions(op.OnFailure, path+".onFailure", idx, result)
 	validateSuccessActions(op.OnSuccess, path+".onSuccess", idx, result)
 	validateOutputs(op.Outputs, path+".outputs", result)
-	validateSecurityRequirements(op.Security, path+".security", result)
 }
 
-func validateOperationFields(op *Operation, path string, result *ValidationResult) {
-	switch op.ServiceType {
-	case "http":
-		if op.Method == "" {
-			result.addError(path, fmt.Sprintf("(%s): http operations require method", op.OperationID))
-		} else if !isValidHTTPMethod(op.Method) {
-			result.addError(path+".method", fmt.Sprintf("invalid http method %q", op.Method))
+func validateRequest(request map[string]any, path string, result *ValidationResult) {
+	for key, value := range request {
+		if strings.HasPrefix(key, "x-") {
+			continue
 		}
-	case "ssh", "cmd":
-		if op.Command == "" {
-			result.addError(path, fmt.Sprintf("(%s): %s operations require command", op.OperationID, op.ServiceType))
+		if !standardRequestKeys[key] {
+			result.addError(path+"."+key, "is not a standard request binding key; use path, query, header, cookie, body, or x-*")
+			continue
 		}
-	case "fnct":
-		if op.Function == "" {
-			result.addError(path, fmt.Sprintf("(%s): fnct operations require function", op.OperationID))
+		switch key {
+		case "path", "query", "header", "cookie":
+			if !isObjectValue(value) {
+				result.addError(path+"."+key, "must be an object")
+			}
 		}
 	}
 }
 
-func isValidHTTPMethod(method string) bool {
-	switch method {
-	case "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE":
-		return true
+func hasExtensionOperationProfile(extensions map[string]any) bool {
+	if len(extensions) == 0 {
+		return false
 	}
-	return false
+	value, ok := extensions[ExtensionOperationProfile]
+	if !ok {
+		return false
+	}
+	text, ok := value.(string)
+	return ok && strings.TrimSpace(text) != ""
+}
+
+func isObjectValue(value any) bool {
+	if value == nil {
+		return false
+	}
+	rv := reflect.ValueOf(value)
+	if rv.Kind() != reflect.Map {
+		return false
+	}
+	if rv.Type().Key().Kind() != reflect.String {
+		return false
+	}
+	return true
 }
 
 func validateDependencyList(deps []string, path string, idx *validationIndex, result *ValidationResult) {
@@ -400,9 +409,7 @@ func (s *Step) validate(path string, idx *validationIndex, result *ValidationRes
 	if s.StepID == "" {
 		result.addError(path+".stepId", "is required")
 	}
-	if s.Type == "" {
-		result.addError(path+".type", "is required")
-	} else if !ValidServiceTypes[s.Type] && !validWorkflowTypes[s.Type] {
+	if s.Type != "" && !validWorkflowTypes[s.Type] {
 		result.addError(path+".type", fmt.Sprintf("%q is not valid", s.Type))
 	}
 	if s.OperationRef != "" && !idx.operations[s.OperationRef] {
@@ -566,100 +573,7 @@ func validateGotoTarget(actionType, workflowID, stepID, path string, idx *valida
 	}
 }
 
-func validateSecurityRequirements(requirements []*SecurityRequirement, path string, result *ValidationResult) {
-	for i, requirement := range requirements {
-		requirementPath := fmt.Sprintf("%s[%d]", path, i)
-		if requirement == nil {
-			result.addError(requirementPath, "is nil")
-			continue
-		}
-		requirement.validate(requirementPath, result)
-	}
-}
-
-func (s *SecurityRequirement) validate(path string, result *ValidationResult) {
-	if s.Scheme != nil {
-		s.Scheme.validate(path+".scheme", result)
-	}
-}
-
-func (s *SecurityScheme) validate(path string, result *ValidationResult) {
-	if s.Type == "" {
-		result.addError(path+".type", "is required")
-		return
-	}
-	switch s.Type {
-	case "oauth2":
-		if s.Flows == nil {
-			result.addError(path+".flows", "is required for oauth2 security schemes")
-		} else {
-			s.Flows.validate(path+".flows", result)
-		}
-	case "apiKey":
-		if s.Name == "" {
-			result.addError(path+".name", "is required for apiKey security schemes")
-		}
-		if s.In == "" {
-			result.addError(path+".in", "is required for apiKey security schemes")
-		} else if s.In != "header" && s.In != "query" && s.In != "cookie" {
-			result.addError(path+".in", fmt.Sprintf("%q is not valid (must be header, query, or cookie)", s.In))
-		}
-	case "http":
-		if s.Scheme == "" {
-			result.addError(path+".scheme", "is required for http security schemes")
-		}
-	default:
-		result.addError(path+".type", fmt.Sprintf("%q is not valid (must be oauth2, apiKey, or http)", s.Type))
-	}
-}
-
-func (o *OAuthFlows) validate(path string, result *ValidationResult) {
-	if o.Password != nil {
-		o.Password.validate(path+".password", false, true, result)
-	}
-	if o.Implicit != nil {
-		o.Implicit.validate(path+".implicit", true, false, result)
-	}
-	if o.AuthorizationCode != nil {
-		o.AuthorizationCode.validate(path+".authorizationCode", true, true, result)
-	}
-	if o.ClientCredentials != nil {
-		o.ClientCredentials.validate(path+".clientCredentials", false, true, result)
-	}
-}
-
-func (o *OAuthFlow) validate(path string, requireAuthorizationURL, requireTokenURL bool, result *ValidationResult) {
-	if requireAuthorizationURL && o.AuthorizationURL == "" {
-		result.addError(path+".authorizationUrl", "is required")
-	}
-	if requireTokenURL && o.TokenURL == "" {
-		result.addError(path+".tokenUrl", "is required")
-	}
-}
-
-func (c *Components) validate(path string, idx *validationIndex, result *ValidationResult) {
-	for name, op := range c.Operations {
-		componentPath := path + ".operations." + name
-		if !componentNamePattern.MatchString(name) {
-			result.addError(componentPath, fmt.Sprintf("component name %q is not valid", name))
-		}
-		if op == nil {
-			result.addError(componentPath, "is nil")
-			continue
-		}
-		op.validate(componentPath, idx, result)
-	}
-	for name, scheme := range c.SecuritySchemes {
-		componentPath := path + ".securitySchemes." + name
-		if !componentNamePattern.MatchString(name) {
-			result.addError(componentPath, fmt.Sprintf("component name %q is not valid", name))
-		}
-		if scheme == nil {
-			result.addError(componentPath, "is nil")
-			continue
-		}
-		scheme.validate(componentPath, result)
-	}
+func (c *Components) validate(path string, result *ValidationResult) {
 	for name := range c.Variables {
 		if !componentNamePattern.MatchString(name) {
 			result.addError(path+".variables."+name, fmt.Sprintf("component name %q is not valid", name))

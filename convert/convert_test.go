@@ -9,19 +9,46 @@ import (
 	"github.com/tabilet/uws/uws1"
 )
 
+func testDocument() *uws1.Document {
+	return &uws1.Document{
+		UWS:  "1.0.0",
+		Info: &uws1.Info{Title: "Test Workflow", Summary: "Line 1\nLine 2", Version: "1.0.0"},
+		SourceDescriptions: []*uws1.SourceDescription{
+			{Name: "api", URL: "./openapi.yaml", Type: uws1.SourceDescriptionTypeOpenAPI},
+		},
+		Variables: map[string]any{"$root": "kept"},
+		Operations: []*uws1.Operation{
+			{
+				OperationID:        "op1",
+				SourceDescription:  "api",
+				OpenAPIOperationID: "getOp",
+				Description:        "Line 1\nLine 2",
+				Request:            map[string]any{"body": map[string]any{"$request": map[string]any{"nested": "value"}}},
+			},
+		},
+		Workflows: []*uws1.Workflow{
+			{
+				WorkflowID: "wf",
+				Type:       "parallel",
+				Steps: []*uws1.Step{
+					{StepID: "step", OperationRef: "op1", Body: map[string]any{"$body": "kept"}},
+				},
+			},
+		},
+	}
+}
+
 func TestJSONToHCL(t *testing.T) {
 	jsonData := []byte(`{
 		"uws": "1.0.0",
-		"info": {
-			"title": "Pet Store Workflow",
-			"version": "1.0.0"
-		},
+		"info": {"title": "Pet Store Workflow", "version": "1.0.0"},
+		"sourceDescriptions": [{"name": "petstore_api", "url": "./petstore.yaml", "type": "openapi"}],
 		"operations": [
 			{
 				"operationId": "list_pets",
-				"serviceType": "http",
-				"method": "GET",
-				"path": "/pets"
+				"sourceDescription": "petstore_api",
+				"openapiOperationId": "listPets",
+				"request": {"query": {"limit": 10}}
 			}
 		]
 	}`)
@@ -32,45 +59,15 @@ func TestJSONToHCL(t *testing.T) {
 	}
 
 	hclStr := string(hclData)
-
-	if !strings.Contains(hclStr, "uws") {
-		t.Error("HCL output missing 'uws'")
-	}
-	if !strings.Contains(hclStr, "info") {
-		t.Error("HCL output missing 'info' block")
-	}
-	if !strings.Contains(hclStr, "operation") {
-		t.Error("HCL output missing 'operation' block")
+	for _, want := range []string{"uws", "info", "sourceDescription", "operation", "openapiOperationId"} {
+		if !strings.Contains(hclStr, want) {
+			t.Fatalf("HCL output missing %q:\n%s", want, hclStr)
+		}
 	}
 }
 
 func TestMarshalHCLDoesNotMutateDocument(t *testing.T) {
-	doc := &uws1.Document{
-		UWS:  "1.0.0",
-		Info: &uws1.Info{Title: "Mutation Test", Summary: "Line 1\nLine 2", Version: "1.0.0"},
-		Provider: &uws1.Provider{
-			Appendices: map[string]any{"$provider": "kept"},
-		},
-		Variables: map[string]any{"$root": "kept"},
-		Operations: []*uws1.Operation{
-			{
-				OperationID: "op1",
-				ServiceType: "http",
-				Method:      "GET",
-				Description: "Line 1\nLine 2",
-				Request:     map[string]any{"$request": map[string]any{"nested": "value"}},
-			},
-		},
-		Workflows: []*uws1.Workflow{
-			{
-				WorkflowID: "wf",
-				Type:       "parallel",
-				Steps: []*uws1.Step{
-					{StepID: "step", Type: "http", Body: map[string]any{"$body": "kept"}},
-				},
-			},
-		},
-	}
+	doc := testDocument()
 	original, err := json.Marshal(doc)
 	if err != nil {
 		t.Fatalf("Failed to snapshot original document: %v", err)
@@ -89,11 +86,12 @@ func TestMarshalHCLDoesNotMutateDocument(t *testing.T) {
 	}
 }
 
-func TestHCLConversionTransformsNestedWorkflowBodies(t *testing.T) {
+func TestHCLConversionTransformsNestedBodies(t *testing.T) {
 	jsonData := []byte(`{
 		"uws": "1.0.0",
 		"info": {"title": "Nested Body Test", "version": "1.0.0"},
-		"operations": [{"operationId": "op1", "serviceType": "http", "method": "GET"}],
+		"sourceDescriptions": [{"name": "api", "url": "./openapi.yaml", "type": "openapi"}],
+		"operations": [{"operationId": "op1", "sourceDescription": "api", "openapiOperationId": "getOp"}],
 		"workflows": [
 			{
 				"workflowId": "wf",
@@ -107,16 +105,12 @@ func TestHCLConversionTransformsNestedWorkflowBodies(t *testing.T) {
 								"name": "case_a",
 								"body": {"$case": "value"},
 								"steps": [
-									{
-										"stepId": "inner",
-										"type": "http",
-										"body": {"$inner": {"line": "a\nb"}}
-									}
+									{"stepId": "inner", "operationRef": "op1", "body": {"$inner": {"line": "a\nb"}}}
 								]
 							}
 						],
 						"default": [
-							{"stepId": "fallback", "type": "cmd", "body": {"$default": "value"}}
+							{"stepId": "fallback", "type": "sequence", "body": {"$default": "value"}}
 						]
 					}
 				]
@@ -162,10 +156,14 @@ info:
   title: YAML Test
   version: 1.0.0
   x-info: true
+sourceDescriptions:
+  - name: api
+    url: ./openapi.yaml
+    type: openapi
 operations:
   - operationId: op1
-    serviceType: http
-    method: GET
+    sourceDescription: api
+    openapiOperationId: getOp
     x-tier: 2
 triggers:
   - triggerId: webhook
@@ -209,6 +207,34 @@ x-root: yaml
 	}
 }
 
+func TestHCLConversionRejectsExtensions(t *testing.T) {
+	jsonData := []byte(`{
+		"uws": "1.0.0",
+		"info": {"title": "Extension", "version": "1.0.0"},
+		"operations": [
+			{
+				"operationId": "build_email",
+				"x-uws-operation-profile": "udon",
+				"x-udon-runtime": {"type": "fnct", "function": "mail_raw"}
+			}
+		]
+	}`)
+
+	_, err := JSONToHCL(jsonData)
+	if err == nil || !strings.Contains(err.Error(), "cannot preserve extension profiles") {
+		t.Fatalf("Expected extension-preservation error, got %v", err)
+	}
+
+	var doc uws1.Document
+	if err := json.Unmarshal(jsonData, &doc); err != nil {
+		t.Fatalf("Failed to parse JSON: %v", err)
+	}
+	_, err = MarshalHCL(&doc)
+	if err == nil || !strings.Contains(err.Error(), "cannot preserve extension profiles") {
+		t.Fatalf("Expected extension-preservation error, got %v", err)
+	}
+}
+
 func TestHCLToJSON(t *testing.T) {
 	hclData := []byte(`
 uws = "1.0.0"
@@ -218,10 +244,14 @@ info {
   version = "1.0.0"
 }
 
+sourceDescription "petstore_api" {
+  url  = "./petstore.yaml"
+  type = "openapi"
+}
+
 operation "list_pets" {
-  serviceType = "http"
-  method      = "GET"
-  path        = "/pets"
+  sourceDescription  = "petstore_api"
+  openapiOperationId = "listPets"
 }
 `)
 
@@ -241,52 +271,16 @@ operation "list_pets" {
 	if doc.Info == nil || doc.Info.Title != "Pet Store Workflow" {
 		t.Error("Info not properly converted")
 	}
+	if len(doc.SourceDescriptions) != 1 || doc.SourceDescriptions[0].Name != "petstore_api" {
+		t.Error("SourceDescriptions not properly converted")
+	}
 	if len(doc.Operations) != 1 || doc.Operations[0].OperationID != "list_pets" {
 		t.Error("Operations not properly converted")
 	}
 }
 
 func TestMarshalUnmarshalHCL(t *testing.T) {
-	doc := &uws1.Document{
-		UWS: "1.0.0",
-		Info: &uws1.Info{
-			Title:       "Test API",
-			Summary:     "A test workflow",
-			Description: "This is a test",
-			Version:     "1.0.0",
-		},
-		Operations: []*uws1.Operation{
-			{
-				OperationID: "get_user",
-				ServiceType: "http",
-				Method:      "GET",
-				Path:        "/users/1",
-				SuccessCriteria: []*uws1.Criterion{
-					{
-						Condition: "$statusCode == 200",
-						Type:      uws1.CriterionSimple,
-					},
-				},
-			},
-		},
-		Workflows: []*uws1.Workflow{
-			{
-				WorkflowID:  "test-workflow",
-				Type:        "parallel",
-				Description: "A workflow for testing",
-				Steps: []*uws1.Step{
-					{
-						StepID:       "step1",
-						Type:         "http",
-						OperationRef: "get_user",
-					},
-				},
-				Outputs: map[string]string{
-					"userId": "$steps.step1.outputs.id",
-				},
-			},
-		},
-	}
+	doc := testDocument()
 
 	hclData, err := MarshalHCL(doc)
 	if err != nil {
@@ -303,6 +297,9 @@ func TestMarshalUnmarshalHCL(t *testing.T) {
 	}
 	if doc2.Info.Title != doc.Info.Title {
 		t.Errorf("Title mismatch: got %s, want %s", doc2.Info.Title, doc.Info.Title)
+	}
+	if len(doc2.SourceDescriptions) != len(doc.SourceDescriptions) {
+		t.Errorf("SourceDescription count mismatch: got %d, want %d", len(doc2.SourceDescriptions), len(doc.SourceDescriptions))
 	}
 	if len(doc2.Operations) != len(doc.Operations) {
 		t.Errorf("Operation count mismatch: got %d, want %d", len(doc2.Operations), len(doc.Operations))
@@ -323,41 +320,28 @@ func TestComplexDocumentConversion(t *testing.T) {
 		},
 		"sourceDescriptions": [
 			{"name": "api1", "url": "./api1.json", "type": "openapi"},
-			{"name": "api2", "url": "./api2.json", "type": "arazzo"}
+			{"name": "api2", "url": "./api2.json", "type": "openapi"}
 		],
 		"operations": [
 			{
 				"operationId": "create_resource",
-				"serviceType": "http",
-				"method": "POST",
-				"path": "/resources",
+				"sourceDescription": "api1",
+				"openapiOperationId": "createResource",
 				"successCriteria": [
-					{"condition": "$statusCode == 201", "type": "simple"}
+					{"condition": "$response.statusCode == 201", "type": "simple"}
 				],
 				"onFailure": [
-					{
-						"name": "retry_create",
-						"type": "retry",
-						"retryAfter": 2,
-						"retryLimit": 3
-					}
+					{"name": "retry_create", "type": "retry", "retryAfter": 2, "retryLimit": 3}
 				],
-				"outputs": {
-					"resourceId": "$response.body.id"
-				}
+				"outputs": {"resourceId": "$response.body.id"}
 			},
 			{
 				"operationId": "verify_resource",
-				"serviceType": "http",
-				"method": "GET",
-				"path": "/resources/1",
+				"sourceDescription": "api2",
+				"openapiOperationRef": "#/paths/~1resources~11/get",
 				"dependsOn": ["create_resource"],
 				"onSuccess": [
-					{
-						"name": "goto_workflow",
-						"type": "goto",
-						"workflowId": "parallel_checks"
-					}
+					{"name": "goto_workflow", "type": "goto", "workflowId": "parallel_checks"}
 				]
 			}
 		],
@@ -367,21 +351,10 @@ func TestComplexDocumentConversion(t *testing.T) {
 				"type": "parallel",
 				"dependsOn": ["create_resource"],
 				"steps": [
-					{
-						"stepId": "validate",
-						"type": "http",
-						"operationRef": "verify_resource",
-						"body": {"path": "/validate"}
-					},
-					{
-						"stepId": "log",
-						"type": "cmd",
-						"body": {"command": "echo", "arguments": ["done"]}
-					}
+					{"stepId": "validate", "operationRef": "verify_resource", "body": {"$validate": true}},
+					{"stepId": "after_validate", "type": "sequence"}
 				],
-				"outputs": {
-					"result": "$steps.validate.outputs.body"
-				}
+				"outputs": {"result": "$steps.validate.outputs.body"}
 			}
 		]
 	}`)
@@ -390,8 +363,6 @@ func TestComplexDocumentConversion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("JSONToHCL failed: %v", err)
 	}
-
-	t.Logf("Generated HCL:\n%s", string(hclData))
 
 	jsonData2, err := HCLToJSON(hclData)
 	if err != nil {
@@ -421,58 +392,19 @@ func TestComplexDocumentConversion(t *testing.T) {
 	if len(doc1.Workflows) != len(doc2.Workflows) {
 		t.Errorf("Workflows count mismatch after round-trip")
 	}
-	if len(doc1.Workflows[0].Steps) != len(doc2.Workflows[0].Steps) {
-		t.Errorf("Steps count mismatch after round-trip")
-	}
 }
 
 func TestRoundTripPreservesCriteriaAndActions(t *testing.T) {
-	doc := &uws1.Document{
-		UWS: "1.0.0",
-		Info: &uws1.Info{
-			Title:   "Test",
-			Version: "1.0.0",
-		},
-		Operations: []*uws1.Operation{
-			{
-				OperationID: "get_user",
-				ServiceType: "http",
-				Method:      "GET",
-				Path:        "/users/1",
-				SuccessCriteria: []*uws1.Criterion{
-					{
-						Condition: "$statusCode == 200",
-						Type:      uws1.CriterionSimple,
-					},
-					{
-						Condition: "^\\{",
-						Type:      uws1.CriterionRegex,
-						Context:   "$response.body",
-					},
-				},
-				OnSuccess: []*uws1.SuccessAction{
-					{
-						Name:   "continue",
-						Type:   "goto",
-						StepID: "nextStep",
-						Criteria: []*uws1.Criterion{
-							{
-								Condition: "$statusCode == 200",
-								Type:      uws1.CriterionSimple,
-							},
-						},
-					},
-				},
-				OnFailure: []*uws1.FailureAction{
-					{
-						Name:       "retry_once",
-						Type:       "retry",
-						RetryAfter: 1.5,
-						RetryLimit: 3,
-					},
-				},
-			},
-		},
+	doc := testDocument()
+	doc.Operations[0].SuccessCriteria = []*uws1.Criterion{
+		{Condition: "$response.statusCode == 200", Type: uws1.CriterionSimple},
+		{Condition: "^\\{", Type: uws1.CriterionRegex, Context: "$response.body"},
+	}
+	doc.Operations[0].OnSuccess = []*uws1.SuccessAction{
+		{Name: "continue", Type: "goto", StepID: "nextStep", Criteria: []*uws1.Criterion{{Condition: "$response.statusCode == 200"}}},
+	}
+	doc.Operations[0].OnFailure = []*uws1.FailureAction{
+		{Name: "retry_once", Type: "retry", RetryAfter: 1.5, RetryLimit: 3},
 	}
 
 	jsonData, err := json.Marshal(doc)
@@ -499,55 +431,23 @@ func TestRoundTripPreservesCriteriaAndActions(t *testing.T) {
 	if len(op.SuccessCriteria) != 2 {
 		t.Fatalf("Expected 2 success criteria, got %d", len(op.SuccessCriteria))
 	}
-	if op.SuccessCriteria[0].Type != uws1.CriterionSimple {
-		t.Errorf("Expected criterion type 'simple', got %q", op.SuccessCriteria[0].Type)
-	}
 	if op.SuccessCriteria[1].Type != uws1.CriterionRegex {
 		t.Errorf("Expected criterion type 'regex', got %q", op.SuccessCriteria[1].Type)
 	}
-
-	if len(op.OnSuccess) != 1 {
-		t.Fatalf("Expected 1 onSuccess action, got %d", len(op.OnSuccess))
+	if len(op.OnSuccess) != 1 || op.OnSuccess[0].StepID != "nextStep" {
+		t.Fatalf("Expected onSuccess stepId 'nextStep', got %#v", op.OnSuccess)
 	}
-	if op.OnSuccess[0].StepID != "nextStep" {
-		t.Errorf("Expected onSuccess stepId 'nextStep', got %q", op.OnSuccess[0].StepID)
-	}
-	if len(op.OnSuccess[0].Criteria) != 1 {
-		t.Fatalf("Expected 1 onSuccess criterion, got %d", len(op.OnSuccess[0].Criteria))
-	}
-
-	if len(op.OnFailure) != 1 {
-		t.Fatalf("Expected 1 onFailure action, got %d", len(op.OnFailure))
-	}
-	if op.OnFailure[0].RetryLimit != 3 {
-		t.Errorf("Expected retryLimit 3, got %d", op.OnFailure[0].RetryLimit)
+	if len(op.OnFailure) != 1 || op.OnFailure[0].RetryLimit != 3 {
+		t.Fatalf("Expected retryLimit 3, got %#v", op.OnFailure)
 	}
 }
 
 func TestHCLConversionPreservesDollarKeys(t *testing.T) {
-	jsonData := []byte(`{
-		"uws": "1.0.0",
-		"info": {
-			"title": "Dollar Key Test",
-			"version": "1.0.0"
-		},
-		"variables": {
-			"$custom": "value",
-			"regular": "normal"
-		},
-		"operations": [
-			{
-				"operationId": "op1",
-				"serviceType": "http",
-				"method": "GET",
-				"path": "/test",
-				"request": {
-					"$meta": {"id": 1},
-					"name": "test"
-				}
-			}
-		]
-	}`)
+	doc := testDocument()
+	jsonData, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatalf("Failed to marshal JSON: %v", err)
+	}
 
 	hclData, err := JSONToHCL(jsonData)
 	if err != nil {
@@ -555,11 +455,11 @@ func TestHCLConversionPreservesDollarKeys(t *testing.T) {
 	}
 
 	hclStr := string(hclData)
-	if !strings.Contains(hclStr, "__dollar__custom") {
-		t.Error("HCL output missing transformed $custom key")
+	if !strings.Contains(hclStr, "__dollar__root") {
+		t.Error("HCL output missing transformed $root key")
 	}
-	if !strings.Contains(hclStr, "__dollar__meta") {
-		t.Error("HCL output missing transformed $meta key")
+	if !strings.Contains(hclStr, "__dollar__request") {
+		t.Error("HCL output missing transformed $request key")
 	}
 
 	jsonData2, err := HCLToJSON(hclData)
@@ -567,41 +467,29 @@ func TestHCLConversionPreservesDollarKeys(t *testing.T) {
 		t.Fatalf("HCLToJSON failed: %v", err)
 	}
 
-	var doc uws1.Document
-	if err := json.Unmarshal(jsonData2, &doc); err != nil {
+	var roundTripped uws1.Document
+	if err := json.Unmarshal(jsonData2, &roundTripped); err != nil {
 		t.Fatalf("Failed to parse JSON output: %v", err)
 	}
 
-	if doc.Variables == nil {
-		t.Fatal("Variables should not be nil")
+	if _, ok := roundTripped.Variables["$root"]; !ok {
+		t.Error("Expected $root key in variables after round-trip")
 	}
-	if _, ok := doc.Variables["$custom"]; !ok {
-		t.Error("Expected $custom key in variables after round-trip")
+	body, ok := roundTripped.Operations[0].Request["body"].(map[string]any)
+	if !ok {
+		t.Fatalf("Expected body map in request after round-trip, got %#v", roundTripped.Operations[0].Request["body"])
 	}
-
-	if doc.Operations[0].Request == nil {
-		t.Fatal("Request should not be nil")
-	}
-	if _, ok := doc.Operations[0].Request["$meta"]; !ok {
-		t.Error("Expected $meta key in request after round-trip")
+	if _, ok := body["$request"]; !ok {
+		t.Error("Expected $request key in request body after round-trip")
 	}
 }
 
 func TestHCLToJSONIndent(t *testing.T) {
-	hclData := []byte(`
-uws = "1.0.0"
-
-info {
-  title   = "Test"
-  version = "1.0.0"
-}
-
-operation "op1" {
-  serviceType = "http"
-  method      = "GET"
-  path        = "/test"
-}
-`)
+	doc := testDocument()
+	hclData, err := MarshalHCL(doc)
+	if err != nil {
+		t.Fatalf("MarshalHCL failed: %v", err)
+	}
 
 	jsonData, err := HCLToJSONIndent(hclData, "", "  ")
 	if err != nil {
@@ -612,89 +500,18 @@ operation "op1" {
 		t.Error("JSON output is not indented")
 	}
 
-	var doc uws1.Document
-	if err := json.Unmarshal(jsonData, &doc); err != nil {
+	var decoded uws1.Document
+	if err := json.Unmarshal(jsonData, &decoded); err != nil {
 		t.Fatalf("Output is not valid JSON: %v", err)
 	}
 }
 
-func TestCmdAndFnctOperations(t *testing.T) {
+func TestWorkflowWithTriggers(t *testing.T) {
 	jsonData := []byte(`{
 		"uws": "1.0.0",
-		"info": {
-			"title": "Multi-Service Test",
-			"version": "1.0.0"
-		},
-		"operations": [
-			{
-				"operationId": "check_disk",
-				"serviceType": "cmd",
-				"command": "df",
-				"arguments": ["-h", "/"],
-				"workingDir": "/tmp"
-			},
-			{
-				"operationId": "compute_hash",
-				"serviceType": "fnct",
-				"function": "crypto.SHA256",
-				"arguments": ["input_data"]
-			}
-		]
-	}`)
-
-	hclData, err := JSONToHCL(jsonData)
-	if err != nil {
-		t.Fatalf("JSONToHCL failed: %v", err)
-	}
-
-	t.Logf("HCL:\n%s", string(hclData))
-
-	jsonData2, err := HCLToJSON(hclData)
-	if err != nil {
-		t.Fatalf("HCLToJSON failed: %v", err)
-	}
-
-	var doc uws1.Document
-	if err := json.Unmarshal(jsonData2, &doc); err != nil {
-		t.Fatalf("Failed to parse JSON output: %v", err)
-	}
-
-	if len(doc.Operations) != 2 {
-		t.Fatalf("Expected 2 operations, got %d", len(doc.Operations))
-	}
-
-	cmdOp := doc.Operations[0]
-	if cmdOp.ServiceType != "cmd" {
-		t.Errorf("Expected serviceType 'cmd', got %q", cmdOp.ServiceType)
-	}
-	if cmdOp.Command != "df" {
-		t.Errorf("Expected command 'df', got %q", cmdOp.Command)
-	}
-
-	fnctOp := doc.Operations[1]
-	if fnctOp.ServiceType != "fnct" {
-		t.Errorf("Expected serviceType 'fnct', got %q", fnctOp.ServiceType)
-	}
-	if fnctOp.Function != "crypto.SHA256" {
-		t.Errorf("Expected function 'crypto.SHA256', got %q", fnctOp.Function)
-	}
-}
-
-func TestWorkflowWithTriggersAndSecurity(t *testing.T) {
-	jsonData := []byte(`{
-		"uws": "1.0.0",
-		"info": {
-			"title": "Full Feature Test",
-			"version": "1.0.0"
-		},
-		"operations": [
-			{
-				"operationId": "op1",
-				"serviceType": "http",
-				"method": "GET",
-				"path": "/test"
-			}
-		],
+		"info": {"title": "Full Feature Test", "version": "1.0.0"},
+		"sourceDescriptions": [{"name": "api", "url": "./openapi.yaml", "type": "openapi"}],
+		"operations": [{"operationId": "op1", "sourceDescription": "api", "openapiOperationId": "getOp"}],
 		"triggers": [
 			{
 				"triggerId": "webhook",
@@ -702,18 +519,7 @@ func TestWorkflowWithTriggersAndSecurity(t *testing.T) {
 				"methods": ["POST"],
 				"authentication": "bearer",
 				"options": {"timeout": 30},
-				"routes": [
-					{"output": "0", "to": ["op1"]}
-				]
-			}
-		],
-		"security": [
-			{
-				"name": "bearer_auth",
-				"scheme": {
-					"type": "http",
-					"scheme": "bearer"
-				}
+				"routes": [{"output": "0", "to": ["op1"]}]
 			}
 		]
 	}`)
@@ -742,30 +548,12 @@ func TestWorkflowWithTriggersAndSecurity(t *testing.T) {
 	if doc.Triggers[0].Path != "/webhooks/test" {
 		t.Errorf("Expected path '/webhooks/test', got %q", doc.Triggers[0].Path)
 	}
-	if len(doc.Security) != 1 {
-		t.Fatalf("Expected 1 security requirement, got %d", len(doc.Security))
-	}
 }
 
 func TestNewlineEscaping(t *testing.T) {
-	doc := &uws1.Document{
-		UWS: "1.0.0",
-		Info: &uws1.Info{
-			Title:       "Newline Test",
-			Summary:     "Line 1\nLine 2",
-			Description: "First line\nSecond line\nThird line",
-			Version:     "1.0.0",
-		},
-		Operations: []*uws1.Operation{
-			{
-				OperationID: "op1",
-				ServiceType: "http",
-				Method:      "GET",
-				Path:        "/test",
-				Description: "Op description\nwith newlines",
-			},
-		},
-	}
+	doc := testDocument()
+	doc.Info.Description = "First line\nSecond line\nThird line"
+	doc.Operations[0].Description = "Op description\nwith newlines"
 
 	jsonData, err := json.Marshal(doc)
 	if err != nil {

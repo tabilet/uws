@@ -119,7 +119,6 @@ func transformDocumentForHCL(doc *uws1.Document) {
 		doc.Info.Description = escapeNewlines(doc.Info.Description)
 		doc.Info.Summary = escapeNewlines(doc.Info.Summary)
 	}
-	transformProviderForHCL(doc.Provider, true)
 	if doc.Variables != nil {
 		doc.Variables = transformValue(doc.Variables, true).(map[string]any)
 	}
@@ -135,13 +134,6 @@ func transformDocumentForHCL(doc *uws1.Document) {
 	transformComponentsForHCL(doc.Components, true)
 }
 
-func transformProviderForHCL(provider *uws1.Provider, toHCL bool) {
-	if provider == nil || provider.Appendices == nil {
-		return
-	}
-	provider.Appendices = transformValue(provider.Appendices, toHCL).(map[string]any)
-}
-
 func transformOperationForHCL(op *uws1.Operation, toHCL bool) {
 	if op == nil {
 		return
@@ -151,14 +143,8 @@ func transformOperationForHCL(op *uws1.Operation, toHCL bool) {
 	} else {
 		op.Description = unescapeNewlines(op.Description)
 	}
-	transformProviderForHCL(op.Provider, toHCL)
 	if op.Request != nil {
 		op.Request = transformValue(op.Request, toHCL).(map[string]any)
-	}
-	if op.Arguments != nil {
-		for i, arg := range op.Arguments {
-			op.Arguments[i] = transformValue(arg, toHCL)
-		}
 	}
 }
 
@@ -229,9 +215,6 @@ func transformComponentsForHCL(components *uws1.Components, toHCL bool) {
 	if components.Variables != nil {
 		components.Variables = transformValue(components.Variables, toHCL).(map[string]any)
 	}
-	for _, op := range components.Operations {
-		transformOperationForHCL(op, toHCL)
-	}
 }
 
 // transformDocumentFromHCL transforms a UWS document's dynamic fields back from HCL.
@@ -240,7 +223,6 @@ func transformDocumentFromHCL(doc *uws1.Document) {
 		doc.Info.Description = unescapeNewlines(doc.Info.Description)
 		doc.Info.Summary = unescapeNewlines(doc.Info.Summary)
 	}
-	transformProviderForHCL(doc.Provider, false)
 	if doc.Variables != nil {
 		doc.Variables = transformValue(doc.Variables, false).(map[string]any)
 	}
@@ -269,6 +251,245 @@ func cloneDocument(doc *uws1.Document) (*uws1.Document, error) {
 		return nil, err
 	}
 	return &cloned, nil
+}
+
+func validateHCLSerializable(doc *uws1.Document) error {
+	if doc == nil {
+		return fmt.Errorf("document is nil")
+	}
+	if err := rejectExtensionsForHCL("document", doc.Extensions); err != nil {
+		return err
+	}
+	if doc.Info != nil {
+		if err := rejectExtensionsForHCL("info", doc.Info.Extensions); err != nil {
+			return err
+		}
+	}
+	for i, source := range doc.SourceDescriptions {
+		if source == nil {
+			continue
+		}
+		if err := rejectExtensionsForHCL(fmt.Sprintf("sourceDescriptions[%d]", i), source.Extensions); err != nil {
+			return err
+		}
+	}
+	for i, op := range doc.Operations {
+		if err := validateOperationHCLSerializable(fmt.Sprintf("operations[%d]", i), op); err != nil {
+			return err
+		}
+	}
+	for i, wf := range doc.Workflows {
+		if err := validateWorkflowHCLSerializable(fmt.Sprintf("workflows[%d]", i), wf); err != nil {
+			return err
+		}
+	}
+	for i, trigger := range doc.Triggers {
+		if err := validateTriggerHCLSerializable(fmt.Sprintf("triggers[%d]", i), trigger); err != nil {
+			return err
+		}
+	}
+	for i, result := range doc.Results {
+		if result == nil {
+			continue
+		}
+		if err := rejectExtensionsForHCL(fmt.Sprintf("results[%d]", i), result.Extensions); err != nil {
+			return err
+		}
+	}
+	if doc.Components != nil {
+		if err := rejectExtensionsForHCL("components", doc.Components.Extensions); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateOperationHCLSerializable(path string, op *uws1.Operation) error {
+	if op == nil {
+		return nil
+	}
+	if err := rejectExtensionsForHCL(path, op.Extensions); err != nil {
+		return err
+	}
+	for i, criterion := range op.SuccessCriteria {
+		if err := validateCriterionHCLSerializable(fmt.Sprintf("%s.successCriteria[%d]", path, i), criterion); err != nil {
+			return err
+		}
+	}
+	for i, action := range op.OnFailure {
+		if err := validateFailureActionHCLSerializable(fmt.Sprintf("%s.onFailure[%d]", path, i), action); err != nil {
+			return err
+		}
+	}
+	for i, action := range op.OnSuccess {
+		if err := validateSuccessActionHCLSerializable(fmt.Sprintf("%s.onSuccess[%d]", path, i), action); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateCriterionHCLSerializable(path string, criterion *uws1.Criterion) error {
+	if criterion == nil {
+		return nil
+	}
+	return rejectExtensionsForHCL(path, criterion.Extensions)
+}
+
+func validateFailureActionHCLSerializable(path string, action *uws1.FailureAction) error {
+	if action == nil {
+		return nil
+	}
+	if err := rejectExtensionsForHCL(path, action.Extensions); err != nil {
+		return err
+	}
+	for i, criterion := range action.Criteria {
+		if err := validateCriterionHCLSerializable(fmt.Sprintf("%s.criteria[%d]", path, i), criterion); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateSuccessActionHCLSerializable(path string, action *uws1.SuccessAction) error {
+	if action == nil {
+		return nil
+	}
+	if err := rejectExtensionsForHCL(path, action.Extensions); err != nil {
+		return err
+	}
+	for i, criterion := range action.Criteria {
+		if err := validateCriterionHCLSerializable(fmt.Sprintf("%s.criteria[%d]", path, i), criterion); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateWorkflowHCLSerializable(path string, wf *uws1.Workflow) error {
+	if wf == nil {
+		return nil
+	}
+	if err := rejectExtensionsForHCL(path, wf.Extensions); err != nil {
+		return err
+	}
+	if err := validateParamSchemaHCLSerializable(path+".inputs", wf.Inputs); err != nil {
+		return err
+	}
+	for i, step := range wf.Steps {
+		if err := validateStepHCLSerializable(fmt.Sprintf("%s.steps[%d]", path, i), step); err != nil {
+			return err
+		}
+	}
+	for i, c := range wf.Cases {
+		if err := validateCaseHCLSerializable(fmt.Sprintf("%s.cases[%d]", path, i), c); err != nil {
+			return err
+		}
+	}
+	for i, step := range wf.Default {
+		if err := validateStepHCLSerializable(fmt.Sprintf("%s.default[%d]", path, i), step); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateStepHCLSerializable(path string, step *uws1.Step) error {
+	if step == nil {
+		return nil
+	}
+	if err := rejectExtensionsForHCL(path, step.Extensions); err != nil {
+		return err
+	}
+	for i, child := range step.Steps {
+		if err := validateStepHCLSerializable(fmt.Sprintf("%s.steps[%d]", path, i), child); err != nil {
+			return err
+		}
+	}
+	for i, c := range step.Cases {
+		if err := validateCaseHCLSerializable(fmt.Sprintf("%s.cases[%d]", path, i), c); err != nil {
+			return err
+		}
+	}
+	for i, child := range step.Default {
+		if err := validateStepHCLSerializable(fmt.Sprintf("%s.default[%d]", path, i), child); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateCaseHCLSerializable(path string, c *uws1.Case) error {
+	if c == nil {
+		return nil
+	}
+	if err := rejectExtensionsForHCL(path, c.Extensions); err != nil {
+		return err
+	}
+	for i, step := range c.Steps {
+		if err := validateStepHCLSerializable(fmt.Sprintf("%s.steps[%d]", path, i), step); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateTriggerHCLSerializable(path string, trigger *uws1.Trigger) error {
+	if trigger == nil {
+		return nil
+	}
+	if err := rejectExtensionsForHCL(path, trigger.Extensions); err != nil {
+		return err
+	}
+	for i, route := range trigger.Routes {
+		if route == nil {
+			continue
+		}
+		if err := rejectExtensionsForHCL(fmt.Sprintf("%s.routes[%d]", path, i), route.Extensions); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateParamSchemaHCLSerializable(path string, schema *uws1.ParamSchema) error {
+	if schema == nil {
+		return nil
+	}
+	if err := rejectExtensionsForHCL(path, schema.Extensions); err != nil {
+		return err
+	}
+	for name, child := range schema.Properties {
+		if err := validateParamSchemaHCLSerializable(path+".properties."+name, child); err != nil {
+			return err
+		}
+	}
+	if err := validateParamSchemaHCLSerializable(path+".items", schema.Items); err != nil {
+		return err
+	}
+	for i, child := range schema.AllOf {
+		if err := validateParamSchemaHCLSerializable(fmt.Sprintf("%s.allOf[%d]", path, i), child); err != nil {
+			return err
+		}
+	}
+	for i, child := range schema.OneOf {
+		if err := validateParamSchemaHCLSerializable(fmt.Sprintf("%s.oneOf[%d]", path, i), child); err != nil {
+			return err
+		}
+	}
+	for i, child := range schema.AnyOf {
+		if err := validateParamSchemaHCLSerializable(fmt.Sprintf("%s.anyOf[%d]", path, i), child); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func rejectExtensionsForHCL(path string, extensions map[string]any) error {
+	if len(extensions) == 0 {
+		return nil
+	}
+	return fmt.Errorf("%s contains x-* extensions; UWS HCL conversion is core-only and cannot preserve extension profiles, use JSON or YAML", path)
 }
 
 func toJSONCompatible(v any) any {
@@ -300,6 +521,9 @@ func toJSONCompatible(v any) any {
 func JSONToHCL(jsonData []byte) ([]byte, error) {
 	var doc uws1.Document
 	if err := json.Unmarshal(jsonData, &doc); err != nil {
+		return nil, err
+	}
+	if err := validateHCLSerializable(&doc); err != nil {
 		return nil, err
 	}
 	transformDocumentForHCL(&doc)
@@ -375,6 +599,9 @@ func HCLToYAML(hclData []byte) ([]byte, error) {
 func MarshalHCL(doc *uws1.Document) ([]byte, error) {
 	cloned, err := cloneDocument(doc)
 	if err != nil {
+		return nil, err
+	}
+	if err := validateHCLSerializable(cloned); err != nil {
 		return nil, err
 	}
 	transformDocumentForHCL(cloned)

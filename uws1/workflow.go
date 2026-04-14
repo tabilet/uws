@@ -45,6 +45,9 @@ func (w *Workflow) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return fmt.Errorf("unmarshaling workflow extensions: %w", err)
 	}
+	if err := rejectUnknownFields(raw, workflowKnownFields, "workflow"); err != nil {
+		return err
+	}
 	w.Extensions = extractExtensions(raw, workflowKnownFields)
 	return nil
 }
@@ -97,6 +100,9 @@ func (s *Step) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return fmt.Errorf("unmarshaling step extensions: %w", err)
 	}
+	if err := rejectUnknownFields(raw, stepKnownFields, "step"); err != nil {
+		return err
+	}
 	s.Extensions = extractExtensions(raw, stepKnownFields)
 	return nil
 }
@@ -131,6 +137,9 @@ func (c *Case) UnmarshalJSON(data []byte) error {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return fmt.Errorf("unmarshaling case extensions: %w", err)
+	}
+	if err := rejectUnknownFields(raw, caseKnownFields, "case"); err != nil {
+		return err
 	}
 	c.Extensions = extractExtensions(raw, caseKnownFields)
 	return nil

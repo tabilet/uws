@@ -11,7 +11,6 @@ type SourceDescriptionType string
 
 const (
 	SourceDescriptionTypeOpenAPI SourceDescriptionType = "openapi"
-	SourceDescriptionTypeArazzo  SourceDescriptionType = "arazzo"
 )
 
 var sourceDescriptionNamePattern = regexp.MustCompile(`^[A-Za-z0-9_\-]+$`)
@@ -40,6 +39,9 @@ func (s *SourceDescription) UnmarshalJSON(data []byte) error {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return fmt.Errorf("unmarshaling sourceDescription extensions: %w", err)
+	}
+	if err := rejectUnknownFields(raw, sourceDescriptionKnownFields, "sourceDescription"); err != nil {
+		return err
 	}
 	s.Extensions = extractExtensions(raw, sourceDescriptionKnownFields)
 	return nil

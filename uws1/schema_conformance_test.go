@@ -1,10 +1,12 @@
 package uws1
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"testing"
 
+	"github.com/santhosh-tekuri/jsonschema/v6"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,9 +28,18 @@ func TestSchemaConformance_KeyValidatorRules(t *testing.T) {
 	step := defs["step-object"].(map[string]any)
 	stepRequired := step["required"].([]any)
 	require.Contains(t, stepRequired, "stepId")
-	require.Contains(t, stepRequired, "type")
+	require.NotContains(t, stepRequired, "type")
 	stepType := step["properties"].(map[string]any)["type"].(map[string]any)
-	require.ElementsMatch(t, append(mapKeys(ValidServiceTypes), mapKeys(validWorkflowTypes)...), stepType["enum"].([]any))
+	require.ElementsMatch(t, mapKeys(validWorkflowTypes), stepType["enum"].([]any))
+
+	operation := defs["operation-object"].(map[string]any)
+	operationRequired := operation["required"].([]any)
+	require.Contains(t, operationRequired, "operationId")
+	require.NotContains(t, operationRequired, "sourceDescription")
+	require.Contains(t, operation["properties"].(map[string]any), "openapiOperationId")
+	require.Contains(t, operation["properties"].(map[string]any), "openapiOperationRef")
+	require.Contains(t, operation["properties"].(map[string]any), "request")
+	require.NotContains(t, operation["properties"].(map[string]any), "serviceType")
 
 	criterion := defs["criterion-object"].(map[string]any)
 	criterionRequired := criterion["required"].([]any)
@@ -58,7 +69,7 @@ func TestSchemaConformance_ValidatorMatchesSelectedRules(t *testing.T) {
 
 	err := doc.Validate()
 	require.ErrorContains(t, err, "not-a-workflow")
-	require.ErrorContains(t, err, "steps[0].type is required")
+	require.NotContains(t, err.Error(), "steps[0].type is required")
 
 	doc = validDocument()
 	doc.Triggers = []*Trigger{{TriggerID: "t", Routes: []*TriggerRoute{{}}}}
@@ -67,4 +78,93 @@ func TestSchemaConformance_ValidatorMatchesSelectedRules(t *testing.T) {
 	doc = validDocument()
 	doc.Results = []*StructuralResult{{Kind: "await"}}
 	require.ErrorContains(t, doc.Validate(), "await")
+}
+
+func TestSchemaConformance_JSONSchemaValidator(t *testing.T) {
+	schema := compileUWSSchema(t)
+
+	sampleData, err := os.ReadFile("../testdata/sample.uws.json")
+	require.NoError(t, err)
+	sample := decodeJSONValue(t, sampleData)
+	require.NoError(t, schema.Validate(sample))
+
+	extensionOnly := decodeJSONValue(t, []byte(`{
+		"uws": "1.0.0",
+		"info": {"title": "Extension", "version": "1.0.0"},
+		"operations": [
+			{
+				"operationId": "build_email",
+				"x-uws-operation-profile": "udon",
+				"x-udon-runtime": {"type": "fnct", "function": "mail_raw"}
+			}
+		]
+	}`))
+	require.NoError(t, schema.Validate(extensionOnly))
+
+	extensionWithoutProfile := decodeJSONValue(t, []byte(`{
+		"uws": "1.0.0",
+		"info": {"title": "Extension", "version": "1.0.0"},
+		"operations": [
+			{"operationId": "build_email", "x-udon-runtime": {"type": "fnct", "function": "mail_raw"}}
+		]
+	}`))
+	require.Error(t, schema.Validate(extensionWithoutProfile))
+
+	operationIDOnly := decodeJSONValue(t, []byte(`{
+		"uws": "1.0.0",
+		"info": {"title": "Invalid", "version": "1.0.0"},
+		"operations": [
+			{"operationId": "op"}
+		]
+	}`))
+	require.Error(t, schema.Validate(operationIDOnly))
+
+	legacyServiceType := decodeJSONValue(t, []byte(`{
+		"uws": "1.0.0",
+		"info": {"title": "Legacy", "version": "1.0.0"},
+		"operations": [
+			{"operationId": "fetch", "serviceType": "http"}
+		]
+	}`))
+	require.Error(t, schema.Validate(legacyServiceType))
+
+	badRequest := decodeJSONValue(t, []byte(`{
+		"uws": "1.0.0",
+		"info": {"title": "Bad Request", "version": "1.0.0"},
+		"sourceDescriptions": [{"name": "api", "url": "./openapi.yaml", "type": "openapi"}],
+		"operations": [
+			{"operationId": "fetch", "sourceDescription": "api", "openapiOperationId": "getData", "request": {"limit": 10}}
+		]
+	}`))
+	require.Error(t, schema.Validate(badRequest))
+
+	badRequestType := decodeJSONValue(t, []byte(`{
+		"uws": "1.0.0",
+		"info": {"title": "Bad Request", "version": "1.0.0"},
+		"sourceDescriptions": [{"name": "api", "url": "./openapi.yaml", "type": "openapi"}],
+		"operations": [
+			{"operationId": "fetch", "sourceDescription": "api", "openapiOperationId": "getData", "request": {"query": "bad"}}
+		]
+	}`))
+	require.Error(t, schema.Validate(badRequestType))
+}
+
+func compileUWSSchema(t *testing.T) *jsonschema.Schema {
+	t.Helper()
+	data, err := os.ReadFile("../uws.json")
+	require.NoError(t, err)
+	doc, err := jsonschema.UnmarshalJSON(bytes.NewReader(data))
+	require.NoError(t, err)
+	compiler := jsonschema.NewCompiler()
+	require.NoError(t, compiler.AddResource("uws.json", doc))
+	schema, err := compiler.Compile("uws.json")
+	require.NoError(t, err)
+	return schema
+}
+
+func decodeJSONValue(t *testing.T, data []byte) any {
+	t.Helper()
+	value, err := jsonschema.UnmarshalJSON(bytes.NewReader(data))
+	require.NoError(t, err)
+	return value
 }

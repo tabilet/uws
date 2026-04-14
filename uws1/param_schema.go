@@ -37,6 +37,9 @@ func (p *ParamSchema) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return fmt.Errorf("unmarshaling paramSchema extensions: %w", err)
 	}
+	if err := rejectUnknownFields(raw, paramSchemaKnownFields, "paramSchema"); err != nil {
+		return err
+	}
 	p.Extensions = extractExtensions(raw, paramSchemaKnownFields)
 	return nil
 }
