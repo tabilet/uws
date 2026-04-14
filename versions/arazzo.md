@@ -8,6 +8,8 @@ Both UWS and Arazzo describe workflows over API operations defined outside the w
 
 UWS is not a replacement for OpenAPI and should not duplicate OpenAPI operation metadata.
 
+OpenAPI plus UWS is not equivalent to Arazzo. The two combinations overlap because both pair OpenAPI operation definitions with a workflow overlay, but they use different object models and target different tooling contracts.
+
 ## Core Difference
 
 Arazzo is an API-call sequencing specification. UWS is an OpenAPI-backed workflow overlay intended for workflow authoring and execution tooling such as `udon`.
@@ -98,6 +100,12 @@ Example:
 ```
 
 The core schema preserves this extension but does not validate or execute it.
+
+## Conversion Boundary
+
+UWS and Arazzo can be convertible for a shared subset: OpenAPI-backed operation calls, request parameter binding, simple sequencing, outputs, and success/failure criteria.
+
+Conversion is not guaranteed for the full models. Arazzo workflow steps, reusable components, runtime expression conventions, and source document semantics do not map one-to-one to UWS top-level operations, structural workflows, triggers, results, and extension-owned operation profiles.
 
 ## Choosing Between Them
 
