@@ -363,6 +363,28 @@ func TestValidate_WorkflowAndStepReferences(t *testing.T) {
 	assert.ErrorContains(t, err, "not-a-step-type")
 }
 
+func TestValidate_WorkflowAndStepIDsRejectDots(t *testing.T) {
+	t.Run("workflowId", func(t *testing.T) {
+		doc := validDocument()
+		doc.Workflows = []*Workflow{
+			{WorkflowID: "daily.v1", Type: "sequence"},
+		}
+		assert.ErrorContains(t, doc.Validate(), "workflowId must match pattern")
+	})
+
+	t.Run("stepId", func(t *testing.T) {
+		doc := validDocument()
+		doc.Workflows = []*Workflow{
+			{
+				WorkflowID: "wf",
+				Type:       "sequence",
+				Steps:      []*Step{{StepID: "fetch.user", OperationRef: "get_data"}},
+			},
+		}
+		assert.ErrorContains(t, doc.Validate(), "stepId must match pattern")
+	})
+}
+
 func TestValidate_SequenceWorkflowOperationStep(t *testing.T) {
 	doc := validDocument()
 	doc.Workflows = []*Workflow{
@@ -578,6 +600,26 @@ func TestValidate_StructuralTypeConstraints(t *testing.T) {
 		}
 		assert.ErrorContains(t, doc.Validate(), "items is required for loop")
 	})
+
+	t.Run("merge workflow requires dependsOn", func(t *testing.T) {
+		doc := validDocument()
+		doc.Workflows = []*Workflow{
+			{WorkflowID: "merge_wf", Type: "merge"},
+		}
+		assert.ErrorContains(t, doc.Validate(), "dependsOn is required and must name at least one upstream construct for merge")
+	})
+
+	t.Run("merge step requires dependsOn", func(t *testing.T) {
+		doc := validDocument()
+		doc.Workflows = []*Workflow{
+			{
+				WorkflowID: "wf",
+				Type:       "parallel",
+				Steps:      []*Step{{StepID: "merge_step", Type: "merge"}},
+			},
+		}
+		assert.ErrorContains(t, doc.Validate(), "dependsOn is required and must name at least one upstream construct for merge")
+	})
 }
 
 func TestValidate_StructuralResult(t *testing.T) {
@@ -587,11 +629,12 @@ func TestValidate_StructuralResult(t *testing.T) {
 			{
 				WorkflowID: "wf_merge",
 				Type:       "merge",
+				DependsOn:  []string{"get_data"},
 			},
 			{
 				WorkflowID: "wf_parallel",
 				Type:       "parallel",
-				Steps:      []*Step{{StepID: "merge_step", Type: "merge"}},
+				Steps:      []*Step{{StepID: "merge_step", Type: "merge", DependsOn: []string{"get_data"}}},
 			},
 		}
 		return doc
@@ -659,6 +702,15 @@ func TestValidate_StructuralResult(t *testing.T) {
 			{Name: "out", Kind: "merge", From: "wf_parallel.missing_step"},
 		}
 		assert.ErrorContains(t, doc.Validate(), `references unknown stepId "missing_step"`)
+	})
+
+	t.Run("operation step is not structural result source", func(t *testing.T) {
+		doc := baseDoc()
+		doc.Workflows[1].Steps = append(doc.Workflows[1].Steps, &Step{StepID: "fetch", OperationRef: "get_data"})
+		doc.Results = []*StructuralResult{
+			{Name: "out", Kind: "merge", From: "wf_parallel.fetch"},
+		}
+		assert.ErrorContains(t, doc.Validate(), "is not a structural construct")
 	})
 
 	t.Run("kind mismatch with workflow type", func(t *testing.T) {

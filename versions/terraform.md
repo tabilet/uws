@@ -1,346 +1,110 @@
-# Terraform, OpenAPI, and UWS: Rethinking API Workflows
+# Beyond Terraform: A Client-Side Execution Contract for API Workflows
 
-Terraform solved a real problem: cloud systems are too large and too dynamic to manage by hand. It gave infrastructure teams a familiar cycle:
+Terraform solved infrastructure-as-code. Write, plan, apply, track state — that loop is still one of the best engineering patterns we have for managing long-lived resources. Providers wrap service APIs into typed resources with lifecycle semantics, and the state file lets the engine reason about drift.
 
-```text
-write configuration
-plan the change
-approve the plan
-apply it
-track state
-repeat
-```
+A lot of modern work, though, is not desired-state infrastructure. It is multi-step API work against services that already publish OpenAPI, Discovery, or Smithy descriptions. For that class of work, a client-side execution contract bound directly to those descriptions is a lighter path. That is what UWS and its reference runtime `github.com/tabilet/udon` explore.
 
-That model is still one of the best engineering patterns for infrastructure. The question is whether the same shape should be copied directly for API workflows.
+## The duplication problem
 
-UWS takes a related but different path. Terraform starts from provider plugins. UWS starts from OpenAPI or an equivalent machine-readable API description, then adds workflow metadata on top.
+A Terraform provider re-describes the API it wraps: types, fields, request shapes, authentication, retries. When the underlying service already ships an OpenAPI document, the provider schema duplicates what is already machine-readable. The result is a second release cadence between the workflow and the service, and a simplified resource surface that can hide the exact request parameters a workflow wants to use.
 
-That difference matters.
+UWS removes the duplication by binding directly to the existing API description. The provider plugin disappears; the OpenAPI document takes its place.
 
-## Terraform in Practice
+## Feature spotlight 1: OpenAPI is the provider
 
-Terraform is infrastructure as code. A user writes HCL configuration that declares the desired state of cloud or SaaS resources. Terraform then calculates a plan and applies changes in dependency order.
-
-The common operational loop is:
-
-```bash
-terraform init
-terraform plan -out=tfplan
-terraform apply tfplan
-terraform show -json tfplan > tfplan.json
-```
-
-Under the hood, this is not simply "run an HTTP request." Terraform is built around long-lived managed resources and state. A resource like `aws_instance.web` is not just a call to an EC2 API. It is a typed object with create, read, update, delete, import, diff, lifecycle, dependency, and drift behavior.
-
-That is why Terraform providers exist.
-
-## Terraform's Technical Stack
-
-A simplified Terraform stack looks like this:
-
-```text
-Terraform HCL
-  -> Terraform Core
-  -> provider plugin
-  -> backend API
-  -> Terraform state
-```
-
-Terraform Core is the CLI and graph engine. It reads configuration, evaluates expressions, manages state, builds a dependency graph, creates a plan, and applies changes.
-
-Provider plugins are separate executables, usually written in Go. Terraform Core communicates with them over RPC. Each provider implements a service-specific model: resources, data sources, functions, authentication, and API calls.
-
-The provider boundary has real engineering advantages:
-
-- Providers can model high-level resources rather than raw REST operations.
-- Providers can hide backend API quirks behind a stable Terraform schema.
-- Providers can encode state migration, retry behavior, diff suppression, import behavior, and lifecycle semantics.
-- Providers let Terraform manage many backends through a common CLI and state model.
-
-It also has costs:
-
-- Every backend needs a maintained provider implementation.
-- Providers are released separately from Terraform and have their own version cadence.
-- A provider can lag behind the underlying service API when the API changes.
-- Provider schemas may expose a simpler resource model and omit detailed operation-level API parameters.
-- Enterprise teams must govern provider binaries: source, checksum, mirror/cache, version lock, review, and rollout.
-- Local Terraform CLI workflows do not automatically create a complete historical deployment ledger unless teams preserve plans, logs, state snapshots, and approvals in CI/CD, HCP Terraform, Terraform Enterprise, or another audit system.
-
-Terraform state is essential, but it is not the same thing as a complete run history. State is the current source of truth Terraform uses to decide what changes are needed. A plan can be exported to JSON, and CI/CD can retain artifacts, but that is an operational pattern around Terraform rather than a universal local run ledger.
-
-## The Provider Problem for API Workflows
-
-Provider plugins make sense for infrastructure resources. They are less obviously necessary for many API workflows.
-
-Consider a normal API workflow:
-
-1. Call a weather endpoint.
-2. Transform the result.
-3. Call an email endpoint.
-4. Save an execution record.
-
-If the weather and email APIs already have OpenAPI documents, the raw operation surface is already described:
-
-- operation IDs
-- HTTP methods
-- paths
-- request parameters
-- request bodies
-- response schemas
-- security schemes
-- server URLs
-
-For this class of work, writing a Terraform-style provider first can be unnecessary. It introduces another schema and another release cadence between the workflow and the service API.
-
-This is especially relevant because many major services already publish machine-readable API descriptions. Google APIs expose Discovery documents that describe REST API surfaces, schemas, OAuth scopes, and methods. Google Cloud also supports OpenAPI in API management products. AWS publicly publishes Smithy API models for AWS service APIs, and those service models are used for SDK and CLI generation. Many SaaS providers publish OpenAPI directly.
-
-The important point is not that every service uses OpenAPI exactly. The point is that API descriptions already exist in the ecosystem. UWS is designed to use OpenAPI directly, and to accept equivalent descriptions after conversion.
-
-## How UWS Works
-
-UWS starts from this pipeline:
-
-```text
-UWS or HCL workflow
-  -> OpenAPI / Discovery / converted service model
-  -> validation
-  -> runtime plan
-  -> execution
-  -> persisted run record
-```
-
-In UWS core, an operation binds to OpenAPI:
+A UWS operation names a `sourceDescription` and exactly one OpenAPI binding:
 
 ```yaml
-operationId: current_weather
-sourceDescription: weather_api
-openapiOperationId: getCurrentWeather
+operationId: list_reports
+sourceDescription: storage_api
+openapiOperationId: listObjects
 request:
   query:
-    q: Los Angeles
-    units: imperial
+    bucket: daily-reports
 ```
 
-OpenAPI owns method, path, schemas, server, and security. UWS owns the workflow overlay: local operation IDs, request values, dependencies, outputs, triggers, and structural control flow.
+The runtime loads the OpenAPI document, resolves method, path, and server URL, applies the request binding, and executes an HTTP call. `udon` implements exactly this: local OpenAPI files are parsed, operations are resolved by ID or JSON Pointer, and responses are captured into the run record.
 
-A full UWS document can then wire operations together:
+No per-service binary. Adding support for a new API means adding its OpenAPI document to `sourceDescriptions` — not shipping a new plugin on its own release channel.
+
+## Feature spotlight 2: Extension profiles for non-HTTP work
+
+Not every step is an OpenAPI call. Some steps format a message, invoke an in-process function, or dispatch a sub-workflow. UWS keeps those out of the core and routes them through extension profiles:
+
+```yaml
+- operationId: build_email
+  x-uws-operation-profile: udon
+  x-udon-runtime:
+    type: fnct
+    function: mail_raw
+    args:
+      from: bot@example.com
+      to: ops@example.com
+      subject: Latest daily report
+      body: $outputs.list_reports.summary
+```
+
+The `x-uws-operation-profile` marker tells the validator the operation is intentionally runtime-owned, not a missing OpenAPI binding. `udon` today runs the `fnct` profile end-to-end — dispatching into a registered function or a named sub-workflow and feeding the result back into the pipeline.
+
+The profile boundary is where non-OpenAPI work lives. Core UWS stays small and does not try to enumerate every runtime concern; a runtime that understands a profile executes it, and documents that do not depend on the profile stay portable.
+
+## Feature spotlight 3: Structural control flow without a DSL
+
+Terraform's graph is a dependency DAG. That covers "run A before B" but not the control flow an API workflow actually needs. UWS names six structural constructs:
+
+- `sequence` — steps run in declaration order.
+- `parallel` — steps run concurrently, subject to `dependsOn`.
+- `switch` — the first case whose `when` is truthy runs; otherwise `default`.
+- `loop` — iterates over a JSON array named by `items`, with an optional `batchSize`.
+- `merge` — combines outputs of upstream constructs named by `dependsOn`.
+- `await` — blocks until a `wait` expression is truthy or a timeout elapses.
+
+`await` is the interesting one. `udon` persists checkpoint state to `.udon/awaits/<token>` so a long-running workflow can suspend across process restarts and resume when the wait condition becomes truthy. That is a first-class primitive Terraform does not have — `for_each` and `count` cover fan-out, but there is no supported "pause this run for a day and resume where we left off."
+
+The six types are finite and validated. A second implementor does not need to ask what `merge` means — it has one paragraph of normative text and one set of validator rules.
+
+## Feature spotlight 4: Webhook triggers as real entry points
+
+UWS triggers are not documentation. A trigger declares a path, methods, authentication, and an ordered list of named outputs; each output routes to one or more operations:
+
+```yaml
+triggers:
+  - triggerId: report_webhook
+    path: /webhooks/reports
+    methods: [POST]
+    authentication: bearer
+    outputs: [received]
+    routes:
+      - output: received
+        to: [list_reports, send_latest_report]
+```
+
+`udon`'s trigger subsystem accepts HTTP POSTs, matches them against declared routes, dispatches to the target operations, and persists trigger state under `.udon/triggers/`. One UWS document describes both the workflow and the ways in; one runtime serves both. Terraform has no equivalent — external triggers live in a separate orchestration layer.
+
+## Feature spotlight 5: A compiled runtime plan and a run record
+
+`udon` compiles a validated UWS document into an intermediate representation (`runtimeir.Config`) and executes it through a pipe of stages. Every run writes the executed configuration — captured status codes, response bodies, headers, and per-step timings — back through a FileIO backend as HCL/JSON files.
+
+That is the audit substrate: a run ledger on disk, one file per execution, diffable and greppable. It is intentionally narrower than Terraform state. Terraform state answers "what do I manage and is it drifting?" A UWS run record answers "what ran, in what order, against which API descriptions, and what did the service return?" They are different questions, and the run record is the one API workflows actually need.
+
+## Putting it together
+
+A complete, executable UWS document for a two-API workflow with one profile-owned formatting step:
 
 ```yaml
 uws: 1.0.0
 info:
-  title: Daily Weather Report
+  title: Daily Report Dispatch
   version: 1.0.0
 
 sourceDescriptions:
-  - name: weather_api
-    url: ./weather.openapi.yaml
+  - name: storage_api
+    url: ./storage.openapi.yaml
     type: openapi
-  - name: gmail_api
-    url: ./gmail.openapi.yaml
+  - name: email_api
+    url: ./email.openapi.yaml
     type: openapi
 
-operations:
-  - operationId: current_weather
-    sourceDescription: weather_api
-    openapiOperationId: getCurrentWeather
-    request:
-      query:
-        q: Los Angeles
-        units: imperial
-
-  - operationId: send_report
-    sourceDescription: gmail_api
-    openapiOperationId: sendMessage
-    dependsOn:
-      - current_weather
-    request:
-      body:
-        userId: me
-        raw: $outputs.build_email.raw
-```
-
-No Terraform provider is required for the OpenAPI-bound operations. The runtime can resolve the operation from the OpenAPI source and execute it as HTTP.
-
-## Extension Profiles: Where UWS Becomes Provider-Like
-
-Some behavior is not OpenAPI.
-
-Examples:
-
-- building a MIME email body
-- writing a local artifact
-- running a shell command
-- reading a file
-- calling an in-process function
-- querying a local database
-- invoking an LLM
-
-UWS does not push those into core service types. It uses extension profiles.
-
-An implementation such as `udon` can define a profile:
-
-```yaml
-operationId: render_email
-x-uws-operation-profile: udon
-x-udon-runtime:
-  type: fnct
-  function: mail_raw
-  args:
-    from: bot@example.com
-    to: user@example.com
-    subject: Daily weather report
-    body: $outputs.current_weather.summary
-dependsOn:
-  - current_weather
-```
-
-The same profile can specify file I/O:
-
-```yaml
-operationId: write_report
-x-uws-operation-profile: udon
-x-udon-runtime:
-  type: fileio
-  action: write
-  path: ./out/weather-report.txt
-  body: $outputs.render_email.text
-dependsOn:
-  - render_email
-```
-
-Or command execution:
-
-```yaml
-operationId: publish_artifact
-x-uws-operation-profile: udon
-x-udon-runtime:
-  type: cmd
-  command: ./publish-report.sh
-  arguments:
-    - ./out/weather-report.txt
-dependsOn:
-  - write_report
-```
-
-This is intentionally provider-like, but narrower. OpenAPI-bound HTTP calls do not need a custom provider. Only non-OpenAPI behavior needs a profile specification.
-
-## Terraform vs UWS
-
-The strongest way to compare them is by runtime contract.
-
-```text
-Terraform:
-  HCL -> Terraform Core -> provider plugin -> API -> state
-
-UWS / udon:
-  HCL or UWS -> OpenAPI -> runtime plan -> API execution -> run history
-```
-
-Terraform optimizes for desired state. UWS optimizes for workflow execution.
-
-Terraform asks:
-
-```text
-What should the infrastructure look like after apply?
-```
-
-UWS asks:
-
-```text
-What workflow should run, in what order, using which API operations?
-```
-
-That difference changes the implementation.
-
-Terraform needs provider plugins because resources have lifecycle behavior. UWS can use OpenAPI directly because many workflow steps are ordinary API operations.
-
-Terraform hides backend detail behind resource schemas. UWS can expose the operation-level request/response shape from the API description.
-
-Terraform state tracks managed infrastructure. UWS execution history can track workflow runs: input, UWS document, OpenAPI source references, validated runtime plan, per-step request/response metadata, outputs, errors, approvals, and artifacts.
-
-## Where UWS Can Improve the Terraform Pattern
-
-### 1. Start from the API Description
-
-Most cloud services and web APIs already have machine-readable API descriptions: OpenAPI, Google Discovery documents, Smithy models, or vendor-specific catalogs.
-
-UWS can use those descriptions as the provider surface. That avoids rewriting the API schema by hand into a provider plugin before a workflow can call it.
-
-### 2. Reduce Provider Lag
-
-Terraform providers need to be updated when the service API changes and when the provider schema needs to expose new features.
-
-If a new OpenAPI operation or parameter appears, a UWS/OpenAPI runtime can often use it as soon as the OpenAPI document is updated and the workflow binds to it. That does not remove the need for testing, approvals, or compatibility checks, but it shortens the path between API evolution and workflow availability.
-
-### 3. Preserve Detailed API Parameters
-
-Terraform provider resources intentionally simplify APIs into resource arguments. That is good for infrastructure lifecycle management, but it can hide detailed operation-level parameters.
-
-UWS keeps the request binding close to the OpenAPI operation:
-
-```yaml
-request:
-  query:
-    maxResults: 50
-    pageToken: $outputs.previous_page.nextPageToken
-  header:
-    X-Trace-ID: $variables.trace_id
-  body:
-    dryRun: true
-```
-
-The workflow author can use the precise request surface described by the API document.
-
-### 4. Simplify Enterprise Binary Governance
-
-Terraform provider plugins are standalone binaries. That is a powerful extension point, but it creates governance work in enterprise environments:
-
-- pinning provider versions
-- reviewing provider provenance
-- scanning binaries
-- maintaining mirrors or caches
-- controlling plugin upgrades
-- approving private providers
-
-UWS still needs trusted execution, but OpenAPI-bound operations do not require a new binary per service. The runtime can enforce one execution engine, one audit model, and one approval path for many API descriptions.
-
-### 5. Make Run History First-Class
-
-Terraform's state file is not a complete historical deployment record. Teams often preserve history through CI/CD logs, saved plan files, HCP Terraform, Terraform Enterprise, or external audit systems.
-
-UWS can make execution history a first-class runtime concern. A UWS executor can persist full run data into SQLite:
-
-- submitted intent
-- generated or approved UWS document
-- OpenAPI source versions or hashes
-- runtime plan
-- approvals
-- step start/end timestamps
-- request and response metadata
-- outputs
-- errors
-- produced artifacts
-
-That is useful for AI workflows because the execution trace is part of the safety story. The model may propose a workflow, but the runtime can record exactly what was validated and executed.
-
-## Example: From API Catalog to Workflow
-
-Suppose a cloud provider publishes a machine-readable description for a storage API and an email API.
-
-Terraform would typically need provider resources:
-
-```hcl
-resource "example_storage_bucket" "reports" {
-  name   = "daily-reports"
-  region = "us-west"
-}
-```
-
-That is perfect when the goal is to manage a bucket as infrastructure.
-
-UWS is better when the goal is to run a task:
-
-```yaml
 operations:
   - operationId: list_reports
     sourceDescription: storage_api
@@ -348,51 +112,69 @@ operations:
     request:
       query:
         bucket: daily-reports
+    outputs:
+      latest: $response.body.items[0]
+
+  - operationId: build_email
+    x-uws-operation-profile: udon
+    x-udon-runtime:
+      type: fnct
+      function: mail_raw
+      args:
+        from: bot@example.com
+        to: ops@example.com
+        subject: Latest daily report
+        body: $steps.fetch.outputs.latest
+    dependsOn:
+      - list_reports
+    outputs:
+      raw: $response.body.raw
 
   - operationId: send_latest_report
     sourceDescription: email_api
     openapiOperationId: sendMessage
     dependsOn:
-      - list_reports
+      - build_email
     request:
       body:
-        to: ops@example.com
-        subject: Latest daily report
-        body: $outputs.list_reports.latest
+        userId: me
+        raw: $steps.render.outputs.raw
+
+workflows:
+  - workflowId: main
+    type: sequence
+    steps:
+      - stepId: fetch
+        operationRef: list_reports
+      - stepId: render
+        operationRef: build_email
+      - stepId: send
+        operationRef: send_latest_report
 ```
 
-The resource-management case and the workflow-execution case are different problems. Terraform should stay strong where it is strong. UWS should handle API workflow execution without forcing every API through a provider plugin first.
+Storage and email stay OpenAPI-bound. The formatting step is runtime-owned. The sequence is explicit. Every identifier, reference, and expression is validated before a single HTTP call leaves the machine.
 
-## What UWS Should Not Claim
+## Where UWS can improve the Terraform pattern
 
-UWS should not claim to replace Terraform.
+**Bind to the API description, don't rewrite it.** Most major services now publish OpenAPI, Google Discovery, or AWS Smithy models. UWS uses those descriptions directly as the operation surface. Terraform providers wrap them — a duplicate schema on a separate release cycle.
 
-Terraform is a mature IaC system with resource lifecycle semantics, large provider ecosystems, state backends, modules, policy integrations, and team workflows.
+**Keep the operation-level request surface visible.** Provider resources abstract arguments like `maxResults`, `pageToken`, or per-request headers into simpler fields. A UWS request binding exposes exactly the OpenAPI request shape — useful when the workflow needs the precise knobs and expressions like `$outputs.previous_page.nextPageToken`.
 
-UWS should claim something narrower:
+**No per-service binary governance.** Terraform providers are standalone binaries that need pinning, provenance review, mirroring, and upgrade control in enterprise environments. OpenAPI documents can be pinned, hashed, and reviewed like any other data asset. One runtime serves many descriptions.
 
-```text
-For API workflows, if the backend contract is already machine-readable, use that contract directly.
-```
+**Workflow primitives Terraform lacks.** `loop` with `items`, `switch` with `when`, `await` with resumable checkpoints, typed trigger entry points. Terraform has `for_each`, `count`, and `dynamic` blocks, but no first-class suspend-and-resume and no inbound webhook dispatch.
 
-That is the architectural improvement.
+**Run history as a runtime concern, not a bolt-on.** Each execution writes the compiled plan plus the observed responses back through the pipe. That is a workflow audit trail produced by the runtime itself — distinct from Terraform's state, which is a desired-vs-actual snapshot rather than a run log.
+
+## What this is not
+
+UWS is not an IaC replacement. Desired-state management, drift detection, resource lifecycle, state locking, and the mature provider ecosystem around long-lived infrastructure remain Terraform's strengths. The UWS pitch is narrower: for multi-step API work against services that already publish a machine-readable description, binding directly to that description is the lighter path. Terraform should stay where it is strong; UWS takes the workflow-execution slice.
 
 ## TL;DR
 
-- Terraform is excellent for desired-state infrastructure management.
-- Terraform providers are powerful but require standalone binaries, versioning, governance, and provider-specific maintenance.
-- Many major cloud and web services already publish OpenAPI or equivalent machine-readable API descriptions such as Google Discovery documents or AWS Smithy models.
-- UWS uses those API descriptions directly for OpenAPI-bound HTTP workflow operations.
-- UWS extension profiles such as `x-udon-runtime` cover non-OpenAPI services like `fileio`, `cmd`, `fnct`, `ssh`, `sql`, and `llm` with their own specification.
-- Terraform state is not the same as a complete historical run ledger; UWS/udon can make full workflow execution history, including SQLite persistence, part of the runtime design.
-
-## Sources
-
-- HashiCorp Terraform introduction: https://developer.hashicorp.com/terraform/intro
-- Terraform providers: https://developer.hashicorp.com/terraform/language/providers
-- Terraform plugin architecture: https://developer.hashicorp.com/terraform/plugin/how-terraform-works
-- Terraform state purpose: https://developer.hashicorp.com/terraform/language/state/purpose
-- Terraform JSON output format: https://developer.hashicorp.com/terraform/internals/json-format
-- Google API Discovery Service: https://cloud.google.com/docs/discovery/apis
-- AWS API models announcement: https://aws.amazon.com/about-aws/whats-new/2025/06/open-source-aws-api-models
-
+- UWS binds workflows directly to OpenAPI — no provider plugin, no duplicate schema, no separate binary release cadence.
+- Six structural constructs (`sequence`, `parallel`, `switch`, `loop`, `merge`, `await`) cover real API control flow; `await` supports resumable checkpoints Terraform does not offer.
+- Triggers are typed entry points the runtime dispatches, not documentation.
+- Extension profiles like `x-uws-operation-profile: udon` keep non-HTTP work (functions, sub-workflows) out of the core.
+- `udon` compiles validated UWS into a runtime IR and writes a full run record — compiled plan plus observed responses — back to disk.
+- UWS does not replace Terraform; it addresses a different class of work that today is often forced through a provider plugin it does not need.

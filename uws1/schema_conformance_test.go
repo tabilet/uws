@@ -22,6 +22,8 @@ func TestSchemaConformance_KeyValidatorRules(t *testing.T) {
 	workflowRequired := workflow["required"].([]any)
 	require.Contains(t, workflowRequired, "workflowId")
 	require.Contains(t, workflowRequired, "type")
+	workflowID := workflow["properties"].(map[string]any)["workflowId"].(map[string]any)
+	require.Equal(t, "^[A-Za-z0-9_-]+$", workflowID["pattern"])
 	workflowType := workflow["properties"].(map[string]any)["type"].(map[string]any)
 	require.ElementsMatch(t, []any{"sequence", "parallel", "switch", "merge", "loop", "await"}, workflowType["enum"].([]any))
 
@@ -29,6 +31,8 @@ func TestSchemaConformance_KeyValidatorRules(t *testing.T) {
 	stepRequired := step["required"].([]any)
 	require.Contains(t, stepRequired, "stepId")
 	require.NotContains(t, stepRequired, "type")
+	stepID := step["properties"].(map[string]any)["stepId"].(map[string]any)
+	require.Equal(t, "^[A-Za-z0-9_-]+$", stepID["pattern"])
 	stepType := step["properties"].(map[string]any)["type"].(map[string]any)
 	require.ElementsMatch(t, mapKeys(validWorkflowTypes), stepType["enum"].([]any))
 
@@ -55,6 +59,8 @@ func TestSchemaConformance_KeyValidatorRules(t *testing.T) {
 	require.Contains(t, resultRequired, "name")
 	require.Contains(t, resultRequired, "kind")
 	require.Contains(t, resultRequired, "from")
+	resultFrom := result["properties"].(map[string]any)["from"].(map[string]any)
+	require.Equal(t, "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)?$", resultFrom["pattern"])
 	require.Contains(t, result["properties"].(map[string]any), "value")
 
 	trigger := defs["trigger-object"].(map[string]any)
@@ -168,6 +174,28 @@ func TestSchemaConformance_JSONSchemaValidator(t *testing.T) {
 		]
 	}`))
 	require.Error(t, schema.Validate(badRequestType))
+
+	dottedWorkflowID := decodeJSONValue(t, []byte(`{
+		"uws": "1.0.0",
+		"info": {"title": "Bad Workflow", "version": "1.0.0"},
+		"sourceDescriptions": [{"name": "api", "url": "./openapi.yaml", "type": "openapi"}],
+		"operations": [
+			{"operationId": "fetch", "sourceDescription": "api", "openapiOperationId": "getData"}
+		],
+		"workflows": [{"workflowId": "daily.v1", "type": "sequence"}]
+	}`))
+	require.Error(t, schema.Validate(dottedWorkflowID))
+
+	dottedStepID := decodeJSONValue(t, []byte(`{
+		"uws": "1.0.0",
+		"info": {"title": "Bad Step", "version": "1.0.0"},
+		"sourceDescriptions": [{"name": "api", "url": "./openapi.yaml", "type": "openapi"}],
+		"operations": [
+			{"operationId": "fetch", "sourceDescription": "api", "openapiOperationId": "getData"}
+		],
+		"workflows": [{"workflowId": "main", "type": "sequence", "steps": [{"stepId": "fetch.user", "operationRef": "fetch"}]}]
+	}`))
+	require.Error(t, schema.Validate(dottedStepID))
 }
 
 func compileUWSSchema(t *testing.T) *jsonschema.Schema {

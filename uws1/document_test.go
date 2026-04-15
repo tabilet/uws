@@ -61,11 +61,12 @@ func TestDocument_RoundTrip(t *testing.T) {
 				Steps: []*Step{
 					{StepID: "step_a", OperationRef: "get_users"},
 					{StepID: "step_b", Type: "sequence", Steps: []*Step{{StepID: "nested", OperationRef: "create_user"}}},
+					{StepID: "merge_users", Type: "merge", DependsOn: []string{"step_a", "step_b"}},
 				},
 			},
 		},
 		Results: []*StructuralResult{
-			{Name: "merge_out", Kind: "merge", From: "parallel_block", Value: "$outputs.merge_out"},
+			{Name: "merge_out", Kind: "merge", From: "parallel_block.merge_users", Value: "$steps.merge_users.outputs"},
 		},
 		Extensions: map[string]any{
 			"x-source": "test",
@@ -94,12 +95,13 @@ func TestDocument_RoundTrip(t *testing.T) {
 	assert.Equal(t, []string{"primary"}, decoded.Triggers[0].Outputs)
 	assert.Len(t, decoded.Workflows, 1)
 	assert.Equal(t, "parallel_block", decoded.Workflows[0].WorkflowID)
-	assert.Len(t, decoded.Workflows[0].Steps, 2)
+	assert.Len(t, decoded.Workflows[0].Steps, 3)
 	assert.Len(t, decoded.Results, 1)
 	assert.Equal(t, "merge_out", decoded.Results[0].Name)
-	assert.Equal(t, "parallel_block", decoded.Results[0].From)
-	assert.Equal(t, "$outputs.merge_out", decoded.Results[0].Value)
+	assert.Equal(t, "parallel_block.merge_users", decoded.Results[0].From)
+	assert.Equal(t, "$steps.merge_users.outputs", decoded.Results[0].Value)
 	assert.Equal(t, "test", decoded.Extensions["x-source"])
+	require.NoError(t, decoded.Validate())
 }
 
 func TestDocument_Extensions(t *testing.T) {

@@ -42,6 +42,7 @@ func (r *ValidationResult) addError(path, message string) {
 
 var (
 	versionPattern       = regexp.MustCompile(`^1\.\d+\.\d+(-.+)?$`)
+	constructIDPattern   = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 	componentNamePattern = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 	outputNamePattern    = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 )
@@ -402,6 +403,8 @@ func validateOutputs(outputs map[string]string, path string, result *ValidationR
 func (w *Workflow) validate(path string, idx *validationIndex, result *ValidationResult) {
 	if w.WorkflowID == "" {
 		result.addError(path+".workflowId", "is required")
+	} else if !constructIDPattern.MatchString(w.WorkflowID) {
+		result.addError(path+".workflowId", fmt.Sprintf("must match pattern ^[A-Za-z0-9_-]+$; got %s", w.WorkflowID))
 	}
 	if w.Type == "" {
 		result.addError(path+".type", "is required")
@@ -409,6 +412,9 @@ func (w *Workflow) validate(path string, idx *validationIndex, result *Validatio
 		result.addError(path+".type", fmt.Sprintf("%q is not valid", w.Type))
 	} else {
 		validateStructuralTypeFields(w.Type, w.Items, w.Wait, len(w.Cases) > 0, len(w.Default) > 0, path, result)
+		if w.Type == "merge" && len(w.DependsOn) == 0 {
+			result.addError(path+".dependsOn", "is required and must name at least one upstream construct for merge")
+		}
 	}
 	validateDependencyList(w.DependsOn, path+".dependsOn", idx, result)
 	validateOutputs(w.Outputs, path+".outputs", result)
@@ -468,12 +474,17 @@ func validateSteps(steps []*Step, path string, idx *validationIndex, result *Val
 func (s *Step) validate(path string, idx *validationIndex, result *ValidationResult) {
 	if s.StepID == "" {
 		result.addError(path+".stepId", "is required")
+	} else if !constructIDPattern.MatchString(s.StepID) {
+		result.addError(path+".stepId", fmt.Sprintf("must match pattern ^[A-Za-z0-9_-]+$; got %s", s.StepID))
 	}
 	if s.Type != "" {
 		if !validWorkflowTypes[s.Type] {
 			result.addError(path+".type", fmt.Sprintf("%q is not valid", s.Type))
 		} else {
 			validateStructuralTypeFields(s.Type, s.Items, s.Wait, len(s.Cases) > 0, len(s.Default) > 0, path, result)
+			if s.Type == "merge" && len(s.DependsOn) == 0 {
+				result.addError(path+".dependsOn", "is required and must name at least one upstream construct for merge")
+			}
 		}
 	}
 	if s.OperationRef != "" && !idx.operations[s.OperationRef] {
@@ -609,6 +620,10 @@ func (r *StructuralResult) validate(path string, idx *validationIndex, seenNames
 			return
 		}
 		resolvedType = stepType
+		if resolvedType == "" {
+			result.addError(path+".from", fmt.Sprintf("references stepId %q in workflow %q, but that step is not a structural construct", stepID, workflowID))
+			return
+		}
 	}
 	if r.Kind != "" && resolvedType != "" && resolvedType != r.Kind {
 		result.addError(path+".kind", fmt.Sprintf("kind %q does not match %q type %q", r.Kind, r.From, resolvedType))

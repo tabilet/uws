@@ -98,7 +98,8 @@
         {
           "stepId": "merge_validation",
           "type": "merge",
-          "description": "Combine validation outputs"
+          "description": "Combine validation outputs",
+          "dependsOn": ["validate_pet"]
         }
       ],
       "outputs": {
