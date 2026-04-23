@@ -550,6 +550,156 @@ func TestWorkflowWithTriggers(t *testing.T) {
 	}
 }
 
+func TestJSONToYAML_RoundTripsThroughYAMLParser(t *testing.T) {
+	jsonData := []byte(`{
+		"uws": "1.0.0",
+		"info": {"title": "YAML Test", "version": "1.0.0"},
+		"sourceDescriptions": [{"name": "api", "url": "./openapi.yaml", "type": "openapi"}],
+		"operations": [{"operationId": "op1", "sourceDescription": "api", "openapiOperationId": "getOp"}]
+	}`)
+
+	yamlData, err := JSONToYAML(jsonData)
+	if err != nil {
+		t.Fatalf("JSONToYAML failed: %v", err)
+	}
+
+	backJSON, err := YAMLToJSON(yamlData)
+	if err != nil {
+		t.Fatalf("YAMLToJSON failed: %v", err)
+	}
+
+	var original, roundtrip map[string]any
+	if err := json.Unmarshal(jsonData, &original); err != nil {
+		t.Fatalf("parse original json: %v", err)
+	}
+	if err := json.Unmarshal(backJSON, &roundtrip); err != nil {
+		t.Fatalf("parse roundtrip json: %v", err)
+	}
+	if !reflect.DeepEqual(original, roundtrip) {
+		t.Fatalf("JSON -> YAML -> JSON mismatch:\noriginal=%s\ngot=%s", jsonData, backJSON)
+	}
+}
+
+func TestYAMLToJSON_ConvertsBasicDocument(t *testing.T) {
+	yamlData := []byte(`
+uws: 1.0.0
+info:
+  title: Basic
+  version: 1.0.0
+sourceDescriptions:
+  - name: api
+    url: ./openapi.yaml
+    type: openapi
+operations:
+  - operationId: op1
+    sourceDescription: api
+    openapiOperationId: getOp
+`)
+
+	jsonData, err := YAMLToJSON(yamlData)
+	if err != nil {
+		t.Fatalf("YAMLToJSON failed: %v", err)
+	}
+
+	var doc uws1.Document
+	if err := json.Unmarshal(jsonData, &doc); err != nil {
+		t.Fatalf("parse json: %v", err)
+	}
+	if doc.UWS != "1.0.0" || doc.Info == nil || doc.Info.Title != "Basic" {
+		t.Fatalf("unexpected document: %#v", doc)
+	}
+}
+
+func TestYAMLToJSONIndent_FormatsOutput(t *testing.T) {
+	yamlData := []byte("key: value\nnested:\n  a: 1\n")
+
+	out, err := YAMLToJSONIndent(yamlData, "", "  ")
+	if err != nil {
+		t.Fatalf("YAMLToJSONIndent failed: %v", err)
+	}
+	if !strings.Contains(string(out), "\n") {
+		t.Fatalf("expected indented JSON, got %s", out)
+	}
+}
+
+func TestYAMLToHCL_RoundTripsToDocument(t *testing.T) {
+	yamlData := []byte(`
+uws: 1.0.0
+info:
+  title: YAML-to-HCL
+  version: 1.0.0
+sourceDescriptions:
+  - name: api
+    url: ./openapi.yaml
+    type: openapi
+operations:
+  - operationId: op1
+    sourceDescription: api
+    openapiOperationId: getOp
+    request:
+      query:
+        limit: 10
+`)
+
+	hclData, err := YAMLToHCL(yamlData)
+	if err != nil {
+		t.Fatalf("YAMLToHCL failed: %v", err)
+	}
+
+	jsonData, err := HCLToJSON(hclData)
+	if err != nil {
+		t.Fatalf("HCLToJSON failed: %v", err)
+	}
+	var doc uws1.Document
+	if err := json.Unmarshal(jsonData, &doc); err != nil {
+		t.Fatalf("parse json: %v", err)
+	}
+	if doc.Info == nil || doc.Info.Title != "YAML-to-HCL" {
+		t.Fatalf("unexpected title after YAML -> HCL -> JSON: %#v", doc.Info)
+	}
+	if len(doc.Operations) != 1 || doc.Operations[0].OperationID != "op1" {
+		t.Fatalf("unexpected operations: %#v", doc.Operations)
+	}
+}
+
+func TestHCLToYAML_RoundTripsToDocument(t *testing.T) {
+	hclData := []byte(`
+uws = "1.0.0"
+
+info {
+  title   = "HCL-to-YAML"
+  version = "1.0.0"
+}
+
+sourceDescription "api" {
+  url  = "./openapi.yaml"
+  type = "openapi"
+}
+
+operation "op1" {
+  sourceDescription  = "api"
+  openapiOperationId = "getOp"
+}
+`)
+
+	yamlData, err := HCLToYAML(hclData)
+	if err != nil {
+		t.Fatalf("HCLToYAML failed: %v", err)
+	}
+
+	jsonData, err := YAMLToJSON(yamlData)
+	if err != nil {
+		t.Fatalf("YAMLToJSON failed: %v", err)
+	}
+	var doc uws1.Document
+	if err := json.Unmarshal(jsonData, &doc); err != nil {
+		t.Fatalf("parse json: %v", err)
+	}
+	if doc.Info == nil || doc.Info.Title != "HCL-to-YAML" {
+		t.Fatalf("unexpected title after HCL -> YAML -> JSON: %#v", doc.Info)
+	}
+}
+
 func TestNewlineEscaping(t *testing.T) {
 	doc := testDocument()
 	doc.Info.Description = "First line\nSecond line\nThird line"

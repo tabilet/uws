@@ -97,7 +97,11 @@ func (o *Operation) UnmarshalJSON(data []byte) error {
 	if err := rejectUnknownFields(raw, operationKnownFields, "operation"); err != nil {
 		return err
 	}
-	o.Extensions = extractExtensions(raw, operationKnownFields)
+	extensions, err := extractExtensions(raw, operationKnownFields)
+	if err != nil {
+		return fmt.Errorf("unmarshaling operation extensions: %w", err)
+	}
+	o.Extensions = extensions
 	return nil
 }
 

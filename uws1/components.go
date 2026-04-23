@@ -7,6 +7,9 @@ import (
 
 // Components holds reusable objects scoped to the UWS document.
 type Components struct {
+	// Variables is an intentionally open-shape map; any JSON-compatible value is
+	// allowed. Keys must match componentNamePattern (enforced by Validate);
+	// values are not inspected.
 	Variables  map[string]any `json:"variables,omitempty" yaml:"variables,omitempty" hcl:"variables,optional"`
 	Extensions map[string]any `json:"-" yaml:"-" hcl:"-"`
 }
@@ -31,7 +34,11 @@ func (c *Components) UnmarshalJSON(data []byte) error {
 	if err := rejectUnknownFields(raw, componentsKnownFields, "components"); err != nil {
 		return err
 	}
-	c.Extensions = extractExtensions(raw, componentsKnownFields)
+	extensions, err := extractExtensions(raw, componentsKnownFields)
+	if err != nil {
+		return fmt.Errorf("unmarshaling components extensions: %w", err)
+	}
+	c.Extensions = extensions
 	return nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -71,17 +72,31 @@ var validStructuralResultKinds = map[string]bool{
 }
 
 type validationIndex struct {
-	operations         map[string]bool
-	workflows          map[string]bool
-	workflowTypes      map[string]string
-	workflowSteps      map[string]map[string]string
-	steps              map[string]bool
-	triggers           map[string]bool
-	parallelGroups     map[string]bool
-	sourceDescriptions map[string]bool
+	operations            map[string]bool
+	workflows             map[string]bool
+	workflowTypes         map[string]string
+	workflowSteps         map[string]map[string]string
+	steps                 map[string]bool
+	triggers              map[string]bool
+	parallelGroups        map[string]bool
+	parallelGroupMembers  map[string][]string
+	sourceDescriptions    map[string]bool
+	dependencies          map[string][]string
 }
 
-// Validate checks the document against UWS 1.x structural rules.
+// Validate runs the semantic validation layer and returns the first error as a
+// single error, or nil if the document passes.
+//
+// Validate assumes the document has already been checked against uws.json via
+// a JSON Schema validator. The schema layer enforces structural shape (required
+// fields, enum values, patterns, uniqueness of array items). Validate layers
+// semantic rules on top: duplicate identifiers, reference integrity, binding
+// mutual exclusivity, structural-type field constraints, and dependsOn cycles.
+// Callers that invoke Validate without the schema pre-pass bypass the
+// structural checks.
+//
+// Use ValidateResult when callers need path-tagged errors instead of a single
+// collapsed error.
 func (d *Document) Validate() error {
 	result := d.ValidateResult()
 	if result.Valid() {
@@ -90,7 +105,9 @@ func (d *Document) Validate() error {
 	return result
 }
 
-// ValidateResult checks the document against UWS 1.x structural rules and returns all errors.
+// ValidateResult runs the semantic validation layer and returns every error it
+// finds, each tagged with a structured Path. See Validate for the layering
+// contract between this method and the uws.json JSON Schema pre-pass.
 func (d *Document) ValidateResult() *ValidationResult {
 	result := &ValidationResult{}
 	if d == nil {
@@ -115,19 +132,22 @@ func (d *Document) ValidateResult() *ValidationResult {
 	idx := newValidationIndex()
 	d.collectDocumentIDs(idx, result)
 	d.validateDocumentReferences(idx, result)
+	detectDependencyCycles(idx, result)
 	return result
 }
 
 func newValidationIndex() *validationIndex {
 	return &validationIndex{
-		operations:         make(map[string]bool),
-		workflows:          make(map[string]bool),
-		workflowTypes:      make(map[string]string),
-		workflowSteps:      make(map[string]map[string]string),
-		steps:              make(map[string]bool),
-		triggers:           make(map[string]bool),
-		parallelGroups:     make(map[string]bool),
-		sourceDescriptions: make(map[string]bool),
+		operations:           make(map[string]bool),
+		workflows:            make(map[string]bool),
+		workflowTypes:        make(map[string]string),
+		workflowSteps:        make(map[string]map[string]string),
+		steps:                make(map[string]bool),
+		triggers:             make(map[string]bool),
+		parallelGroups:       make(map[string]bool),
+		parallelGroupMembers: make(map[string][]string),
+		sourceDescriptions:   make(map[string]bool),
+		dependencies:         make(map[string][]string),
 	}
 }
 
@@ -157,9 +177,15 @@ func (d *Document) collectDocumentIDs(idx *validationIndex, result *ValidationRe
 				result.addError(path+".operationId", fmt.Sprintf("duplicate operationId %q", op.OperationID))
 			}
 			idx.operations[op.OperationID] = true
+			if len(op.DependsOn) > 0 {
+				idx.dependencies[op.OperationID] = append(idx.dependencies[op.OperationID], op.DependsOn...)
+			}
 		}
 		if op.ParallelGroup != "" {
 			idx.parallelGroups[op.ParallelGroup] = true
+			if op.OperationID != "" {
+				idx.parallelGroupMembers[op.ParallelGroup] = append(idx.parallelGroupMembers[op.ParallelGroup], op.OperationID)
+			}
 		}
 	}
 
@@ -183,6 +209,9 @@ func (d *Document) collectDocumentIDs(idx *validationIndex, result *ValidationRe
 					collectWorkflowStepTypes(wf.WorkflowID, c.Steps, idx)
 				}
 			}
+			if len(wf.DependsOn) > 0 {
+				idx.dependencies[wf.WorkflowID] = append(idx.dependencies[wf.WorkflowID], wf.DependsOn...)
+			}
 		}
 		collectStepIDs(wf.Steps, path+".steps", idx, result)
 		collectCaseStepIDs(wf.Cases, path+".cases", idx, result)
@@ -204,6 +233,10 @@ func (d *Document) collectDocumentIDs(idx *validationIndex, result *ValidationRe
 	}
 }
 
+// collectWorkflowStepTypes populates the workflow→stepID→structural-type index
+// used when resolving results[].from references. Nil and unnamed steps are
+// skipped here; collectStepIDs runs on the same tree and is responsible for
+// reporting nil steps.
 func collectWorkflowStepTypes(workflowID string, steps []*Step, idx *validationIndex) {
 	for _, step := range steps {
 		if step == nil || step.StepID == "" {
@@ -232,9 +265,15 @@ func collectStepIDs(steps []*Step, path string, idx *validationIndex, result *Va
 				result.addError(stepPath+".stepId", fmt.Sprintf("duplicate stepId %q", step.StepID))
 			}
 			idx.steps[step.StepID] = true
+			if len(step.DependsOn) > 0 {
+				idx.dependencies[step.StepID] = append(idx.dependencies[step.StepID], step.DependsOn...)
+			}
 		}
 		if step.ParallelGroup != "" {
 			idx.parallelGroups[step.ParallelGroup] = true
+			if step.StepID != "" {
+				idx.parallelGroupMembers[step.ParallelGroup] = append(idx.parallelGroupMembers[step.ParallelGroup], step.StepID)
+			}
 		}
 		collectStepIDs(step.Steps, stepPath+".steps", idx, result)
 		collectCaseStepIDs(step.Cases, stepPath+".cases", idx, result)
@@ -304,7 +343,7 @@ func (s *SourceDescription) validate(path string, result *ValidationResult) {
 	if s.Name == "" {
 		result.addError(path+".name", "is required")
 	} else if !sourceDescriptionNamePattern.MatchString(s.Name) {
-		result.addError(path+".name", fmt.Sprintf("must match pattern ^[A-Za-z0-9_\\-]+$; got %s", s.Name))
+		result.addError(path+".name", fmt.Sprintf("must match pattern ^[A-Za-z0-9_-]+$; got %s", s.Name))
 	}
 	if s.URL == "" {
 		result.addError(path+".url", "is required")
@@ -418,6 +457,7 @@ func (w *Workflow) validate(path string, idx *validationIndex, result *Validatio
 	}
 	validateDependencyList(w.DependsOn, path+".dependsOn", idx, result)
 	validateOutputs(w.Outputs, path+".outputs", result)
+	w.Inputs.validate(path+".inputs", result)
 	validateSteps(w.Steps, path+".steps", idx, result)
 	validateCases(w.Cases, path+".cases", idx, result)
 	validateSteps(w.Default, path+".default", idx, result)
@@ -735,4 +775,106 @@ func (c *Components) validate(path string, result *ValidationResult) {
 			result.addError(path+".variables."+name, fmt.Sprintf("component name %q is not valid", name))
 		}
 	}
+}
+
+// detectDependencyCycles walks the dependsOn graph and reports any cycles.
+// Parallel-group dependencies fan out to each member of the group (excluding
+// the node itself) so that indirect self-dependencies surface too. Unknown
+// dependency targets are ignored here because validateDependencyList already
+// flags them.
+func detectDependencyCycles(idx *validationIndex, result *ValidationResult) {
+	if len(idx.dependencies) == 0 {
+		return
+	}
+
+	const (
+		white = 0
+		gray  = 1
+		black = 2
+	)
+	color := make(map[string]int)
+	seen := make(map[string]bool)
+
+	neighbors := func(node string) []string {
+		deps := idx.dependencies[node]
+		if len(deps) == 0 {
+			return nil
+		}
+		out := make([]string, 0, len(deps))
+		for _, d := range deps {
+			if idx.operations[d] || idx.workflows[d] || idx.steps[d] {
+				out = append(out, d)
+				continue
+			}
+			if members, ok := idx.parallelGroupMembers[d]; ok {
+				for _, m := range members {
+					if m != node {
+						out = append(out, m)
+					}
+				}
+			}
+		}
+		return out
+	}
+
+	var stack []string
+	var visit func(node string)
+	visit = func(node string) {
+		color[node] = gray
+		stack = append(stack, node)
+		for _, nb := range neighbors(node) {
+			switch color[nb] {
+			case white:
+				visit(nb)
+			case gray:
+				start := -1
+				for i, n := range stack {
+					if n == nb {
+						start = i
+						break
+					}
+				}
+				if start < 0 {
+					continue
+				}
+				cycle := append([]string(nil), stack[start:]...)
+				key := canonicalCycleKey(cycle)
+				if seen[key] {
+					continue
+				}
+				seen[key] = true
+				cycle = append(cycle, nb)
+				result.addError("dependsOn", fmt.Sprintf("cycle detected: %s", strings.Join(cycle, " -> ")))
+			}
+		}
+		stack = stack[:len(stack)-1]
+		color[node] = black
+	}
+
+	sources := make([]string, 0, len(idx.dependencies))
+	for k := range idx.dependencies {
+		sources = append(sources, k)
+	}
+	sort.Strings(sources)
+	for _, s := range sources {
+		if color[s] == white {
+			visit(s)
+		}
+	}
+}
+
+func canonicalCycleKey(cycle []string) string {
+	if len(cycle) == 0 {
+		return ""
+	}
+	minIdx := 0
+	for i, n := range cycle {
+		if n < cycle[minIdx] {
+			minIdx = i
+		}
+	}
+	rotated := make([]string, 0, len(cycle))
+	rotated = append(rotated, cycle[minIdx:]...)
+	rotated = append(rotated, cycle[:minIdx]...)
+	return strings.Join(rotated, "->")
 }

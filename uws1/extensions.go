@@ -11,7 +11,9 @@ const ExtensionOperationProfile = "x-uws-operation-profile"
 
 // extractExtensions extracts x-* extension fields from a raw JSON map.
 // It filters out known fields and returns only extension fields.
-func extractExtensions(raw map[string]json.RawMessage, knownFields []string) map[string]any {
+// A malformed extension value returns an error naming the offending key
+// rather than silently dropping the field.
+func extractExtensions(raw map[string]json.RawMessage, knownFields []string) (map[string]any, error) {
 	known := make(map[string]bool)
 	for _, f := range knownFields {
 		known[f] = true
@@ -21,16 +23,17 @@ func extractExtensions(raw map[string]json.RawMessage, knownFields []string) map
 	for key, value := range raw {
 		if strings.HasPrefix(key, "x-") && !known[key] {
 			var v any
-			if err := json.Unmarshal(value, &v); err == nil {
-				extensions[key] = v
+			if err := json.Unmarshal(value, &v); err != nil {
+				return nil, fmt.Errorf("extension %q: %w", key, err)
 			}
+			extensions[key] = v
 		}
 	}
 
 	if len(extensions) == 0 {
-		return nil
+		return nil, nil
 	}
-	return extensions
+	return extensions, nil
 }
 
 func rejectUnknownFields(raw map[string]json.RawMessage, knownFields []string, object string) error {

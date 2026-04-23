@@ -43,7 +43,11 @@ func (c *Criterion) UnmarshalJSON(data []byte) error {
 	if err := rejectUnknownFields(raw, criterionKnownFields, "criterion"); err != nil {
 		return err
 	}
-	c.Extensions = extractExtensions(raw, criterionKnownFields)
+	extensions, err := extractExtensions(raw, criterionKnownFields)
+	if err != nil {
+		return fmt.Errorf("unmarshaling criterion extensions: %w", err)
+	}
+	c.Extensions = extensions
 	return nil
 }
 

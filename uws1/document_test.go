@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tabilet/uws/flowcore"
 )
 
 func TestDocument_RoundTrip(t *testing.T) {
@@ -45,12 +46,11 @@ func TestDocument_RoundTrip(t *testing.T) {
 		},
 		Triggers: []*Trigger{
 			{
-				TriggerID: "webhook_1",
-				Path:      "/hooks/test",
-				Methods:   []string{"POST"},
-				Outputs:   []string{"primary"},
+				TriggerID:     "webhook_1",
+				TriggerFields: flowcore.TriggerFields{Path: "/hooks/test", Methods: []string{"POST"}},
+				Outputs:       []string{"primary"},
 				Routes: []*TriggerRoute{
-					{Output: "primary", To: []string{"get_users"}},
+					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "primary", To: []string{"get_users"}}},
 				},
 			},
 		},
@@ -61,7 +61,7 @@ func TestDocument_RoundTrip(t *testing.T) {
 				Steps: []*Step{
 					{StepID: "step_a", OperationRef: "get_users"},
 					{StepID: "step_b", Type: "sequence", Steps: []*Step{{StepID: "nested", OperationRef: "create_user"}}},
-					{StepID: "merge_users", Type: "merge", DependsOn: []string{"step_a", "step_b"}},
+					{StepID: "merge_users", Type: "merge", StepExecutionFields: flowcore.StepExecutionFields{DependsOn: []string{"step_a", "step_b"}}},
 				},
 			},
 		},
@@ -272,8 +272,10 @@ func TestWorkflow_RoundTrip(t *testing.T) {
 		Type:       "switch",
 		Cases: []*Case{
 			{
-				Name:  "dog",
-				When:  "$response.body#/type == \"dog\"",
+				CaseFields: flowcore.CaseFields{
+					Name: "dog",
+					When: "$response.body#/type == \"dog\"",
+				},
 				Steps: []*Step{{StepID: "process_dog", OperationRef: "create_pet"}},
 			},
 		},

@@ -1,9 +1,14 @@
 package uws1
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/tabilet/uws/flowcore"
 )
 
 func validDocument() *Document {
@@ -345,13 +350,17 @@ func TestValidate_WorkflowAndStepReferences(t *testing.T) {
 		{
 			WorkflowID: "wf",
 			Type:       "parallel",
-			DependsOn:  []string{"missing_dependency"},
+			WorkflowExecutionFields: flowcore.WorkflowExecutionFields{
+				DependsOn: []string{"missing_dependency"},
+			},
 			Steps: []*Step{
 				{
 					StepID:       "step",
 					Type:         "not-a-step-type",
 					OperationRef: "missing_operation",
-					DependsOn:    []string{"missing_step"},
+					StepExecutionFields: flowcore.StepExecutionFields{
+						DependsOn: []string{"missing_step"},
+					},
 				},
 			},
 		},
@@ -443,7 +452,7 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 				TriggerID: "webhook",
 				Outputs:   []string{"primary"},
 				Routes: []*TriggerRoute{
-					{Output: "primary", To: []string{"get_data"}},
+					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "primary", To: []string{"get_data"}}},
 				},
 			},
 		}
@@ -457,7 +466,7 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 				TriggerID: "webhook",
 				Outputs:   []string{"primary", "secondary"},
 				Routes: []*TriggerRoute{
-					{Output: "1", To: []string{"get_data"}},
+					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "1", To: []string{"get_data"}}},
 				},
 			},
 		}
@@ -471,7 +480,7 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 				TriggerID: "webhook",
 				Outputs:   []string{"primary"},
 				Routes: []*TriggerRoute{
-					{Output: "primary", To: []string{"missing"}},
+					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "primary", To: []string{"missing"}}},
 				},
 			},
 		}
@@ -485,7 +494,7 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 				TriggerID: "webhook",
 				Outputs:   []string{"primary"},
 				Routes: []*TriggerRoute{
-					{Output: "primary"},
+					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "primary"}},
 				},
 			},
 		}
@@ -498,7 +507,7 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 			{
 				TriggerID: "webhook",
 				Routes: []*TriggerRoute{
-					{Output: "primary", To: []string{"get_data"}},
+					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "primary", To: []string{"get_data"}}},
 				},
 			},
 		}
@@ -512,7 +521,7 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 				TriggerID: "webhook",
 				Outputs:   []string{"primary"},
 				Routes: []*TriggerRoute{
-					{Output: "other", To: []string{"get_data"}},
+					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "other", To: []string{"get_data"}}},
 				},
 			},
 		}
@@ -526,7 +535,7 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 				TriggerID: "webhook",
 				Outputs:   []string{"primary"},
 				Routes: []*TriggerRoute{
-					{Output: "5", To: []string{"get_data"}},
+					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "5", To: []string{"get_data"}}},
 				},
 			},
 		}
@@ -540,7 +549,7 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 				TriggerID: "webhook",
 				Outputs:   []string{"primary", "primary"},
 				Routes: []*TriggerRoute{
-					{Output: "primary", To: []string{"get_data"}},
+					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "primary", To: []string{"get_data"}}},
 				},
 			},
 		}
@@ -560,7 +569,7 @@ func TestValidate_StructuralTypeConstraints(t *testing.T) {
 	t.Run("loop with items is valid", func(t *testing.T) {
 		doc := validDocument()
 		doc.Workflows = []*Workflow{
-			{WorkflowID: "loop_wf", Type: "loop", Items: "$variables.tags"},
+			{WorkflowID: "loop_wf", Type: "loop", StructuralFields: flowcore.StructuralFields{Items: "$variables.tags"}},
 		}
 		assert.NoError(t, doc.Validate())
 	})
@@ -576,7 +585,7 @@ func TestValidate_StructuralTypeConstraints(t *testing.T) {
 	t.Run("await with wait is valid", func(t *testing.T) {
 		doc := validDocument()
 		doc.Workflows = []*Workflow{
-			{WorkflowID: "await_wf", Type: "await", Wait: "$response.statusCode == 200"},
+			{WorkflowID: "await_wf", Type: "await", WorkflowExecutionFields: flowcore.WorkflowExecutionFields{Wait: "$response.statusCode == 200"}},
 		}
 		assert.NoError(t, doc.Validate())
 	})
@@ -584,7 +593,7 @@ func TestValidate_StructuralTypeConstraints(t *testing.T) {
 	t.Run("switch rejects items", func(t *testing.T) {
 		doc := validDocument()
 		doc.Workflows = []*Workflow{
-			{WorkflowID: "sw", Type: "switch", Items: "$variables.tags"},
+			{WorkflowID: "sw", Type: "switch", StructuralFields: flowcore.StructuralFields{Items: "$variables.tags"}},
 		}
 		assert.ErrorContains(t, doc.Validate(), "items is not valid on switch")
 	})
@@ -629,12 +638,16 @@ func TestValidate_StructuralResult(t *testing.T) {
 			{
 				WorkflowID: "wf_merge",
 				Type:       "merge",
-				DependsOn:  []string{"get_data"},
+				WorkflowExecutionFields: flowcore.WorkflowExecutionFields{
+					DependsOn: []string{"get_data"},
+				},
 			},
 			{
 				WorkflowID: "wf_parallel",
 				Type:       "parallel",
-				Steps:      []*Step{{StepID: "merge_step", Type: "merge", DependsOn: []string{"get_data"}}},
+				Steps: []*Step{{StepID: "merge_step", Type: "merge", StepExecutionFields: flowcore.StepExecutionFields{
+					DependsOn: []string{"get_data"},
+				}}},
 			},
 		}
 		return doc
@@ -750,6 +763,32 @@ func TestValidate_ComponentsVariables(t *testing.T) {
 	assert.ErrorContains(t, doc.Validate(), "component name")
 }
 
+func TestValidationResult_ErrorFormat(t *testing.T) {
+	var nilResult *ValidationResult
+	assert.True(t, nilResult.Valid())
+	assert.Empty(t, nilResult.Error())
+
+	empty := &ValidationResult{}
+	assert.True(t, empty.Valid())
+	assert.Empty(t, empty.Error())
+
+	one := &ValidationResult{
+		Errors: []ValidationError{
+			{Path: "operations[0]", Message: "is invalid"},
+		},
+	}
+	assert.False(t, one.Valid())
+	assert.Equal(t, "operations[0] is invalid", one.Error())
+
+	many := &ValidationResult{
+		Errors: []ValidationError{
+			{Path: "info.title", Message: "is required"},
+			{Path: "uws", Message: "must match pattern"},
+		},
+	}
+	assert.Equal(t, "info.title is required; uws must match pattern", many.Error())
+}
+
 func TestValidateResult_AccumulatesErrors(t *testing.T) {
 	doc := &Document{
 		UWS:  "2.0.0",
@@ -765,10 +804,372 @@ func TestValidateResult_AccumulatesErrors(t *testing.T) {
 
 	result := doc.ValidateResult()
 	assert.False(t, result.Valid())
-	assert.GreaterOrEqual(t, len(result.Errors), 4)
-	assert.ErrorContains(t, result, "version")
-	assert.ErrorContains(t, result, "info.title")
-	assert.ErrorContains(t, result, "duplicate operationId")
-	assert.ErrorContains(t, result, "requires exactly one")
-	assert.ErrorContains(t, result, "references unknown sourceDescription")
+	want := []ValidationError{
+		{Path: "uws", Message: `version "2.0.0" does not match pattern 1.x.x`},
+		{Path: "info.title", Message: "is required"},
+		{Path: "info.version", Message: "is required"},
+		{Path: "operations[1].operationId", Message: `duplicate operationId "op"`},
+		{Path: "operations[0]", Message: "requires exactly one of openapiOperationId or openapiOperationRef for OpenAPI-bound operations"},
+		{Path: "operations[1].sourceDescription", Message: `references unknown sourceDescription "missing"`},
+	}
+	assert.Equal(t, want, result.Errors)
+}
+
+func TestValidateResult_StructuredErrorShape(t *testing.T) {
+	// Each case exercises one distinct error path and asserts the exact
+	// ValidationError tuple rather than substring-matching the flattened
+	// string.
+	t.Run("duplicate workflowId", func(t *testing.T) {
+		doc := validDocument()
+		doc.Workflows = []*Workflow{
+			{WorkflowID: "w", Type: "sequence"},
+			{WorkflowID: "w", Type: "sequence"},
+		}
+		result := doc.ValidateResult()
+		assert.Contains(t, result.Errors, ValidationError{
+			Path:    "workflows[1].workflowId",
+			Message: `duplicate workflowId "w"`,
+		})
+	})
+
+	t.Run("unknown trigger route output", func(t *testing.T) {
+		doc := validDocument()
+		doc.Triggers = []*Trigger{
+			{
+				TriggerID: "hook",
+				Outputs:   []string{"ok"},
+				Routes: []*TriggerRoute{
+					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "missing", To: []string{"get_data"}}},
+				},
+			},
+		}
+		result := doc.ValidateResult()
+		assert.Contains(t, result.Errors, ValidationError{
+			Path:    "triggers[0].routes[0].output",
+			Message: `"missing" is not a declared trigger output`,
+		})
+	})
+
+	t.Run("merge workflow missing dependsOn", func(t *testing.T) {
+		doc := validDocument()
+		doc.Workflows = []*Workflow{
+			{WorkflowID: "m", Type: "merge"},
+		}
+		result := doc.ValidateResult()
+		assert.Contains(t, result.Errors, ValidationError{
+			Path:    "workflows[0].dependsOn",
+			Message: "is required and must name at least one upstream construct for merge",
+		})
+	})
+
+	t.Run("criterion regex without context", func(t *testing.T) {
+		doc := validDocument()
+		doc.Operations[0].SuccessCriteria = []*Criterion{
+			{Condition: "foo", Type: CriterionRegex},
+		}
+		result := doc.ValidateResult()
+		assert.Contains(t, result.Errors, ValidationError{
+			Path:    "operations[0].successCriteria[0].context",
+			Message: "is required when type is regex, jsonpath, or xpath",
+		})
+	})
+
+	t.Run("failure action retry without limit", func(t *testing.T) {
+		doc := validDocument()
+		doc.Operations[0].OnFailure = []*FailureAction{
+			{Name: "r", Type: "retry"},
+		}
+		result := doc.ValidateResult()
+		assert.Contains(t, result.Errors, ValidationError{
+			Path:    "operations[0].onFailure[0]",
+			Message: "retry requires retryLimit > 0",
+		})
+	})
+}
+
+func TestValidate_DependencyCycle_TwoNodes(t *testing.T) {
+	doc := validDocument()
+	doc.Operations = []*Operation{
+		{
+			OperationID:        "a",
+			SourceDescription:  "api",
+			OpenAPIOperationID: "getA",
+			DependsOn:          []string{"b"},
+		},
+		{
+			OperationID:        "b",
+			SourceDescription:  "api",
+			OpenAPIOperationID: "getB",
+			DependsOn:          []string{"a"},
+		},
+	}
+
+	err := doc.Validate()
+	assert.ErrorContains(t, err, "cycle detected")
+	assert.ErrorContains(t, err, "a -> b -> a")
+}
+
+func TestValidate_DependencyCycle_SelfLoop(t *testing.T) {
+	doc := validDocument()
+	doc.Operations[0].DependsOn = []string{"get_data"}
+
+	err := doc.Validate()
+	assert.ErrorContains(t, err, "cycle detected: get_data -> get_data")
+}
+
+func TestValidate_DependencyCycle_ThreeNodes(t *testing.T) {
+	doc := validDocument()
+	doc.Operations = []*Operation{
+		{OperationID: "a", SourceDescription: "api", OpenAPIOperationID: "getA", DependsOn: []string{"b"}},
+		{OperationID: "b", SourceDescription: "api", OpenAPIOperationID: "getB", DependsOn: []string{"c"}},
+		{OperationID: "c", SourceDescription: "api", OpenAPIOperationID: "getC", DependsOn: []string{"a"}},
+	}
+
+	err := doc.Validate()
+	assert.ErrorContains(t, err, "cycle detected")
+	assert.ErrorContains(t, err, "a -> b -> c -> a")
+}
+
+func TestValidate_DependencyCycle_ThroughParallelGroup(t *testing.T) {
+	doc := validDocument()
+	doc.Operations = []*Operation{
+		{
+			OperationID:        "a",
+			SourceDescription:  "api",
+			OpenAPIOperationID: "getA",
+			ParallelGroup:      "fanout",
+			DependsOn:          []string{"b"},
+		},
+		{
+			OperationID:        "b",
+			SourceDescription:  "api",
+			OpenAPIOperationID: "getB",
+			DependsOn:          []string{"fanout"},
+		},
+	}
+
+	err := doc.Validate()
+	assert.ErrorContains(t, err, "cycle detected")
+}
+
+func TestValidate_DependencyCycle_AcyclicIsFine(t *testing.T) {
+	doc := validDocument()
+	doc.Operations = []*Operation{
+		{OperationID: "a", SourceDescription: "api", OpenAPIOperationID: "getA"},
+		{OperationID: "b", SourceDescription: "api", OpenAPIOperationID: "getB", DependsOn: []string{"a"}},
+		{OperationID: "c", SourceDescription: "api", OpenAPIOperationID: "getC", DependsOn: []string{"a", "b"}},
+	}
+
+	assert.NoError(t, doc.Validate())
+}
+
+func TestValidate_DependencyCycle_ReportedOnce(t *testing.T) {
+	doc := validDocument()
+	doc.Operations = []*Operation{
+		{OperationID: "a", SourceDescription: "api", OpenAPIOperationID: "getA", DependsOn: []string{"b"}},
+		{OperationID: "b", SourceDescription: "api", OpenAPIOperationID: "getB", DependsOn: []string{"a"}},
+	}
+
+	result := doc.ValidateResult()
+	cycleErrors := 0
+	for _, e := range result.Errors {
+		if e.Path == "dependsOn" {
+			cycleErrors++
+		}
+	}
+	assert.Equal(t, 1, cycleErrors)
+}
+
+func TestValidate_ParamSchema_RequiredMustExistInProperties(t *testing.T) {
+	doc := validDocument()
+	doc.Workflows = []*Workflow{
+		{
+			WorkflowID: "wf",
+			Type:       "sequence",
+			Inputs: &ParamSchema{
+				Type: "object",
+				Properties: map[string]*ParamSchema{
+					"limit": {Type: "integer"},
+				},
+				Required: []string{"missing"},
+			},
+		},
+	}
+	err := doc.Validate()
+	assert.ErrorContains(t, err, `workflows[0].inputs.required[0]`)
+	assert.ErrorContains(t, err, `references unknown property "missing"`)
+}
+
+func TestValidate_ParamSchema_DuplicateRequired(t *testing.T) {
+	doc := validDocument()
+	doc.Workflows = []*Workflow{
+		{
+			WorkflowID: "wf",
+			Type:       "sequence",
+			Inputs: &ParamSchema{
+				Properties: map[string]*ParamSchema{"a": {Type: "string"}},
+				Required:   []string{"a", "a"},
+			},
+		},
+	}
+	err := doc.Validate()
+	assert.ErrorContains(t, err, "duplicate required entry")
+}
+
+func TestValidate_ParamSchema_NilNestedSchema(t *testing.T) {
+	doc := validDocument()
+	doc.Workflows = []*Workflow{
+		{
+			WorkflowID: "wf",
+			Type:       "sequence",
+			Inputs: &ParamSchema{
+				Type:  "array",
+				AllOf: []*ParamSchema{nil},
+			},
+		},
+	}
+	err := doc.Validate()
+	assert.ErrorContains(t, err, `workflows[0].inputs.allOf[0]`)
+	assert.ErrorContains(t, err, "is nil")
+}
+
+func TestValidate_ParamSchema_RecursesIntoItems(t *testing.T) {
+	doc := validDocument()
+	doc.Workflows = []*Workflow{
+		{
+			WorkflowID: "wf",
+			Type:       "sequence",
+			Inputs: &ParamSchema{
+				Type: "array",
+				Items: &ParamSchema{
+					Properties: map[string]*ParamSchema{"a": {Type: "string"}},
+					Required:   []string{"b"},
+				},
+			},
+		},
+	}
+	err := doc.Validate()
+	assert.ErrorContains(t, err, `workflows[0].inputs.items.required[0]`)
+	assert.ErrorContains(t, err, `references unknown property "b"`)
+}
+
+func TestValidate_Variables_AcceptsOpenShape(t *testing.T) {
+	doc := validDocument()
+	doc.Variables = map[string]any{
+		"a-string": "hello",
+		"a-number": 42,
+		"a-bool":   true,
+		"a-null":   nil,
+		"a-list":   []any{1, "two", map[string]any{"nested": true}},
+		"a-obj":    map[string]any{"deep": map[string]any{"deeper": []any{1, 2}}},
+	}
+	assert.NoError(t, doc.Validate())
+}
+
+func TestValidate_Components_Variables_KeyPatternEnforced(t *testing.T) {
+	doc := validDocument()
+	doc.Components = &Components{
+		Variables: map[string]any{
+			"valid.key": "ok",
+			"bad key":   "nope",
+		},
+	}
+	err := doc.Validate()
+	assert.ErrorContains(t, err, `component name "bad key"`)
+}
+
+func TestValidate_TriggerOptions_AcceptsOpenShape(t *testing.T) {
+	doc := validDocument()
+	doc.Triggers = []*Trigger{
+		{
+			TriggerID: "webhook",
+			Options: map[string]any{
+				"string": "a",
+				"int":    1,
+				"nested": map[string]any{"list": []any{"x"}},
+			},
+		},
+	}
+	assert.NoError(t, doc.Validate())
+}
+
+func TestValidate_ParamSchema_ValidSchemaPasses(t *testing.T) {
+	doc := validDocument()
+	doc.Workflows = []*Workflow{
+		{
+			WorkflowID: "wf",
+			Type:       "sequence",
+			Inputs: &ParamSchema{
+				Type: "object",
+				Properties: map[string]*ParamSchema{
+					"limit": {Type: "integer"},
+					"name":  {Type: "string"},
+				},
+				Required: []string{"limit"},
+			},
+		},
+	}
+	assert.NoError(t, doc.Validate())
+}
+
+func TestValidate_InvalidFixtures(t *testing.T) {
+	cases := []struct {
+		name    string
+		file    string
+		wantErr ValidationError
+	}{
+		{
+			name:    "bad uws version",
+			file:    "bad_uws_version.json",
+			wantErr: ValidationError{Path: "uws", Message: `version "2.0.0" does not match pattern 1.x.x`},
+		},
+		{
+			name:    "dependency cycle",
+			file:    "dependency_cycle.json",
+			wantErr: ValidationError{Path: "dependsOn", Message: "cycle detected: a -> b -> a"},
+		},
+		{
+			name:    "duplicate operation id",
+			file:    "duplicate_operation_id.json",
+			wantErr: ValidationError{Path: "operations[1].operationId", Message: `duplicate operationId "op"`},
+		},
+		{
+			name:    "merge without dependsOn",
+			file:    "merge_without_dependson.json",
+			wantErr: ValidationError{Path: "workflows[0].dependsOn", Message: "is required and must name at least one upstream construct for merge"},
+		},
+		{
+			name:    "missing openapi binding",
+			file:    "missing_openapi_binding.json",
+			wantErr: ValidationError{Path: "operations[0]", Message: "requires exactly one of openapiOperationId or openapiOperationRef for OpenAPI-bound operations"},
+		},
+		{
+			name:    "regex criterion without context",
+			file:    "regex_criterion_no_context.json",
+			wantErr: ValidationError{Path: "operations[0].successCriteria[0].context", Message: "is required when type is regex, jsonpath, or xpath"},
+		},
+		{
+			name:    "retry action without retryLimit",
+			file:    "retry_without_limit.json",
+			wantErr: ValidationError{Path: "operations[0].onFailure[0]", Message: "retry requires retryLimit > 0"},
+		},
+		{
+			name:    "unknown sourceDescription",
+			file:    "unknown_source_description.json",
+			wantErr: ValidationError{Path: "operations[0].sourceDescription", Message: `references unknown sourceDescription "missing"`},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			data, err := os.ReadFile(filepath.Join("..", "testdata", "invalid", tc.file))
+			require.NoError(t, err)
+			var doc Document
+			require.NoError(t, json.Unmarshal(data, &doc))
+
+			result := doc.ValidateResult()
+			assert.Contains(t, result.Errors, tc.wantErr,
+				"expected error %+v in results %+v", tc.wantErr, result.Errors)
+		})
+	}
 }

@@ -3,18 +3,21 @@ package uws1
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/tabilet/uws/flowcore"
 )
 
 // Trigger defines an entry point that initiates workflow execution.
 type Trigger struct {
-	TriggerID      string          `json:"triggerId" yaml:"triggerId" hcl:"triggerId,label"`
-	Path           string          `json:"path,omitempty" yaml:"path,omitempty" hcl:"path,optional"`
-	Methods        []string        `json:"methods,omitempty" yaml:"methods,omitempty" hcl:"methods,optional"`
-	Authentication string          `json:"authentication,omitempty" yaml:"authentication,omitempty" hcl:"authentication,optional"`
-	Options        map[string]any  `json:"options,omitempty" yaml:"options,omitempty" hcl:"options,optional"`
-	Outputs        []string        `json:"outputs,omitempty" yaml:"outputs,omitempty" hcl:"outputs,optional"`
-	Routes         []*TriggerRoute `json:"routes,omitempty" yaml:"routes,omitempty" hcl:"route,block"`
-	Extensions     map[string]any  `json:"-" yaml:"-" hcl:"-"`
+	TriggerID string `json:"triggerId" yaml:"triggerId" hcl:"triggerId,label"`
+	flowcore.TriggerFields
+	// Options is an intentionally open-shape map so each trigger implementation
+	// can carry its own configuration. UWS does not restrict keys or values
+	// beyond the JSON Schema's object shape.
+	Options    map[string]any  `json:"options,omitempty" yaml:"options,omitempty" hcl:"options,optional"`
+	Outputs    []string        `json:"outputs,omitempty" yaml:"outputs,omitempty" hcl:"outputs,optional"`
+	Routes     []*TriggerRoute `json:"routes,omitempty" yaml:"routes,omitempty" hcl:"route,block"`
+	Extensions map[string]any  `json:"-" yaml:"-" hcl:"-"`
 }
 
 type triggerAlias Trigger
@@ -37,7 +40,11 @@ func (t *Trigger) UnmarshalJSON(data []byte) error {
 	if err := rejectUnknownFields(raw, triggerKnownFields, "trigger"); err != nil {
 		return err
 	}
-	t.Extensions = extractExtensions(raw, triggerKnownFields)
+	extensions, err := extractExtensions(raw, triggerKnownFields)
+	if err != nil {
+		return fmt.Errorf("unmarshaling trigger extensions: %w", err)
+	}
+	t.Extensions = extensions
 	return nil
 }
 
@@ -48,8 +55,7 @@ func (t Trigger) MarshalJSON() ([]byte, error) {
 
 // TriggerRoute maps a trigger output to downstream operations.
 type TriggerRoute struct {
-	Output     string         `json:"output" yaml:"output" hcl:"output"`
-	To         []string       `json:"to,omitempty" yaml:"to,omitempty" hcl:"to,optional"`
+	flowcore.TriggerRouteFields
 	Extensions map[string]any `json:"-" yaml:"-" hcl:"-"`
 }
 
@@ -73,7 +79,11 @@ func (t *TriggerRoute) UnmarshalJSON(data []byte) error {
 	if err := rejectUnknownFields(raw, triggerRouteKnownFields, "triggerRoute"); err != nil {
 		return err
 	}
-	t.Extensions = extractExtensions(raw, triggerRouteKnownFields)
+	extensions, err := extractExtensions(raw, triggerRouteKnownFields)
+	if err != nil {
+		return fmt.Errorf("unmarshaling triggerRoute extensions: %w", err)
+	}
+	t.Extensions = extensions
 	return nil
 }
 

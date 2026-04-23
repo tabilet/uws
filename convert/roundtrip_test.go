@@ -3,8 +3,10 @@ package convert
 import (
 	"encoding/json"
 	"os"
+	"reflect"
 	"testing"
 
+	"github.com/tabilet/uws/flowcore"
 	"github.com/tabilet/uws/uws1"
 )
 
@@ -49,115 +51,292 @@ func TestRoundTripSampleFile(t *testing.T) {
 	compareUWSDocs(t, &doc1, &doc2)
 }
 
-func compareUWSDocs(t *testing.T, doc1, doc2 *uws1.Document) {
-	t.Helper()
-
-	if doc1.UWS != doc2.UWS {
-		t.Errorf("UWS version mismatch: got %q, want %q", doc2.UWS, doc1.UWS)
+// stripExtensions clears every Extensions map in the document tree. Used by
+// the HCL extension-drop roundtrip test so the expected value matches what HCL
+// conversion actually preserves (core fields only).
+func stripExtensions(doc *uws1.Document) {
+	if doc == nil {
+		return
 	}
-
-	if doc1.Info != nil && doc2.Info != nil {
-		if doc1.Info.Title != doc2.Info.Title {
-			t.Errorf("Info.Title mismatch: got %q, want %q", doc2.Info.Title, doc1.Info.Title)
-		}
-		if doc1.Info.Version != doc2.Info.Version {
-			t.Errorf("Info.Version mismatch: got %q, want %q", doc2.Info.Version, doc1.Info.Version)
-		}
-	} else if (doc1.Info == nil) != (doc2.Info == nil) {
-		t.Error("Info presence mismatch")
+	doc.Extensions = nil
+	if doc.Info != nil {
+		doc.Info.Extensions = nil
 	}
-
-	if len(doc1.SourceDescriptions) != len(doc2.SourceDescriptions) {
-		t.Errorf("SourceDescriptions count mismatch: got %d, want %d",
-			len(doc2.SourceDescriptions), len(doc1.SourceDescriptions))
-	} else {
-		for i := range doc1.SourceDescriptions {
-			if doc1.SourceDescriptions[i].Name != doc2.SourceDescriptions[i].Name {
-				t.Errorf("SourceDescriptions[%d].Name mismatch: got %q, want %q",
-					i, doc2.SourceDescriptions[i].Name, doc1.SourceDescriptions[i].Name)
-			}
-			if doc1.SourceDescriptions[i].URL != doc2.SourceDescriptions[i].URL {
-				t.Errorf("SourceDescriptions[%d].URL mismatch: got %q, want %q",
-					i, doc2.SourceDescriptions[i].URL, doc1.SourceDescriptions[i].URL)
-			}
+	for _, sd := range doc.SourceDescriptions {
+		if sd != nil {
+			sd.Extensions = nil
 		}
 	}
-
-	if len(doc1.Operations) != len(doc2.Operations) {
-		t.Errorf("Operations count mismatch: got %d, want %d",
-			len(doc2.Operations), len(doc1.Operations))
-	} else {
-		for i := range doc1.Operations {
-			o1, o2 := doc1.Operations[i], doc2.Operations[i]
-			if o1.OperationID != o2.OperationID {
-				t.Errorf("Operations[%d].OperationID mismatch: got %q, want %q",
-					i, o2.OperationID, o1.OperationID)
-			}
-			if o1.SourceDescription != o2.SourceDescription {
-				t.Errorf("Operations[%d].SourceDescription mismatch: got %q, want %q",
-					i, o2.SourceDescription, o1.SourceDescription)
-			}
-			if o1.OpenAPIOperationID != o2.OpenAPIOperationID {
-				t.Errorf("Operations[%d].OpenAPIOperationID mismatch: got %q, want %q",
-					i, o2.OpenAPIOperationID, o1.OpenAPIOperationID)
-			}
-			if o1.OpenAPIOperationRef != o2.OpenAPIOperationRef {
-				t.Errorf("Operations[%d].OpenAPIOperationRef mismatch: got %q, want %q",
-					i, o2.OpenAPIOperationRef, o1.OpenAPIOperationRef)
-			}
-			if len(o1.SuccessCriteria) != len(o2.SuccessCriteria) {
-				t.Errorf("Operations[%d].SuccessCriteria count mismatch: got %d, want %d",
-					i, len(o2.SuccessCriteria), len(o1.SuccessCriteria))
-			}
-			if len(o1.OnFailure) != len(o2.OnFailure) {
-				t.Errorf("Operations[%d].OnFailure count mismatch: got %d, want %d",
-					i, len(o2.OnFailure), len(o1.OnFailure))
-			}
-			if len(o1.OnSuccess) != len(o2.OnSuccess) {
-				t.Errorf("Operations[%d].OnSuccess count mismatch: got %d, want %d",
-					i, len(o2.OnSuccess), len(o1.OnSuccess))
+	for _, op := range doc.Operations {
+		if op == nil {
+			continue
+		}
+		op.Extensions = nil
+		for _, c := range op.SuccessCriteria {
+			if c != nil {
+				c.Extensions = nil
 			}
 		}
-	}
-
-	if len(doc1.Workflows) != len(doc2.Workflows) {
-		t.Errorf("Workflows count mismatch: got %d, want %d",
-			len(doc2.Workflows), len(doc1.Workflows))
-	} else {
-		for i := range doc1.Workflows {
-			w1, w2 := doc1.Workflows[i], doc2.Workflows[i]
-			if w1.WorkflowID != w2.WorkflowID {
-				t.Errorf("Workflows[%d].WorkflowID mismatch: got %q, want %q",
-					i, w2.WorkflowID, w1.WorkflowID)
+		for _, a := range op.OnFailure {
+			if a == nil {
+				continue
 			}
-			if w1.Type != w2.Type {
-				t.Errorf("Workflows[%d].Type mismatch: got %q, want %q",
-					i, w2.Type, w1.Type)
+			a.Extensions = nil
+			for _, c := range a.Criteria {
+				if c != nil {
+					c.Extensions = nil
+				}
 			}
-			if len(w1.Steps) != len(w2.Steps) {
-				t.Errorf("Workflows[%d].Steps count mismatch: got %d, want %d",
-					i, len(w2.Steps), len(w1.Steps))
-			} else {
-				for j := range w1.Steps {
-					s1, s2 := w1.Steps[j], w2.Steps[j]
-					if s1.StepID != s2.StepID {
-						t.Errorf("Workflows[%d].Steps[%d].StepID mismatch: got %q, want %q",
-							i, j, s2.StepID, s1.StepID)
-					}
+		}
+		for _, a := range op.OnSuccess {
+			if a == nil {
+				continue
+			}
+			a.Extensions = nil
+			for _, c := range a.Criteria {
+				if c != nil {
+					c.Extensions = nil
 				}
 			}
 		}
 	}
-
-	if len(doc1.Triggers) != len(doc2.Triggers) {
-		t.Errorf("Triggers count mismatch: got %d, want %d",
-			len(doc2.Triggers), len(doc1.Triggers))
-	} else {
-		for i := range doc1.Triggers {
-			if doc1.Triggers[i].TriggerID != doc2.Triggers[i].TriggerID {
-				t.Errorf("Triggers[%d].TriggerID mismatch: got %q, want %q",
-					i, doc2.Triggers[i].TriggerID, doc1.Triggers[i].TriggerID)
+	for _, wf := range doc.Workflows {
+		if wf == nil {
+			continue
+		}
+		wf.Extensions = nil
+		stripStepsExtensions(wf.Steps)
+		stripCasesExtensions(wf.Cases)
+		stripStepsExtensions(wf.Default)
+	}
+	for _, tr := range doc.Triggers {
+		if tr == nil {
+			continue
+		}
+		tr.Extensions = nil
+		for _, r := range tr.Routes {
+			if r != nil {
+				r.Extensions = nil
 			}
 		}
 	}
+	for _, r := range doc.Results {
+		if r != nil {
+			r.Extensions = nil
+		}
+	}
+	if doc.Components != nil {
+		doc.Components.Extensions = nil
+	}
+}
+
+func stripStepsExtensions(steps []*uws1.Step) {
+	for _, s := range steps {
+		if s == nil {
+			continue
+		}
+		s.Extensions = nil
+		stripStepsExtensions(s.Steps)
+		stripCasesExtensions(s.Cases)
+		stripStepsExtensions(s.Default)
+	}
+}
+
+func stripCasesExtensions(cases []*uws1.Case) {
+	for _, c := range cases {
+		if c == nil {
+			continue
+		}
+		c.Extensions = nil
+		stripStepsExtensions(c.Steps)
+	}
+}
+
+// TestHCLRoundTripDropsExtensions locks the contract stated in CLAUDE.md: HCL
+// conversion intentionally drops x-* extensions. After JSON -> strip -> HCL ->
+// JSON, the resulting document must deep-equal the stripped original.
+func TestHCLRoundTripDropsExtensions(t *testing.T) {
+	withExtensions := &uws1.Document{
+		UWS: "1.0.0",
+		Info: &uws1.Info{
+			Title:      "Ext",
+			Version:    "1.0.0",
+			Extensions: map[string]any{"x-info": "kept-in-json"},
+		},
+		SourceDescriptions: []*uws1.SourceDescription{
+			{Name: "api", URL: "./openapi.yaml", Type: uws1.SourceDescriptionTypeOpenAPI, Extensions: map[string]any{"x-sd": "kept-in-json"}},
+		},
+		Operations: []*uws1.Operation{
+			{
+				OperationID:        "op1",
+				SourceDescription:  "api",
+				OpenAPIOperationID: "getOp",
+				Extensions:         map[string]any{"x-op": "kept-in-json"},
+				SuccessCriteria: []*uws1.Criterion{
+					{Condition: "true", Extensions: map[string]any{"x-crit": "kept-in-json"}},
+				},
+			},
+		},
+		Extensions: map[string]any{"x-root": "kept-in-json"},
+	}
+
+	// JSON -> struct -> strip -> JSON -> HCL -> JSON -> struct
+	jsonWith, err := json.Marshal(withExtensions)
+	if err != nil {
+		t.Fatalf("marshal with extensions: %v", err)
+	}
+	var stripped uws1.Document
+	if err := json.Unmarshal(jsonWith, &stripped); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	stripExtensions(&stripped)
+
+	jsonStripped, err := json.Marshal(&stripped)
+	if err != nil {
+		t.Fatalf("marshal stripped: %v", err)
+	}
+	hclData, err := JSONToHCL(jsonStripped)
+	if err != nil {
+		t.Fatalf("JSONToHCL after strip: %v", err)
+	}
+	backJSON, err := HCLToJSON(hclData)
+	if err != nil {
+		t.Fatalf("HCLToJSON: %v", err)
+	}
+	var back uws1.Document
+	if err := json.Unmarshal(backJSON, &back); err != nil {
+		t.Fatalf("unmarshal roundtrip: %v", err)
+	}
+
+	compareUWSDocs(t, &stripped, &back)
+
+	// And the inverse guarantee: MarshalHCL refuses to run if extensions remain.
+	if _, err := MarshalHCL(withExtensions); err == nil {
+		t.Fatal("MarshalHCL should reject documents with x-* extensions")
+	}
+}
+
+// TestRoundTripRichDocument covers fields the sample fixture does not: Criterion.Type
+// and Context, trigger Options, Components.Variables, loop/switch workflows, and
+// nested Cases with bodies. Deep-equals the round-tripped document against the
+// original so a regression in any field would fail loudly.
+func TestRoundTripRichDocument(t *testing.T) {
+	doc := &uws1.Document{
+		UWS: "1.0.0",
+		Info: &uws1.Info{
+			Title:       "Rich",
+			Summary:     "line1\nline2",
+			Description: "first\nsecond",
+			Version:     "1.2.3",
+		},
+		SourceDescriptions: []*uws1.SourceDescription{
+			{Name: "api", URL: "./openapi.yaml", Type: uws1.SourceDescriptionTypeOpenAPI},
+		},
+		Variables: map[string]any{
+			"env":  "prod",
+			"nums": []any{float64(1), float64(2), float64(3)},
+			"deep": map[string]any{"k": "v", "n": float64(42)},
+		},
+		Operations: []*uws1.Operation{
+			{
+				OperationID:        "op1",
+				SourceDescription:  "api",
+				OpenAPIOperationID: "getOp",
+				Request: map[string]any{
+					"query":  map[string]any{"limit": float64(10)},
+					"header": map[string]any{"x-trace": "abc"},
+					"body":   map[string]any{"name": "Buddy"},
+				},
+				SuccessCriteria: []*uws1.Criterion{
+					{Condition: "$response.body.ok", Type: uws1.CriterionJSONPath, Context: "$response.body"},
+				},
+				OnFailure: []*uws1.FailureAction{
+					{Name: "r", Type: "retry", RetryAfter: 1.5, RetryLimit: 4, Criteria: []*uws1.Criterion{
+						{Condition: "$response.statusCode >= 500"},
+					}},
+				},
+				Outputs: map[string]string{"id": "$response.body.id"},
+			},
+		},
+		Workflows: []*uws1.Workflow{
+			{
+				WorkflowID: "pick",
+				Type:       "switch",
+				Cases: []*uws1.Case{
+					{
+						CaseFields: flowcore.CaseFields{
+							Name: "c1",
+							When: "$outputs.op1.id == 1",
+						},
+						Body: map[string]any{"note": "first"},
+						Steps: []*uws1.Step{
+							{StepID: "s1", OperationRef: "op1"},
+						},
+					},
+				},
+				Default: []*uws1.Step{
+					{StepID: "d1", OperationRef: "op1"},
+				},
+			},
+			{
+				WorkflowID: "iter",
+				Type:       "loop",
+				StructuralFields: flowcore.StructuralFields{
+					Items: "$outputs.op1.ids",
+				},
+				Steps: []*uws1.Step{
+					{StepID: "body", OperationRef: "op1"},
+				},
+			},
+		},
+		Triggers: []*uws1.Trigger{
+			{
+				TriggerID: "hook",
+				TriggerFields: flowcore.TriggerFields{
+					Path:           "/hook",
+					Methods:        []string{"POST"},
+					Authentication: "bearer",
+				},
+				Options: map[string]any{"timeout": float64(30), "nested": map[string]any{"k": "v"}},
+				Outputs: []string{"received"},
+				Routes: []*uws1.TriggerRoute{
+					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "received", To: []string{"op1"}}},
+				},
+			},
+		},
+		Components: &uws1.Components{
+			Variables: map[string]any{"shared": "yes"},
+		},
+	}
+
+	jsonData, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	hclData, err := JSONToHCL(jsonData)
+	if err != nil {
+		t.Fatalf("JSONToHCL: %v", err)
+	}
+	backJSON, err := HCLToJSON(hclData)
+	if err != nil {
+		t.Fatalf("HCLToJSON: %v", err)
+	}
+	var back uws1.Document
+	if err := json.Unmarshal(backJSON, &back); err != nil {
+		t.Fatalf("unmarshal roundtrip: %v", err)
+	}
+
+	compareUWSDocs(t, doc, &back)
+}
+
+// compareUWSDocs asserts the two documents are deeply equal. On mismatch it
+// prints indented JSON of both sides so the diff is readable.
+func compareUWSDocs(t *testing.T, doc1, doc2 *uws1.Document) {
+	t.Helper()
+	if reflect.DeepEqual(doc1, doc2) {
+		return
+	}
+	a, _ := json.MarshalIndent(doc1, "", "  ")
+	b, _ := json.MarshalIndent(doc2, "", "  ")
+	t.Fatalf("roundtrip mismatch:\nwant:\n%s\ngot:\n%s", a, b)
 }

@@ -13,7 +13,7 @@ const (
 	SourceDescriptionTypeOpenAPI SourceDescriptionType = "openapi"
 )
 
-var sourceDescriptionNamePattern = regexp.MustCompile(`^[A-Za-z0-9_\-]+$`)
+var sourceDescriptionNamePattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 
 // SourceDescription identifies a source document that operations reference.
 type SourceDescription struct {
@@ -43,7 +43,11 @@ func (s *SourceDescription) UnmarshalJSON(data []byte) error {
 	if err := rejectUnknownFields(raw, sourceDescriptionKnownFields, "sourceDescription"); err != nil {
 		return err
 	}
-	s.Extensions = extractExtensions(raw, sourceDescriptionKnownFields)
+	extensions, err := extractExtensions(raw, sourceDescriptionKnownFields)
+	if err != nil {
+		return fmt.Errorf("unmarshaling sourceDescription extensions: %w", err)
+	}
+	s.Extensions = extensions
 	return nil
 }
 

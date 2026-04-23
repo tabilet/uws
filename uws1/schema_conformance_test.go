@@ -2,96 +2,186 @@ package uws1
 
 import (
 	"bytes"
-	"encoding/json"
 	"os"
+	"sort"
 	"testing"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestSchemaConformance_KeyValidatorRules(t *testing.T) {
-	data, err := os.ReadFile("../uws.json")
-	require.NoError(t, err)
-
-	var schema map[string]any
-	require.NoError(t, json.Unmarshal(data, &schema))
-	defs := schema["$defs"].(map[string]any)
-
-	workflow := defs["workflow-object"].(map[string]any)
-	workflowRequired := workflow["required"].([]any)
-	require.Contains(t, workflowRequired, "workflowId")
-	require.Contains(t, workflowRequired, "type")
-	workflowID := workflow["properties"].(map[string]any)["workflowId"].(map[string]any)
-	require.Equal(t, "^[A-Za-z0-9_-]+$", workflowID["pattern"])
-	workflowType := workflow["properties"].(map[string]any)["type"].(map[string]any)
-	require.ElementsMatch(t, []any{"sequence", "parallel", "switch", "merge", "loop", "await"}, workflowType["enum"].([]any))
-
-	step := defs["step-object"].(map[string]any)
-	stepRequired := step["required"].([]any)
-	require.Contains(t, stepRequired, "stepId")
-	require.NotContains(t, stepRequired, "type")
-	stepID := step["properties"].(map[string]any)["stepId"].(map[string]any)
-	require.Equal(t, "^[A-Za-z0-9_-]+$", stepID["pattern"])
-	stepType := step["properties"].(map[string]any)["type"].(map[string]any)
-	require.ElementsMatch(t, mapKeys(validWorkflowTypes), stepType["enum"].([]any))
-
-	operation := defs["operation-object"].(map[string]any)
-	operationRequired := operation["required"].([]any)
-	require.Contains(t, operationRequired, "operationId")
-	require.NotContains(t, operationRequired, "sourceDescription")
-	require.Contains(t, operation["properties"].(map[string]any), "openapiOperationId")
-	require.Contains(t, operation["properties"].(map[string]any), "openapiOperationRef")
-	require.Contains(t, operation["properties"].(map[string]any), "request")
-	require.NotContains(t, operation["properties"].(map[string]any), "serviceType")
-
-	criterion := defs["criterion-object"].(map[string]any)
-	criterionRequired := criterion["required"].([]any)
-	require.Contains(t, criterionRequired, "condition")
-
-	route := defs["trigger-route-object"].(map[string]any)
-	require.Equal(t, "#/$defs/specification-extensions", route["$ref"])
-	require.Contains(t, route["required"].([]any), "to")
-
-	result := defs["structural-result-object"].(map[string]any)
-	require.Equal(t, "#/$defs/specification-extensions", result["$ref"])
-	resultRequired := result["required"].([]any)
-	require.Contains(t, resultRequired, "name")
-	require.Contains(t, resultRequired, "kind")
-	require.Contains(t, resultRequired, "from")
-	resultFrom := result["properties"].(map[string]any)["from"].(map[string]any)
-	require.Equal(t, "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)?$", resultFrom["pattern"])
-	require.Contains(t, result["properties"].(map[string]any), "value")
-
-	trigger := defs["trigger-object"].(map[string]any)
-	require.Contains(t, trigger["properties"].(map[string]any), "outputs")
+// schemaDefCoverage declares, per $def, which structural rules the Go
+// validator is expected to enforce (beyond what the JSON Schema pass does).
+// TestSchemaConformance_DrivenRulesAreDeclared reads uws.json, extracts every
+// required/enum/pattern rule per $def, and fails if the schema's actual rule
+// set differs from this table in either direction:
+//
+//   - A rule in the schema but not in the table means someone added a new
+//     schema rule without declaring where the Go validator should cover it.
+//   - A rule in the table but not in the schema means the table is stale.
+//
+// The `covered` entries are not executed directly by this test; they are
+// hand-maintained claims pointing at the validator function or identifier
+// registry that enforces the rule. The adjacent
+// TestSchemaConformance_ValidatorMatchesSelectedRules test executes a
+// representative slice of them to confirm the claims hold.
+type schemaDefRules struct {
+	required []string
+	// enumProps lists property names that carry an `enum` or `const` in the
+	// schema. The validator enforces these via package-level maps such as
+	// validWorkflowTypes / validFailureActionTypes.
+	enumProps []string
+	// patternProps lists property names that carry a regex `pattern`.
+	patternProps []string
 }
 
-func mapKeys(m map[string]bool) []any {
-	keys := make([]any, 0, len(m))
-	for key := range m {
-		keys = append(keys, key)
+func schemaDefCoverage() map[string]schemaDefRules {
+	return map[string]schemaDefRules{
+		"": { // document root
+			required:     []string{"uws", "info", "operations"},
+			patternProps: []string{"uws"},
+		},
+		"info": {
+			required: []string{"title", "version"},
+		},
+		"source-description-object": {
+			required:     []string{"name", "url"},
+			enumProps:    []string{"type"},
+			patternProps: []string{"name"},
+		},
+		"operation-object": {
+			required:     []string{"operationId"},
+			patternProps: []string{"openapiOperationRef", "x-uws-operation-profile"},
+		},
+		"request-binding-object": {},
+		"workflow-object": {
+			required:     []string{"workflowId", "type"},
+			enumProps:    []string{"type"},
+			patternProps: []string{"workflowId"},
+		},
+		"step-object": {
+			required:     []string{"stepId"},
+			enumProps:    []string{"type"},
+			patternProps: []string{"stepId"},
+		},
+		"case-object": {
+			required: []string{"name"},
+		},
+		"trigger-object": {
+			required:     []string{"triggerId"},
+			patternProps: []string{"outputs"}, // enforced on array items
+		},
+		"trigger-route-object": {
+			required: []string{"output", "to"},
+		},
+		"param-schema-object": {},
+		"structural-result-object": {
+			required:     []string{"name", "kind", "from"},
+			enumProps:    []string{"kind"},
+			patternProps: []string{"name", "from"},
+		},
+		"components-object": {},
+		"criterion-object": {
+			required:  []string{"condition"},
+			enumProps: []string{"type"},
+		},
+		"failure-action-object": {
+			required:     []string{"name", "type"},
+			enumProps:    []string{"type"},
+			patternProps: []string{"workflowId", "stepId"},
+		},
+		"success-action-object": {
+			required:     []string{"name", "type"},
+			enumProps:    []string{"type"},
+			patternProps: []string{"workflowId", "stepId"},
+		},
 	}
-	return keys
 }
 
+// TestSchemaConformance_DrivenRulesAreDeclared is the tripwire that fires when
+// a rule is added to or removed from uws.json without a matching update to
+// schemaDefCoverage. That mismatch is exactly the drift S1 is meant to kill.
+func TestSchemaConformance_DrivenRulesAreDeclared(t *testing.T) {
+	schema := loadSchemaDoc(t)
+	coverage := schemaDefCoverage()
+
+	actual := collectSchemaRules(t, schema)
+	declared := make(map[string]schemaDefRules, len(coverage))
+	for name, rules := range coverage {
+		declared[name] = rules
+	}
+
+	var unknown []string
+	for name := range actual {
+		if _, ok := declared[name]; !ok {
+			unknown = append(unknown, name)
+		}
+	}
+	sort.Strings(unknown)
+	assert.Empty(t, unknown,
+		"schema declares $defs with no coverage entry in schemaDefCoverage: %v", unknown)
+
+	for _, name := range sortedKeys(declared) {
+		t.Run(defLabel(name), func(t *testing.T) {
+			want := declared[name]
+			got, ok := actual[name]
+			if !ok {
+				t.Fatalf("coverage table lists %q but the schema has no such $def", name)
+			}
+			assert.ElementsMatch(t, want.required, got.required,
+				"$def %q required mismatch", name)
+			assert.ElementsMatch(t, want.enumProps, got.enumProps,
+				"$def %q enum/const properties mismatch", name)
+			assert.ElementsMatch(t, want.patternProps, got.patternProps,
+				"$def %q pattern properties mismatch", name)
+		})
+	}
+}
+
+// TestSchemaConformance_ValidatorMatchesSelectedRules exercises a handful of
+// rules from the coverage table against (*Document).Validate, making sure the
+// claims in schemaDefCoverage actually hold on the Go side. Adding a new
+// enum or required-field should slot a case in here; the driven test above
+// guarantees you cannot forget to *declare* the rule.
 func TestSchemaConformance_ValidatorMatchesSelectedRules(t *testing.T) {
+	// workflow-object: enum on `type`
 	doc := validDocument()
 	doc.Workflows = []*Workflow{
 		{WorkflowID: "wf", Type: "not-a-workflow", Steps: []*Step{{StepID: "s"}}},
 	}
+	require.ErrorContains(t, doc.Validate(), "not-a-workflow")
+	require.NotContains(t, doc.Validate().Error(), "steps[0].type is required")
 
-	err := doc.Validate()
-	require.ErrorContains(t, err, "not-a-workflow")
-	require.NotContains(t, err.Error(), "steps[0].type is required")
-
+	// trigger-route-object: required `output`
 	doc = validDocument()
 	doc.Triggers = []*Trigger{{TriggerID: "t", Outputs: []string{"primary"}, Routes: []*TriggerRoute{{}}}}
 	require.ErrorContains(t, doc.Validate(), "routes[0].output is required")
 
+	// structural-result-object: enum on `kind`
 	doc = validDocument()
 	doc.Results = []*StructuralResult{{Kind: "await"}}
 	require.ErrorContains(t, doc.Validate(), `"await" is not valid`)
+
+	// failure-action-object: enum on `type` (rejects non-listed action types)
+	doc = validDocument()
+	doc.Operations[0].OnFailure = []*FailureAction{{Name: "a", Type: "bogus"}}
+	require.ErrorContains(t, doc.Validate(), "bogus")
+
+	// success-action-object: enum on `type`
+	doc = validDocument()
+	doc.Operations[0].OnSuccess = []*SuccessAction{{Name: "a", Type: "retry"}}
+	require.ErrorContains(t, doc.Validate(), "retry")
+
+	// criterion-object: enum on `type`
+	doc = validDocument()
+	doc.Operations[0].SuccessCriteria = []*Criterion{{Condition: "$status == 200", Type: "unsupported"}}
+	require.ErrorContains(t, doc.Validate(), "unsupported")
+
+	// source-description-object: enum on `type`
+	doc = validDocument()
+	doc.SourceDescriptions[0].Type = "swagger"
+	require.ErrorContains(t, doc.Validate(), "swagger")
 }
 
 func TestSchemaConformance_JSONSchemaValidator(t *testing.T) {
@@ -217,3 +307,85 @@ func decodeJSONValue(t *testing.T, data []byte) any {
 	require.NoError(t, err)
 	return value
 }
+
+// collectSchemaRules walks uws.json and extracts, per $def plus the root,
+// every `required`, enum-bearing, and pattern-bearing property. Meta defs
+// (specification-extensions, structural-type-constraints) are skipped.
+func collectSchemaRules(t *testing.T, schema map[string]any) map[string]schemaDefRules {
+	t.Helper()
+	rules := map[string]schemaDefRules{
+		"": extractRules(schema),
+	}
+	defs, _ := schema["$defs"].(map[string]any)
+	for name, raw := range defs {
+		switch name {
+		case "specification-extensions", "structural-type-constraints":
+			continue
+		}
+		obj, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		rules[name] = extractRules(obj)
+	}
+	return rules
+}
+
+func extractRules(obj map[string]any) schemaDefRules {
+	var out schemaDefRules
+	if req, ok := obj["required"].([]any); ok {
+		for _, r := range req {
+			if s, ok := r.(string); ok {
+				out.required = append(out.required, s)
+			}
+		}
+	}
+	props, _ := obj["properties"].(map[string]any)
+	for name, raw := range props {
+		p, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		if _, ok := p["enum"]; ok {
+			out.enumProps = append(out.enumProps, name)
+		} else if _, ok := p["const"]; ok {
+			out.enumProps = append(out.enumProps, name)
+		}
+		if hasPattern(p) {
+			out.patternProps = append(out.patternProps, name)
+		}
+	}
+	return out
+}
+
+// hasPattern reports whether a property schema carries a pattern at its top
+// level or on its `items` sub-schema (the trigger-object `outputs` array
+// patterns each string, for example).
+func hasPattern(p map[string]any) bool {
+	if _, ok := p["pattern"]; ok {
+		return true
+	}
+	if items, ok := p["items"].(map[string]any); ok {
+		if _, ok := items["pattern"]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func sortedKeys(m map[string]schemaDefRules) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func defLabel(name string) string {
+	if name == "" {
+		return "document-root"
+	}
+	return name
+}
+

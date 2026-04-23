@@ -1,0 +1,9 @@
+{
+  "uws": "1.0.0",
+  "info": {"title": "t", "version": "1.0.0"},
+  "sourceDescriptions": [{"name": "api", "url": "./openapi.yaml", "type": "openapi"}],
+  "operations": [
+    {"operationId": "a", "sourceDescription": "api", "openapiOperationId": "getA", "dependsOn": ["b"]},
+    {"operationId": "b", "sourceDescription": "api", "openapiOperationId": "getB", "dependsOn": ["a"]}
+  ]
+}

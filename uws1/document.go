@@ -10,7 +10,10 @@ type Document struct {
 	UWS                string               `json:"uws" yaml:"uws" hcl:"uws"`
 	Info               *Info                `json:"info" yaml:"info" hcl:"info,block"`
 	SourceDescriptions []*SourceDescription `json:"sourceDescriptions,omitempty" yaml:"sourceDescriptions,omitempty" hcl:"sourceDescription,block"`
-	Variables          map[string]any       `json:"variables,omitempty" yaml:"variables,omitempty" hcl:"variables,optional"`
+	// Variables is an intentionally open-shape map; any JSON-compatible value is
+	// allowed. The JSON Schema enforces object shape; UWS does not restrict keys
+	// or values further.
+	Variables map[string]any `json:"variables,omitempty" yaml:"variables,omitempty" hcl:"variables,optional"`
 	Operations         []*Operation         `json:"operations" yaml:"operations" hcl:"operation,block"`
 	Workflows          []*Workflow          `json:"workflows,omitempty" yaml:"workflows,omitempty" hcl:"workflow,block"`
 	Triggers           []*Trigger           `json:"triggers,omitempty" yaml:"triggers,omitempty" hcl:"trigger,block"`
@@ -41,7 +44,11 @@ func (d *Document) UnmarshalJSON(data []byte) error {
 	if err := rejectUnknownFields(raw, documentKnownFields, "document"); err != nil {
 		return err
 	}
-	d.Extensions = extractExtensions(raw, documentKnownFields)
+	extensions, err := extractExtensions(raw, documentKnownFields)
+	if err != nil {
+		return fmt.Errorf("unmarshaling document extensions: %w", err)
+	}
+	d.Extensions = extensions
 	return nil
 }
 
@@ -79,7 +86,11 @@ func (i *Info) UnmarshalJSON(data []byte) error {
 	if err := rejectUnknownFields(raw, infoKnownFields, "info"); err != nil {
 		return err
 	}
-	i.Extensions = extractExtensions(raw, infoKnownFields)
+	extensions, err := extractExtensions(raw, infoKnownFields)
+	if err != nil {
+		return fmt.Errorf("unmarshaling info extensions: %w", err)
+	}
+	i.Extensions = extensions
 	return nil
 }
 

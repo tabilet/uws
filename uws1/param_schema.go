@@ -40,11 +40,74 @@ func (p *ParamSchema) UnmarshalJSON(data []byte) error {
 	if err := rejectUnknownFields(raw, paramSchemaKnownFields, "paramSchema"); err != nil {
 		return err
 	}
-	p.Extensions = extractExtensions(raw, paramSchemaKnownFields)
+	extensions, err := extractExtensions(raw, paramSchemaKnownFields)
+	if err != nil {
+		return fmt.Errorf("unmarshaling paramSchema extensions: %w", err)
+	}
+	p.Extensions = extensions
 	return nil
 }
 
 func (p ParamSchema) MarshalJSON() ([]byte, error) {
 	alias := paramSchemaAlias(p)
 	return marshalWithExtensions(&alias, p.Extensions)
+}
+
+// validate walks the schema recursively. The JSON Schema pass already enforces
+// structural shape; this method covers semantic rules it cannot express:
+// non-empty property names, resolvable required entries, and non-nil nested
+// schemas inside properties / items / allOf / oneOf / anyOf.
+func (p *ParamSchema) validate(path string, result *ValidationResult) {
+	if p == nil {
+		return
+	}
+	for name, child := range p.Properties {
+		childPath := fmt.Sprintf("%s.properties.%s", path, name)
+		if name == "" {
+			result.addError(path+".properties", "property names must be non-empty")
+			continue
+		}
+		if child == nil {
+			result.addError(childPath, "is nil")
+			continue
+		}
+		child.validate(childPath, result)
+	}
+
+	seenRequired := make(map[string]bool, len(p.Required))
+	for i, name := range p.Required {
+		itemPath := fmt.Sprintf("%s.required[%d]", path, i)
+		if name == "" {
+			result.addError(itemPath, "is required")
+			continue
+		}
+		if seenRequired[name] {
+			result.addError(itemPath, fmt.Sprintf("duplicate required entry %q", name))
+			continue
+		}
+		seenRequired[name] = true
+		if p.Properties != nil {
+			if _, ok := p.Properties[name]; !ok {
+				result.addError(itemPath, fmt.Sprintf("references unknown property %q", name))
+			}
+		}
+	}
+
+	if p.Items != nil {
+		p.Items.validate(path+".items", result)
+	}
+	validateParamSchemaList(p.AllOf, path+".allOf", result)
+	validateParamSchemaList(p.OneOf, path+".oneOf", result)
+	validateParamSchemaList(p.AnyOf, path+".anyOf", result)
+}
+
+func validateParamSchemaList(list []*ParamSchema, path string, result *ValidationResult) {
+	for i, child := range list {
+		childPath := fmt.Sprintf("%s[%d]", path, i)
+		if child == nil {
+			result.addError(childPath, "is nil")
+			continue
+		}
+		child.validate(childPath, result)
+	}
 }
