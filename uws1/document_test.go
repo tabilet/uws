@@ -32,7 +32,9 @@ func TestDocument_RoundTrip(t *testing.T) {
 				Request: map[string]any{
 					"query": map[string]any{"limit": float64(10)},
 				},
-				DependsOn: []string{},
+				RunnableExecutionFields: flowcore.RunnableExecutionFields{
+					DependsOn: []string{},
+				},
 				Outputs: map[string]string{
 					"userList": "$response.body.items",
 				},
@@ -41,7 +43,9 @@ func TestDocument_RoundTrip(t *testing.T) {
 				OperationID:         "create_user",
 				SourceDescription:   "api",
 				OpenAPIOperationRef: "#/paths/~1users/post",
-				DependsOn:           []string{"get_users"},
+				RunnableExecutionFields: flowcore.RunnableExecutionFields{
+					DependsOn: []string{"get_users"},
+				},
 			},
 		},
 		Triggers: []*Trigger{

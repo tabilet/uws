@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/tabilet/uws/flowcore"
 )
 
 // Operation describes a UWS-local operation bound to an OpenAPI operation.
@@ -15,13 +17,7 @@ type Operation struct {
 	Description         string         `json:"description,omitempty" yaml:"description,omitempty" hcl:"description,optional"`
 	Request             map[string]any `json:"request,omitempty" yaml:"request,omitempty" hcl:"request,optional"`
 
-	// Execution control
-	DependsOn     []string `json:"dependsOn,omitempty" yaml:"dependsOn,omitempty" hcl:"dependsOn,optional"`
-	When          string   `json:"when,omitempty" yaml:"when,omitempty" hcl:"when,optional"`
-	ForEach       string   `json:"forEach,omitempty" yaml:"forEach,omitempty" hcl:"forEach,optional"`
-	Wait          string   `json:"wait,omitempty" yaml:"wait,omitempty" hcl:"wait,optional"`
-	Workflow      string   `json:"workflow,omitempty" yaml:"workflow,omitempty" hcl:"workflow,optional"`
-	ParallelGroup string   `json:"parallelGroup,omitempty" yaml:"parallelGroup,omitempty" hcl:"parallelGroup,optional"`
+	flowcore.RunnableExecutionFields
 
 	// Success criteria and action handlers
 	SuccessCriteria []*Criterion     `json:"successCriteria,omitempty" yaml:"successCriteria,omitempty" hcl:"successCriterion,block"`

@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/tabilet/uws/flowcore"
 )
 
 // ValidationError represents one UWS validation error.
@@ -56,32 +58,17 @@ var standardRequestKeys = map[string]bool{
 	"body":   true,
 }
 
-var validWorkflowTypes = map[string]bool{
-	"sequence": true,
-	"parallel": true,
-	"switch":   true,
-	"merge":    true,
-	"loop":     true,
-	"await":    true,
-}
-
-var validStructuralResultKinds = map[string]bool{
-	"switch": true,
-	"merge":  true,
-	"loop":   true,
-}
-
 type validationIndex struct {
-	operations            map[string]bool
-	workflows             map[string]bool
-	workflowTypes         map[string]string
-	workflowSteps         map[string]map[string]string
-	steps                 map[string]bool
-	triggers              map[string]bool
-	parallelGroups        map[string]bool
-	parallelGroupMembers  map[string][]string
-	sourceDescriptions    map[string]bool
-	dependencies          map[string][]string
+	operations           map[string]bool
+	workflows            map[string]bool
+	workflowTypes        map[string]string
+	workflowSteps        map[string]map[string]string
+	steps                map[string]bool
+	triggers             map[string]bool
+	parallelGroups       map[string]bool
+	parallelGroupMembers map[string][]string
+	sourceDescriptions   map[string]bool
+	dependencies         map[string][]string
 }
 
 // Validate runs the semantic validation layer and returns the first error as a
@@ -447,11 +434,11 @@ func (w *Workflow) validate(path string, idx *validationIndex, result *Validatio
 	}
 	if w.Type == "" {
 		result.addError(path+".type", "is required")
-	} else if !validWorkflowTypes[w.Type] {
+	} else if !flowcore.IsWorkflowType(w.Type) {
 		result.addError(path+".type", fmt.Sprintf("%q is not valid", w.Type))
 	} else {
 		validateStructuralTypeFields(w.Type, w.Items, w.Wait, len(w.Cases) > 0, len(w.Default) > 0, path, result)
-		if w.Type == "merge" && len(w.DependsOn) == 0 {
+		if flowcore.RequiresDependsOnForMerge(w.Type) && len(w.DependsOn) == 0 {
 			result.addError(path+".dependsOn", "is required and must name at least one upstream construct for merge")
 		}
 	}
@@ -467,38 +454,22 @@ func (w *Workflow) validate(path string, idx *validationIndex, result *Validatio
 // step that declares a structural type. The caller passes the relevant fields;
 // empty strings indicate the field is unset.
 func validateStructuralTypeFields(typeName, items, wait string, hasCases, hasDefault bool, path string, result *ValidationResult) {
-	switch typeName {
-	case "loop":
-		if strings.TrimSpace(items) == "" {
-			result.addError(path+".items", "is required for loop")
+	trimmedItems := strings.TrimSpace(items)
+	if flowcore.RequiresItems(typeName) {
+		if trimmedItems == "" {
+			result.addError(path+".items", fmt.Sprintf("is required for %s", typeName))
 		}
-		if hasCases {
-			result.addError(path+".cases", "is not valid on loop")
-		}
-		if hasDefault {
-			result.addError(path+".default", "is not valid on loop")
-		}
-	case "await":
-		if strings.TrimSpace(wait) == "" {
-			result.addError(path+".wait", "is required for await")
-		}
-		if hasCases {
-			result.addError(path+".cases", "is not valid on await")
-		}
-		if hasDefault {
-			result.addError(path+".default", "is not valid on await")
-		}
-		if strings.TrimSpace(items) != "" {
-			result.addError(path+".items", "is not valid on await")
-		}
-	case "switch":
-		if strings.TrimSpace(items) != "" {
-			result.addError(path+".items", "is not valid on switch")
-		}
-	case "sequence", "parallel", "merge":
-		if strings.TrimSpace(items) != "" {
-			result.addError(path+".items", fmt.Sprintf("is not valid on %s", typeName))
-		}
+	} else if trimmedItems != "" {
+		result.addError(path+".items", fmt.Sprintf("is not valid on %s", typeName))
+	}
+	if flowcore.RequiresWait(typeName) && strings.TrimSpace(wait) == "" {
+		result.addError(path+".wait", fmt.Sprintf("is required for %s", typeName))
+	}
+	if hasCases && !flowcore.AllowsCases(typeName) {
+		result.addError(path+".cases", fmt.Sprintf("is not valid on %s", typeName))
+	}
+	if hasDefault && !flowcore.AllowsDefault(typeName) {
+		result.addError(path+".default", fmt.Sprintf("is not valid on %s", typeName))
 	}
 }
 
@@ -518,11 +489,11 @@ func (s *Step) validate(path string, idx *validationIndex, result *ValidationRes
 		result.addError(path+".stepId", fmt.Sprintf("must match pattern ^[A-Za-z0-9_-]+$; got %s", s.StepID))
 	}
 	if s.Type != "" {
-		if !validWorkflowTypes[s.Type] {
+		if !flowcore.IsWorkflowType(s.Type) {
 			result.addError(path+".type", fmt.Sprintf("%q is not valid", s.Type))
 		} else {
 			validateStructuralTypeFields(s.Type, s.Items, s.Wait, len(s.Cases) > 0, len(s.Default) > 0, path, result)
-			if s.Type == "merge" && len(s.DependsOn) == 0 {
+			if flowcore.RequiresDependsOnForMerge(s.Type) && len(s.DependsOn) == 0 {
 				result.addError(path+".dependsOn", "is required and must name at least one upstream construct for merge")
 			}
 		}
@@ -629,7 +600,7 @@ func (r *StructuralResult) validate(path string, idx *validationIndex, seenNames
 	}
 	if r.Kind == "" {
 		result.addError(path+".kind", "is required")
-	} else if !validStructuralResultKinds[r.Kind] {
+	} else if !flowcore.IsStructuralResultKind(r.Kind) {
 		result.addError(path+".kind", fmt.Sprintf("%q is not valid", r.Kind))
 	}
 	if r.From == "" {

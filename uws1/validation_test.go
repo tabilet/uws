@@ -561,7 +561,7 @@ func TestValidate_StructuralTypeConstraints(t *testing.T) {
 	t.Run("loop requires items", func(t *testing.T) {
 		doc := validDocument()
 		doc.Workflows = []*Workflow{
-			{WorkflowID: "loop_wf", Type: "loop"},
+			{WorkflowID: "loop_wf", Type: flowcore.WorkflowTypeLoop},
 		}
 		assert.ErrorContains(t, doc.Validate(), "items is required for loop")
 	})
@@ -569,7 +569,7 @@ func TestValidate_StructuralTypeConstraints(t *testing.T) {
 	t.Run("loop with items is valid", func(t *testing.T) {
 		doc := validDocument()
 		doc.Workflows = []*Workflow{
-			{WorkflowID: "loop_wf", Type: "loop", StructuralFields: flowcore.StructuralFields{Items: "$variables.tags"}},
+			{WorkflowID: "loop_wf", Type: flowcore.WorkflowTypeLoop, StructuralFields: flowcore.StructuralFields{Items: "$variables.tags"}},
 		}
 		assert.NoError(t, doc.Validate())
 	})
@@ -577,7 +577,7 @@ func TestValidate_StructuralTypeConstraints(t *testing.T) {
 	t.Run("await requires wait", func(t *testing.T) {
 		doc := validDocument()
 		doc.Workflows = []*Workflow{
-			{WorkflowID: "await_wf", Type: "await"},
+			{WorkflowID: "await_wf", Type: flowcore.WorkflowTypeAwait},
 		}
 		assert.ErrorContains(t, doc.Validate(), "wait is required for await")
 	})
@@ -585,7 +585,7 @@ func TestValidate_StructuralTypeConstraints(t *testing.T) {
 	t.Run("await with wait is valid", func(t *testing.T) {
 		doc := validDocument()
 		doc.Workflows = []*Workflow{
-			{WorkflowID: "await_wf", Type: "await", WorkflowExecutionFields: flowcore.WorkflowExecutionFields{Wait: "$response.statusCode == 200"}},
+			{WorkflowID: "await_wf", Type: flowcore.WorkflowTypeAwait, WorkflowExecutionFields: flowcore.WorkflowExecutionFields{Wait: "$response.statusCode == 200"}},
 		}
 		assert.NoError(t, doc.Validate())
 	})
@@ -593,9 +593,46 @@ func TestValidate_StructuralTypeConstraints(t *testing.T) {
 	t.Run("switch rejects items", func(t *testing.T) {
 		doc := validDocument()
 		doc.Workflows = []*Workflow{
-			{WorkflowID: "sw", Type: "switch", StructuralFields: flowcore.StructuralFields{Items: "$variables.tags"}},
+			{WorkflowID: "sw", Type: flowcore.WorkflowTypeSwitch, StructuralFields: flowcore.StructuralFields{Items: "$variables.tags"}},
 		}
 		assert.ErrorContains(t, doc.Validate(), "items is not valid on switch")
+	})
+
+	t.Run("sequence rejects default", func(t *testing.T) {
+		doc := validDocument()
+		doc.Workflows = []*Workflow{
+			{
+				WorkflowID: "wf",
+				Type:       flowcore.WorkflowTypeSequence,
+				Default:    []*Step{{StepID: "fallback", OperationRef: "get_data"}},
+			},
+		}
+		assert.ErrorContains(t, doc.Validate(), "default is not valid on sequence")
+	})
+
+	t.Run("parallel rejects cases", func(t *testing.T) {
+		doc := validDocument()
+		doc.Workflows = []*Workflow{
+			{
+				WorkflowID: "wf",
+				Type:       flowcore.WorkflowTypeParallel,
+				Cases:      []*Case{{CaseFields: flowcore.CaseFields{Name: "a"}}},
+			},
+		}
+		assert.ErrorContains(t, doc.Validate(), "cases is not valid on parallel")
+	})
+
+	t.Run("switch allows cases and default", func(t *testing.T) {
+		doc := validDocument()
+		doc.Workflows = []*Workflow{
+			{
+				WorkflowID: "wf",
+				Type:       flowcore.WorkflowTypeSwitch,
+				Cases:      []*Case{{CaseFields: flowcore.CaseFields{Name: "premium"}}},
+				Default:    []*Step{{StepID: "fallback", OperationRef: "get_data"}},
+			},
+		}
+		assert.NoError(t, doc.Validate())
 	})
 
 	t.Run("step with loop type requires items", func(t *testing.T) {
@@ -603,8 +640,8 @@ func TestValidate_StructuralTypeConstraints(t *testing.T) {
 		doc.Workflows = []*Workflow{
 			{
 				WorkflowID: "wf",
-				Type:       "parallel",
-				Steps:      []*Step{{StepID: "loop_step", Type: "loop"}},
+				Type:       flowcore.WorkflowTypeParallel,
+				Steps:      []*Step{{StepID: "loop_step", Type: flowcore.WorkflowTypeLoop}},
 			},
 		}
 		assert.ErrorContains(t, doc.Validate(), "items is required for loop")
@@ -613,7 +650,7 @@ func TestValidate_StructuralTypeConstraints(t *testing.T) {
 	t.Run("merge workflow requires dependsOn", func(t *testing.T) {
 		doc := validDocument()
 		doc.Workflows = []*Workflow{
-			{WorkflowID: "merge_wf", Type: "merge"},
+			{WorkflowID: "merge_wf", Type: flowcore.WorkflowTypeMerge},
 		}
 		assert.ErrorContains(t, doc.Validate(), "dependsOn is required and must name at least one upstream construct for merge")
 	})
@@ -623,8 +660,8 @@ func TestValidate_StructuralTypeConstraints(t *testing.T) {
 		doc.Workflows = []*Workflow{
 			{
 				WorkflowID: "wf",
-				Type:       "parallel",
-				Steps:      []*Step{{StepID: "merge_step", Type: "merge"}},
+				Type:       flowcore.WorkflowTypeParallel,
+				Steps:      []*Step{{StepID: "merge_step", Type: flowcore.WorkflowTypeMerge}},
 			},
 		}
 		assert.ErrorContains(t, doc.Validate(), "dependsOn is required and must name at least one upstream construct for merge")
@@ -637,15 +674,15 @@ func TestValidate_StructuralResult(t *testing.T) {
 		doc.Workflows = []*Workflow{
 			{
 				WorkflowID: "wf_merge",
-				Type:       "merge",
+				Type:       flowcore.WorkflowTypeMerge,
 				WorkflowExecutionFields: flowcore.WorkflowExecutionFields{
 					DependsOn: []string{"get_data"},
 				},
 			},
 			{
 				WorkflowID: "wf_parallel",
-				Type:       "parallel",
-				Steps: []*Step{{StepID: "merge_step", Type: "merge", StepExecutionFields: flowcore.StepExecutionFields{
+				Type:       flowcore.WorkflowTypeParallel,
+				Steps: []*Step{{StepID: "merge_step", Type: flowcore.WorkflowTypeMerge, StepExecutionFields: flowcore.StepExecutionFields{
 					DependsOn: []string{"get_data"},
 				}}},
 			},
@@ -656,7 +693,7 @@ func TestValidate_StructuralResult(t *testing.T) {
 	t.Run("valid workflow reference", func(t *testing.T) {
 		doc := baseDoc()
 		doc.Results = []*StructuralResult{
-			{Name: "out", Kind: "merge", From: "wf_merge"},
+			{Name: "out", Kind: flowcore.StructuralResultKindMerge, From: "wf_merge"},
 		}
 		assert.NoError(t, doc.Validate())
 	})
@@ -664,7 +701,7 @@ func TestValidate_StructuralResult(t *testing.T) {
 	t.Run("valid step reference", func(t *testing.T) {
 		doc := baseDoc()
 		doc.Results = []*StructuralResult{
-			{Name: "out", Kind: "merge", From: "wf_parallel.merge_step"},
+			{Name: "out", Kind: flowcore.StructuralResultKindMerge, From: "wf_parallel.merge_step"},
 		}
 		assert.NoError(t, doc.Validate())
 	})
@@ -672,7 +709,7 @@ func TestValidate_StructuralResult(t *testing.T) {
 	t.Run("missing from", func(t *testing.T) {
 		doc := baseDoc()
 		doc.Results = []*StructuralResult{
-			{Name: "out", Kind: "merge"},
+			{Name: "out", Kind: flowcore.StructuralResultKindMerge},
 		}
 		assert.ErrorContains(t, doc.Validate(), "from is required")
 	})
@@ -894,13 +931,17 @@ func TestValidate_DependencyCycle_TwoNodes(t *testing.T) {
 			OperationID:        "a",
 			SourceDescription:  "api",
 			OpenAPIOperationID: "getA",
-			DependsOn:          []string{"b"},
+			RunnableExecutionFields: flowcore.RunnableExecutionFields{
+				DependsOn: []string{"b"},
+			},
 		},
 		{
 			OperationID:        "b",
 			SourceDescription:  "api",
 			OpenAPIOperationID: "getB",
-			DependsOn:          []string{"a"},
+			RunnableExecutionFields: flowcore.RunnableExecutionFields{
+				DependsOn: []string{"a"},
+			},
 		},
 	}
 
@@ -920,9 +961,9 @@ func TestValidate_DependencyCycle_SelfLoop(t *testing.T) {
 func TestValidate_DependencyCycle_ThreeNodes(t *testing.T) {
 	doc := validDocument()
 	doc.Operations = []*Operation{
-		{OperationID: "a", SourceDescription: "api", OpenAPIOperationID: "getA", DependsOn: []string{"b"}},
-		{OperationID: "b", SourceDescription: "api", OpenAPIOperationID: "getB", DependsOn: []string{"c"}},
-		{OperationID: "c", SourceDescription: "api", OpenAPIOperationID: "getC", DependsOn: []string{"a"}},
+		{OperationID: "a", SourceDescription: "api", OpenAPIOperationID: "getA", RunnableExecutionFields: flowcore.RunnableExecutionFields{DependsOn: []string{"b"}}},
+		{OperationID: "b", SourceDescription: "api", OpenAPIOperationID: "getB", RunnableExecutionFields: flowcore.RunnableExecutionFields{DependsOn: []string{"c"}}},
+		{OperationID: "c", SourceDescription: "api", OpenAPIOperationID: "getC", RunnableExecutionFields: flowcore.RunnableExecutionFields{DependsOn: []string{"a"}}},
 	}
 
 	err := doc.Validate()
@@ -937,14 +978,18 @@ func TestValidate_DependencyCycle_ThroughParallelGroup(t *testing.T) {
 			OperationID:        "a",
 			SourceDescription:  "api",
 			OpenAPIOperationID: "getA",
-			ParallelGroup:      "fanout",
-			DependsOn:          []string{"b"},
+			RunnableExecutionFields: flowcore.RunnableExecutionFields{
+				ParallelGroup: "fanout",
+				DependsOn:     []string{"b"},
+			},
 		},
 		{
 			OperationID:        "b",
 			SourceDescription:  "api",
 			OpenAPIOperationID: "getB",
-			DependsOn:          []string{"fanout"},
+			RunnableExecutionFields: flowcore.RunnableExecutionFields{
+				DependsOn: []string{"fanout"},
+			},
 		},
 	}
 
@@ -956,8 +1001,8 @@ func TestValidate_DependencyCycle_AcyclicIsFine(t *testing.T) {
 	doc := validDocument()
 	doc.Operations = []*Operation{
 		{OperationID: "a", SourceDescription: "api", OpenAPIOperationID: "getA"},
-		{OperationID: "b", SourceDescription: "api", OpenAPIOperationID: "getB", DependsOn: []string{"a"}},
-		{OperationID: "c", SourceDescription: "api", OpenAPIOperationID: "getC", DependsOn: []string{"a", "b"}},
+		{OperationID: "b", SourceDescription: "api", OpenAPIOperationID: "getB", RunnableExecutionFields: flowcore.RunnableExecutionFields{DependsOn: []string{"a"}}},
+		{OperationID: "c", SourceDescription: "api", OpenAPIOperationID: "getC", RunnableExecutionFields: flowcore.RunnableExecutionFields{DependsOn: []string{"a", "b"}}},
 	}
 
 	assert.NoError(t, doc.Validate())
@@ -966,8 +1011,8 @@ func TestValidate_DependencyCycle_AcyclicIsFine(t *testing.T) {
 func TestValidate_DependencyCycle_ReportedOnce(t *testing.T) {
 	doc := validDocument()
 	doc.Operations = []*Operation{
-		{OperationID: "a", SourceDescription: "api", OpenAPIOperationID: "getA", DependsOn: []string{"b"}},
-		{OperationID: "b", SourceDescription: "api", OpenAPIOperationID: "getB", DependsOn: []string{"a"}},
+		{OperationID: "a", SourceDescription: "api", OpenAPIOperationID: "getA", RunnableExecutionFields: flowcore.RunnableExecutionFields{DependsOn: []string{"b"}}},
+		{OperationID: "b", SourceDescription: "api", OpenAPIOperationID: "getB", RunnableExecutionFields: flowcore.RunnableExecutionFields{DependsOn: []string{"a"}}},
 	}
 
 	result := doc.ValidateResult()
