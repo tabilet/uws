@@ -1,6 +1,7 @@
 package uws1
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -20,6 +21,15 @@ type Workflow struct {
 	Default    []*Step           `json:"default,omitempty" yaml:"default,omitempty" hcl:"default,block"`
 	Outputs    map[string]string `json:"outputs,omitempty" yaml:"outputs,omitempty" hcl:"outputs,optional"`
 	Extensions map[string]any    `json:"-" yaml:"-" hcl:"-"`
+}
+
+// Execute executes the workflow using the bound runtime in the document.
+func (w *Workflow) Execute(ctx context.Context, d *Document) error {
+	if d == nil || d.Runtime == nil {
+		return fmt.Errorf("uws1: workflow execution requires a bound runtime")
+	}
+	orch := NewOrchestrator(d, d.Runtime)
+	return orch.ExecuteWorkflow(ctx, w)
 }
 
 type workflowAlias Workflow
@@ -72,6 +82,15 @@ type Step struct {
 	Default    []*Step           `json:"default,omitempty" yaml:"default,omitempty" hcl:"default,block"`
 	Outputs    map[string]string `json:"outputs,omitempty" yaml:"outputs,omitempty" hcl:"outputs,optional"`
 	Extensions map[string]any    `json:"-" yaml:"-" hcl:"-"`
+}
+
+// Execute executes the step using the bound runtime in the document.
+func (s *Step) Execute(ctx context.Context, d *Document) error {
+	if d == nil || d.Runtime == nil {
+		return fmt.Errorf("uws1: step execution requires a bound runtime")
+	}
+	orch := NewOrchestrator(d, d.Runtime)
+	return orch.ExecuteStep(ctx, s)
 }
 
 type stepAlias Step

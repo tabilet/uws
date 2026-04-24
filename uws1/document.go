@@ -1,6 +1,7 @@
 package uws1
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 )
@@ -13,13 +14,38 @@ type Document struct {
 	// Variables is an intentionally open-shape map; any JSON-compatible value is
 	// allowed. The JSON Schema enforces object shape; UWS does not restrict keys
 	// or values further.
-	Variables map[string]any `json:"variables,omitempty" yaml:"variables,omitempty" hcl:"variables,optional"`
-	Operations         []*Operation         `json:"operations" yaml:"operations" hcl:"operation,block"`
-	Workflows          []*Workflow          `json:"workflows,omitempty" yaml:"workflows,omitempty" hcl:"workflow,block"`
-	Triggers           []*Trigger           `json:"triggers,omitempty" yaml:"triggers,omitempty" hcl:"trigger,block"`
-	Results            []*StructuralResult  `json:"results,omitempty" yaml:"results,omitempty" hcl:"result,block"`
-	Components         *Components          `json:"components,omitempty" yaml:"components,omitempty" hcl:"components,block"`
-	Extensions         map[string]any       `json:"-" yaml:"-" hcl:"-"`
+	Variables  map[string]any      `json:"variables,omitempty" yaml:"variables,omitempty" hcl:"variables,optional"`
+	Operations []*Operation        `json:"operations" yaml:"operations" hcl:"operation,block"`
+	Workflows  []*Workflow         `json:"workflows,omitempty" yaml:"workflows,omitempty" hcl:"workflow,block"`
+	Triggers   []*Trigger          `json:"triggers,omitempty" yaml:"triggers,omitempty" hcl:"trigger,block"`
+	Results    []*StructuralResult `json:"results,omitempty" yaml:"results,omitempty" hcl:"result,block"`
+	Components *Components         `json:"components,omitempty" yaml:"components,omitempty" hcl:"components,block"`
+	Extensions map[string]any      `json:"-" yaml:"-" hcl:"-"`
+
+	// Runtime is the specialized executor bound to this document.
+	Runtime Runtime `json:"-" yaml:"-" hcl:"-"`
+
+	lastExecutionRecords map[string]ExecutionRecord
+}
+
+// SetRuntime binds a specialized runtime to the document.
+func (d *Document) SetRuntime(r Runtime) {
+	d.Runtime = r
+}
+
+// Execute executes the document using the bound runtime.
+func (d *Document) Execute(ctx context.Context) error {
+	if d.Runtime == nil {
+		return fmt.Errorf("uws1: document execution requires a bound runtime")
+	}
+	if err := d.Validate(); err != nil {
+		return err
+	}
+	if err := d.ValidateExecutable(); err != nil {
+		return err
+	}
+	orch := NewOrchestrator(d, d.Runtime)
+	return orch.Execute(ctx)
 }
 
 type documentAlias Document

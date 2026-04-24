@@ -1,6 +1,7 @@
 package uws1
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -27,6 +28,14 @@ type Operation struct {
 	// Outputs map friendly names to runtime expressions.
 	Outputs    map[string]string `json:"outputs,omitempty" yaml:"outputs,omitempty" hcl:"outputs,optional"`
 	Extensions map[string]any    `json:"-" yaml:"-" hcl:"-"`
+}
+
+// Execute executes the operation using the bound runtime in the document.
+func (o *Operation) Execute(ctx context.Context, d *Document) error {
+	if d == nil || d.Runtime == nil {
+		return fmt.Errorf("uws1: operation execution requires a bound runtime")
+	}
+	return d.Runtime.ExecuteLeaf(ctx, o)
 }
 
 // HasOpenAPIBinding reports whether the operation includes any OpenAPI binding
