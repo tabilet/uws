@@ -176,6 +176,47 @@ func TestOrchestratorExecuteLoop(t *testing.T) {
 	}
 }
 
+func TestOperationExecute_UsesOrchestratorSemantics(t *testing.T) {
+	doc := testDocument(&Operation{
+		OperationID: "op1",
+		Outputs: map[string]string{
+			"status": "$response.body.status",
+		},
+	})
+	doc.SetRuntime(&mockRuntime{
+		expressions: map[string]any{
+			"$response.body.status": "ok",
+		},
+	})
+
+	require.NoError(t, doc.Operations[0].Execute(context.Background(), doc))
+
+	records := doc.ExecutionRecords()
+	require.Contains(t, records, "op:op1")
+	assert.Equal(t, "success", records["op:op1"].Status)
+	assert.Equal(t, "ok", records["op:op1"].Outputs["status"])
+}
+
+func TestWorkflowAndStepExecute_PersistExecutionRecords(t *testing.T) {
+	doc := testDocument(&Operation{OperationID: "leaf"})
+	doc.SetRuntime(&mockRuntime{})
+	wf := &Workflow{
+		WorkflowID: "main",
+		Type:       flowcore.WorkflowTypeSequence,
+		Steps: []*Step{{
+			StepID:       "step1",
+			OperationRef: "leaf",
+		}},
+	}
+
+	require.NoError(t, wf.Execute(context.Background(), doc))
+	require.Contains(t, doc.ExecutionRecords(), "step:step1")
+
+	doc.setExecutionRecords(nil)
+	require.NoError(t, wf.Steps[0].Execute(context.Background(), doc))
+	require.Contains(t, doc.ExecutionRecords(), "step:step1")
+}
+
 func TestOrchestratorExecuteAwait(t *testing.T) {
 	doc := testDocument(&Operation{OperationID: "op1"})
 	doc.Workflows = []*Workflow{{
@@ -195,6 +236,79 @@ func TestOrchestratorExecuteAwait(t *testing.T) {
 	if len(runtime.executedLeafs) != 1 || runtime.executedLeafs[0] != "op1" {
 		t.Fatalf("unexpected await execution: %v", runtime.executedLeafs)
 	}
+}
+
+func TestOrchestratorForEachAggregatesOutputsAndResults(t *testing.T) {
+	doc := testDocument(&Operation{
+		OperationID: "op1",
+		RunnableExecutionFields: flowcore.RunnableExecutionFields{
+			ForEach: "items",
+		},
+		Outputs: map[string]string{
+			"value": "$item",
+		},
+	})
+	runtime := &mockRuntime{
+		items: map[string][]any{
+			"items": {1, 2, 3},
+		},
+		eval: func(ctx context.Context, expr string) (any, error) {
+			if expr != "$item" {
+				return nil, nil
+			}
+			state, ok := ExecutionContextFromContext(ctx)
+			require.True(t, ok)
+			require.NotNil(t, state.Iteration)
+			return state.Iteration.Item, nil
+		},
+	}
+	doc.SetRuntime(runtime)
+
+	require.NoError(t, doc.Execute(context.Background()))
+
+	records := doc.ExecutionRecords()
+	record := records["op:op1"]
+	require.Equal(t, "success", record.Status)
+	results, ok := record.Result.([]map[string]any)
+	require.True(t, ok)
+	require.Len(t, results, 3)
+	assert.Equal(t, 0, results[0]["index"])
+	assert.Equal(t, 1, results[0]["item"])
+	assert.Equal(t, []any{1, 2, 3}, record.Outputs["value"])
+	require.Contains(t, records, "op:op1#iter:0")
+	assert.Equal(t, 1, records["op:op1#iter:0"].Outputs["value"])
+}
+
+func TestOrchestratorExecuteStepWorkflowReference(t *testing.T) {
+	doc := testDocument(&Operation{OperationID: "leaf"})
+	doc.Workflows = []*Workflow{
+		{
+			WorkflowID: "secondary",
+			Type:       flowcore.WorkflowTypeSequence,
+			Steps: []*Step{{
+				StepID:       "child",
+				OperationRef: "leaf",
+			}},
+		},
+		{
+			WorkflowID: "main",
+			Type:       flowcore.WorkflowTypeSequence,
+			Steps: []*Step{{
+				StepID: "call_secondary",
+				StepExecutionFields: flowcore.StepExecutionFields{
+					Workflow: "secondary",
+				},
+			}},
+		},
+	}
+	runtime := &mockRuntime{}
+	doc.SetRuntime(runtime)
+
+	require.NoError(t, doc.Execute(context.Background()))
+	assert.Equal(t, []string{"leaf"}, runtime.executedLeafs)
+	records := doc.ExecutionRecords()
+	require.Contains(t, records, "step:call_secondary")
+	require.Contains(t, records, "wf:secondary")
 }
 
 func TestOrchestratorExecuteMerge(t *testing.T) {
@@ -273,7 +387,7 @@ func TestDocumentValidateExecutableRejectsAmbiguousIDs(t *testing.T) {
 	doc.Workflows = []*Workflow{{
 		WorkflowID: "main",
 		Type:       flowcore.WorkflowTypeSequence,
-		Steps: []*Step{{StepID: "shared", OperationRef: "shared"}},
+		Steps:      []*Step{{StepID: "shared", OperationRef: "shared"}},
 	}}
 
 	err := doc.ValidateExecutable()

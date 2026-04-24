@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"regexp"
 	"math"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -169,13 +169,26 @@ func (o *Orchestrator) ExecuteStep(ctx context.Context, step *Step) error {
 	responseID := step.StepID
 	if strings.TrimSpace(step.OperationRef) != "" {
 		responseID = strings.TrimSpace(step.OperationRef)
+	} else if strings.TrimSpace(step.Workflow) != "" {
+		responseID = strings.TrimSpace(step.Workflow)
 	}
 	return o.executeRunnable(ctx, stepKey(step.StepID), step.StepID, "step:"+step.Type, responseID, step.DependsOn, step.When, step.ForEach, step.Outputs, func(ctx context.Context) error {
 		if step.OperationRef != "" {
 			return o.executeOperationByID(ctx, step.OperationRef)
 		}
+		if step.Workflow != "" {
+			return o.executeWorkflowByID(ctx, step.Workflow)
+		}
 		return o.executeStructural(ctx, step.Type, step.DependsOn, step.Steps, step.Cases, step.Default, step.Items, step.Mode, step.BatchSize, step.Wait, stepKey(step.StepID))
 	})
+}
+
+func (o *Orchestrator) executeWorkflowByID(ctx context.Context, workflowID string) error {
+	wf := o.workflowIndex[workflowID]
+	if wf == nil {
+		return fmt.Errorf("uws1: workflow %q not found", workflowID)
+	}
+	return o.ExecuteWorkflow(ctx, wf)
 }
 
 func (o *Orchestrator) executeOperationByID(ctx context.Context, operationID string) error {
@@ -209,15 +222,57 @@ func (o *Orchestrator) executeRunnable(ctx context.Context, key, id, kind, respo
 			if err != nil {
 				return fmt.Errorf("resolving forEach for %q: %w", id, err)
 			}
+			iterationResults := make([]map[string]any, 0, len(items))
+			aggregatedOutputs := make(map[string][]any)
 			for index, item := range items {
 				itemCtx := o.withIterationContext(ctx, item, index, nil, -1)
+				itemKey := o.keyForContext(itemCtx, key)
+				o.setRecord(itemKey, ExecutionRecord{ID: id, Kind: kind, Status: "running"})
 				if err := run(itemCtx); err != nil {
 					return err
 				}
+				var resolved map[string]any
+				if len(outputs) > 0 {
+					outputsCtx := o.withRecordContext(itemCtx)
+					resolved, err = o.resolveOutputs(outputsCtx, itemKey, id, kind, responseID, outputs)
+					if err != nil {
+						return err
+					}
+				}
+				o.mu.Lock()
+				record := o.records[itemKey]
+				if record.Status == "running" {
+					record.Status = "success"
+				}
+				if len(resolved) > 0 {
+					record.Outputs = resolved
+				}
+				o.records[itemKey] = record
+				o.mu.Unlock()
+				iterationResults = append(iterationResults, map[string]any{
+					"index":   index,
+					"item":    item,
+					"status":  record.Status,
+					"error":   record.Error,
+					"result":  record.Result,
+					"outputs": cloneMapAny(record.Outputs),
+				})
+				for name, value := range resolved {
+					aggregatedOutputs[name] = append(aggregatedOutputs[name], value)
+				}
 			}
-			if len(items) == 0 {
-				o.setRecord(execKey, ExecutionRecord{ID: id, Kind: kind, Status: "success", Result: []any{}})
+			o.mu.Lock()
+			record := o.records[execKey]
+			record.Result = iterationResults
+			record.Status = "success"
+			if len(aggregatedOutputs) > 0 {
+				record.Outputs = make(map[string]any, len(aggregatedOutputs))
+				for name, values := range aggregatedOutputs {
+					record.Outputs[name] = append([]any(nil), values...)
+				}
 			}
+			o.records[execKey] = record
+			o.mu.Unlock()
 			return nil
 		}
 		if err := run(ctx); err != nil {
@@ -441,11 +496,11 @@ func (o *Orchestrator) mergeDependencyRecords(deps []string) []map[string]any {
 		for _, key := range keys {
 			record := o.records[key]
 			out = append(out, map[string]any{
-				"id":     record.ID,
-				"kind":   record.Kind,
-				"status": record.Status,
-				"error":  record.Error,
-				"result": record.Result,
+				"id":      record.ID,
+				"kind":    record.Kind,
+				"status":  record.Status,
+				"error":   record.Error,
+				"result":  record.Result,
 				"outputs": record.Outputs,
 			})
 		}

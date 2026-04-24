@@ -28,8 +28,18 @@ func (w *Workflow) Execute(ctx context.Context, d *Document) error {
 	if d == nil || d.Runtime == nil {
 		return fmt.Errorf("uws1: workflow execution requires a bound runtime")
 	}
+	if err := d.Validate(); err != nil {
+		return err
+	}
+	if err := d.ValidateExecutable(); err != nil {
+		return err
+	}
 	orch := NewOrchestrator(d, d.Runtime)
-	return orch.ExecuteWorkflow(ctx, w)
+	err := orch.executeWithSignals(ctx, func(ctx context.Context) error {
+		return orch.ExecuteWorkflow(ctx, w)
+	})
+	d.setExecutionRecords(orch.snapshotRecords())
+	return err
 }
 
 type workflowAlias Workflow
@@ -89,8 +99,18 @@ func (s *Step) Execute(ctx context.Context, d *Document) error {
 	if d == nil || d.Runtime == nil {
 		return fmt.Errorf("uws1: step execution requires a bound runtime")
 	}
+	if err := d.Validate(); err != nil {
+		return err
+	}
+	if err := d.ValidateExecutable(); err != nil {
+		return err
+	}
 	orch := NewOrchestrator(d, d.Runtime)
-	return orch.ExecuteStep(ctx, s)
+	err := orch.executeWithSignals(ctx, func(ctx context.Context) error {
+		return orch.ExecuteStep(ctx, s)
+	})
+	d.setExecutionRecords(orch.snapshotRecords())
+	return err
 }
 
 type stepAlias Step

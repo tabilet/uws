@@ -504,6 +504,12 @@ func (s *Step) validate(path string, idx *validationIndex, result *ValidationRes
 	if s.Workflow != "" && !idx.workflows[s.Workflow] {
 		result.addError(path+".workflow", fmt.Sprintf("references unknown workflowId %q", s.Workflow))
 	}
+	if s.OperationRef != "" && s.Workflow != "" {
+		result.addError(path, "cannot specify both operationRef and workflow")
+	}
+	if s.Workflow != "" && (s.Type != "" || len(s.Steps) > 0 || len(s.Cases) > 0 || len(s.Default) > 0) {
+		result.addError(path, "workflow-reference steps cannot also declare structural type or nested child blocks")
+	}
 	validateDependencyList(s.DependsOn, path+".dependsOn", idx, result)
 	validateOutputs(s.Outputs, path+".outputs", result)
 	validateSteps(s.Steps, path+".steps", idx, result)

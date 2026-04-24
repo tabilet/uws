@@ -35,7 +35,18 @@ func (o *Operation) Execute(ctx context.Context, d *Document) error {
 	if d == nil || d.Runtime == nil {
 		return fmt.Errorf("uws1: operation execution requires a bound runtime")
 	}
-	return d.Runtime.ExecuteLeaf(ctx, o)
+	if err := d.Validate(); err != nil {
+		return err
+	}
+	if err := d.ValidateExecutable(); err != nil {
+		return err
+	}
+	orch := NewOrchestrator(d, d.Runtime)
+	err := orch.executeWithSignals(ctx, func(ctx context.Context) error {
+		return orch.executeOperationByID(ctx, o.OperationID)
+	})
+	d.setExecutionRecords(orch.snapshotRecords())
+	return err
 }
 
 // HasOpenAPIBinding reports whether the operation includes any OpenAPI binding
