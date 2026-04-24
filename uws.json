@@ -67,6 +67,24 @@
         "info",
         "operations"
     ],
+    "allOf": [
+        {
+            "description": "sourceDescriptions is REQUIRED whenever any operation is OpenAPI-bound. An OpenAPI-bound operation sets sourceDescription; extension-owned operations MUST NOT set it (see operation-object.oneOf).",
+            "if": {
+                "required": ["operations"],
+                "properties": {
+                    "operations": {
+                        "contains": {
+                            "required": ["sourceDescription"]
+                        }
+                    }
+                }
+            },
+            "then": {
+                "required": ["sourceDescriptions"]
+            }
+        }
+    ],
     "$ref": "#/$defs/specification-extensions",
     "unevaluatedProperties": false,
     "$defs": {
