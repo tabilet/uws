@@ -4,7 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 )
+
+// ExecutionOptions carries executor-owned behavior that is intentionally not
+// serialized into the UWS wire format.
+type ExecutionOptions struct {
+	// AwaitTimeout bounds await polling inside the core orchestrator. Zero means
+	// no internal timeout; await still terminates when the context is canceled.
+	AwaitTimeout time.Duration `json:"-" yaml:"-" hcl:"-"`
+}
 
 // Document is the root object of a UWS 1.x document.
 type Document struct {
@@ -24,6 +33,9 @@ type Document struct {
 
 	// Runtime is the specialized executor bound to this document.
 	Runtime Runtime `json:"-" yaml:"-" hcl:"-"`
+	// ExecutionOptions are executor-owned knobs and are not part of the UWS wire
+	// contract.
+	ExecutionOptions ExecutionOptions `json:"-" yaml:"-" hcl:"-"`
 
 	lastExecutionRecords map[string]ExecutionRecord
 }
@@ -44,8 +56,29 @@ func (d *Document) Execute(ctx context.Context) error {
 	if err := d.ValidateExecutable(); err != nil {
 		return err
 	}
+	if err := d.ValidateExecutionEntrypoint(); err != nil {
+		return err
+	}
 	orch := NewOrchestrator(d, d.Runtime)
 	return orch.Execute(ctx)
+}
+
+// DispatchTrigger routes one trigger event into the document's executable
+// targets using the bound runtime.
+func (d *Document) DispatchTrigger(ctx context.Context, triggerID string, output int, payload any) error {
+	if d.Runtime == nil {
+		return fmt.Errorf("uws1: trigger dispatch requires a bound runtime")
+	}
+	if err := d.Validate(); err != nil {
+		return err
+	}
+	if err := d.ValidateExecutable(); err != nil {
+		return err
+	}
+	orch := NewOrchestrator(d, d.Runtime)
+	err := orch.ExecuteTrigger(ctx, triggerID, output, payload)
+	d.setExecutionRecords(orch.snapshotRecords())
+	return err
 }
 
 type documentAlias Document

@@ -28,26 +28,28 @@ type Orchestrator struct {
 	Document *Document
 	Runtime  Runtime
 
-	opIndex        map[string]*Operation
-	workflowIndex  map[string]*Workflow
-	stepIndex      map[string]*Step
-	parallelGroups map[string][]string
-	mu             sync.Mutex
-	records        map[string]ExecutionRecord
-	inFlight       map[string]chan struct{}
+	opIndex           map[string]*Operation
+	workflowIndex     map[string]*Workflow
+	stepIndex         map[string]*Step
+	topLevelStepIndex map[string]*Step
+	parallelGroups    map[string][]string
+	mu                sync.Mutex
+	records           map[string]ExecutionRecord
+	inFlight          map[string]chan struct{}
 }
 
 // NewOrchestrator creates a new Orchestrator for the given document and runtime.
 func NewOrchestrator(doc *Document, runtime Runtime) *Orchestrator {
 	o := &Orchestrator{
-		Document:       doc,
-		Runtime:        runtime,
-		opIndex:        make(map[string]*Operation),
-		workflowIndex:  make(map[string]*Workflow),
-		stepIndex:      make(map[string]*Step),
-		parallelGroups: make(map[string][]string),
-		records:        make(map[string]ExecutionRecord),
-		inFlight:       make(map[string]chan struct{}),
+		Document:          doc,
+		Runtime:           runtime,
+		opIndex:           make(map[string]*Operation),
+		workflowIndex:     make(map[string]*Workflow),
+		stepIndex:         make(map[string]*Step),
+		topLevelStepIndex: make(map[string]*Step),
+		parallelGroups:    make(map[string][]string),
+		records:           make(map[string]ExecutionRecord),
+		inFlight:          make(map[string]chan struct{}),
 	}
 	if doc != nil {
 		for _, op := range doc.Operations {
@@ -67,6 +69,13 @@ func NewOrchestrator(doc *Document, runtime Runtime) *Orchestrator {
 					if c != nil {
 						o.indexSteps(c.Steps)
 					}
+				}
+			}
+		}
+		if entry, err := executableEntryWorkflow(doc); err == nil && entry != nil {
+			for _, step := range entry.Steps {
+				if step != nil && step.StepID != "" {
+					o.topLevelStepIndex[step.StepID] = step
 				}
 			}
 		}
@@ -101,17 +110,11 @@ func (o *Orchestrator) Execute(ctx context.Context) error {
 		return nil
 	}
 	start := func(ctx context.Context) error {
-		if wf, err := o.entryWorkflow(); err != nil {
+		wf, err := o.entryWorkflow()
+		if err != nil {
 			return err
-		} else if wf != nil {
-			return o.ExecuteWorkflow(ctx, wf)
 		}
-		for _, op := range o.Document.Operations {
-			if err := o.executeOperationByID(ctx, op.OperationID); err != nil {
-				return err
-			}
-		}
-		return nil
+		return o.ExecuteWorkflow(ctx, wf)
 	}
 	err := o.executeWithSignals(ctx, start)
 	o.Document.setExecutionRecords(o.snapshotRecords())

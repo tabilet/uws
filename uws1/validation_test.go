@@ -452,10 +452,15 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 				TriggerID: "webhook",
 				Outputs:   []string{"primary"},
 				Routes: []*TriggerRoute{
-					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "primary", To: []string{"get_data"}}},
+					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "primary", To: []string{"main"}}},
 				},
 			},
 		}
+		doc.Workflows = []*Workflow{{
+			WorkflowID: "main",
+			Type:       flowcore.WorkflowTypeSequence,
+			Steps:      []*Step{{StepID: "get_data", OperationRef: "get_data"}},
+		}}
 		assert.NoError(t, doc.Validate())
 	})
 
@@ -466,10 +471,15 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 				TriggerID: "webhook",
 				Outputs:   []string{"primary", "secondary"},
 				Routes: []*TriggerRoute{
-					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "1", To: []string{"get_data"}}},
+					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "1", To: []string{"step_a"}}},
 				},
 			},
 		}
+		doc.Workflows = []*Workflow{{
+			WorkflowID: "main",
+			Type:       flowcore.WorkflowTypeSequence,
+			Steps:      []*Step{{StepID: "step_a", OperationRef: "get_data"}},
+		}}
 		assert.NoError(t, doc.Validate())
 	})
 
@@ -484,7 +494,12 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 				},
 			},
 		}
-		assert.ErrorContains(t, doc.Validate(), "references unknown operationId")
+		doc.Workflows = []*Workflow{{
+			WorkflowID: "main",
+			Type:       flowcore.WorkflowTypeSequence,
+			Steps:      []*Step{{StepID: "get_data", OperationRef: "get_data"}},
+		}}
+		assert.ErrorContains(t, doc.Validate(), "references unknown top-level stepId or workflowId")
 	})
 
 	t.Run("empty target list", func(t *testing.T) {
@@ -498,7 +513,7 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 				},
 			},
 		}
-		assert.ErrorContains(t, doc.Validate(), "must contain at least one operationId")
+		assert.ErrorContains(t, doc.Validate(), "must contain at least one top-level stepId or workflowId")
 	})
 
 	t.Run("routes without outputs declaration", func(t *testing.T) {
@@ -507,7 +522,7 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 			{
 				TriggerID: "webhook",
 				Routes: []*TriggerRoute{
-					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "primary", To: []string{"get_data"}}},
+					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "primary", To: []string{"main"}}},
 				},
 			},
 		}
@@ -521,7 +536,7 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 				TriggerID: "webhook",
 				Outputs:   []string{"primary"},
 				Routes: []*TriggerRoute{
-					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "other", To: []string{"get_data"}}},
+					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "other", To: []string{"main"}}},
 				},
 			},
 		}
@@ -535,7 +550,7 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 				TriggerID: "webhook",
 				Outputs:   []string{"primary"},
 				Routes: []*TriggerRoute{
-					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "5", To: []string{"get_data"}}},
+					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "5", To: []string{"main"}}},
 				},
 			},
 		}
@@ -549,11 +564,32 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 				TriggerID: "webhook",
 				Outputs:   []string{"primary", "primary"},
 				Routes: []*TriggerRoute{
-					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "primary", To: []string{"get_data"}}},
+					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "primary", To: []string{"main"}}},
 				},
 			},
 		}
 		assert.ErrorContains(t, doc.Validate(), `duplicate output "primary"`)
+	})
+
+	t.Run("rejects non-top-level step target", func(t *testing.T) {
+		doc := validDocument()
+		doc.Workflows = []*Workflow{{
+			WorkflowID: "main",
+			Type:       flowcore.WorkflowTypeSequence,
+			Steps: []*Step{{
+				StepID: "outer",
+				Type:   flowcore.WorkflowTypeSequence,
+				Steps:  []*Step{{StepID: "nested", OperationRef: "get_data"}},
+			}},
+		}}
+		doc.Triggers = []*Trigger{{
+			TriggerID: "webhook",
+			Outputs:   []string{"primary"},
+			Routes: []*TriggerRoute{
+				{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "primary", To: []string{"nested"}}},
+			},
+		}}
+		assert.ErrorContains(t, doc.Validate(), "references unknown top-level stepId or workflowId")
 	})
 }
 

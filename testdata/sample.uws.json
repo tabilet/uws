@@ -117,7 +117,7 @@
       "routes": [
         {
           "output": "received",
-          "to": ["list_pets", "create_pet"]
+          "to": ["parallel_checks"]
         }
       ]
     }

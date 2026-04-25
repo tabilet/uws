@@ -2,7 +2,9 @@ package uws1
 
 import (
 	"context"
+	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -238,6 +240,171 @@ func TestOrchestratorExecuteAwait(t *testing.T) {
 	}
 }
 
+func TestDocumentExecuteRequiresEntryWorkflow(t *testing.T) {
+	doc := testDocument(&Operation{OperationID: "op1"})
+	doc.SetRuntime(&mockRuntime{})
+
+	err := doc.Execute(context.Background())
+	require.ErrorContains(t, err, "entry workflow")
+}
+
+func TestExplicitEntryPointsDoNotRequireDocumentEntryWorkflow(t *testing.T) {
+	doc := testDocument(&Operation{OperationID: "op1"})
+	doc.SetRuntime(&mockRuntime{})
+
+	require.NoError(t, doc.Operations[0].Execute(context.Background(), doc))
+
+	workflowDoc := testDocument(&Operation{OperationID: "op2"})
+	workflowDoc.SetRuntime(&mockRuntime{})
+	wf := &Workflow{
+		WorkflowID: "secondary",
+		Type:       flowcore.WorkflowTypeSequence,
+		Steps:      []*Step{{StepID: "step1", OperationRef: "op2"}},
+	}
+	require.NoError(t, wf.Execute(context.Background(), workflowDoc))
+
+	stepDoc := testDocument(&Operation{OperationID: "op3"})
+	stepDoc.SetRuntime(&mockRuntime{})
+	require.NoError(t, (&Step{StepID: "step3", OperationRef: "op3"}).Execute(context.Background(), stepDoc))
+}
+
+func TestOrchestratorExecuteAwaitTimesOut(t *testing.T) {
+	doc := testDocument(&Operation{OperationID: "op1"})
+	doc.ExecutionOptions = ExecutionOptions{AwaitTimeout: 25 * time.Millisecond}
+	doc.Workflows = []*Workflow{{
+		WorkflowID: "main",
+		Type:       flowcore.WorkflowTypeAwait,
+		WorkflowExecutionFields: flowcore.WorkflowExecutionFields{
+			Wait: "ready",
+		},
+		Steps: []*Step{{StepID: "step1", OperationRef: "op1"}},
+	}}
+	doc.SetRuntime(&mockRuntime{expressions: map[string]any{"ready": false}})
+
+	start := time.Now()
+	err := doc.Execute(context.Background())
+	require.Error(t, err)
+	var timeoutErr *AwaitTimeoutError
+	assert.True(t, errors.As(err, &timeoutErr))
+	assert.GreaterOrEqual(t, time.Since(start), 20*time.Millisecond)
+}
+
+func TestOrchestratorExecuteAwaitHonorsContextCancellation(t *testing.T) {
+	doc := testDocument(&Operation{OperationID: "op1"})
+	doc.ExecutionOptions = ExecutionOptions{AwaitTimeout: time.Second}
+	doc.Workflows = []*Workflow{{
+		WorkflowID: "main",
+		Type:       flowcore.WorkflowTypeAwait,
+		WorkflowExecutionFields: flowcore.WorkflowExecutionFields{
+			Wait: "ready",
+		},
+		Steps: []*Step{{StepID: "step1", OperationRef: "op1"}},
+	}}
+	doc.SetRuntime(&mockRuntime{expressions: map[string]any{"ready": false}})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Millisecond)
+	defer cancel()
+	err := doc.Execute(ctx)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+}
+
+func TestDocumentDispatchTriggerExecutesTopLevelStepTargets(t *testing.T) {
+	doc := testDocument(&Operation{OperationID: "fetch"}, &Operation{OperationID: "save"})
+	doc.Workflows = []*Workflow{
+		{
+			WorkflowID: "secondary",
+			Type:       flowcore.WorkflowTypeSequence,
+			Steps:      []*Step{{StepID: "secondary_fetch", OperationRef: "fetch"}},
+		},
+		{
+			WorkflowID: "main",
+			Type:       flowcore.WorkflowTypeSequence,
+			Steps: []*Step{
+				{StepID: "fetch_step", OperationRef: "fetch"},
+				{StepID: "save_step", OperationRef: "save", StepExecutionFields: flowcore.StepExecutionFields{DependsOn: []string{"fetch_step"}}},
+			},
+		},
+	}
+	doc.Triggers = []*Trigger{{
+		TriggerID: "incoming",
+		Outputs:   []string{"primary"},
+		Routes: []*TriggerRoute{
+			{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "primary", To: []string{"save_step"}}},
+		},
+	}}
+	runtime := &mockRuntime{
+		eval: func(ctx context.Context, expr string) (any, error) {
+			switch expr {
+			case "$trigger.kind":
+				state, ok := ExecutionContextFromContext(ctx)
+				require.True(t, ok)
+				require.NotNil(t, state.Trigger)
+				payload, _ := state.Trigger.Payload.(map[string]any)
+				return payload["kind"], nil
+			default:
+				return nil, nil
+			}
+		},
+	}
+	doc.Operations[1].Outputs = map[string]string{"kind": "$trigger.kind"}
+	doc.SetRuntime(runtime)
+
+	require.NoError(t, doc.DispatchTrigger(context.Background(), "incoming", 0, map[string]any{"kind": "webhook"}))
+	assert.Equal(t, []string{"fetch", "save"}, runtime.executedLeafs)
+	records := doc.ExecutionRecords()
+	require.Contains(t, records, "step:save_step")
+	assert.Equal(t, "webhook", records["op:save"].Outputs["kind"])
+}
+
+func TestDocumentDispatchTriggerExecutesWorkflowTargets(t *testing.T) {
+	doc := testDocument(&Operation{OperationID: "fetch"})
+	doc.Workflows = []*Workflow{
+		{
+			WorkflowID: "secondary",
+			Type:       flowcore.WorkflowTypeSequence,
+			Steps:      []*Step{{StepID: "secondary_fetch", OperationRef: "fetch"}},
+		},
+		{
+			WorkflowID: "main",
+			Type:       flowcore.WorkflowTypeSequence,
+			Steps:      []*Step{{StepID: "root", StepExecutionFields: flowcore.StepExecutionFields{Workflow: "secondary"}}},
+		},
+	}
+	doc.Triggers = []*Trigger{{
+		TriggerID: "incoming",
+		Outputs:   []string{"primary"},
+		Routes: []*TriggerRoute{
+			{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "0", To: []string{"secondary"}}},
+		},
+	}}
+	runtime := &mockRuntime{}
+	doc.SetRuntime(runtime)
+
+	require.NoError(t, doc.DispatchTrigger(context.Background(), "incoming", 0, map[string]any{"ok": true}))
+	assert.Equal(t, []string{"fetch"}, runtime.executedLeafs)
+	require.Contains(t, doc.ExecutionRecords(), "wf:secondary")
+}
+
+func TestDocumentDispatchTriggerRejectsUnknownTarget(t *testing.T) {
+	doc := testDocument(&Operation{OperationID: "fetch"})
+	doc.Workflows = []*Workflow{{
+		WorkflowID: "main",
+		Type:       flowcore.WorkflowTypeSequence,
+		Steps:      []*Step{{StepID: "fetch_step", OperationRef: "fetch"}},
+	}}
+	doc.Triggers = []*Trigger{{
+		TriggerID: "incoming",
+		Outputs:   []string{"primary"},
+		Routes: []*TriggerRoute{
+			{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "primary", To: []string{"fetch"}}},
+		},
+	}}
+	doc.SetRuntime(&mockRuntime{})
+
+	err := doc.DispatchTrigger(context.Background(), "incoming", 0, nil)
+	require.ErrorContains(t, err, "top-level stepId or workflowId")
+}
+
 func TestOrchestratorForEachAggregatesOutputsAndResults(t *testing.T) {
 	doc := testDocument(&Operation{
 		OperationID: "op1",
@@ -264,7 +431,7 @@ func TestOrchestratorForEachAggregatesOutputsAndResults(t *testing.T) {
 	}
 	doc.SetRuntime(runtime)
 
-	require.NoError(t, doc.Execute(context.Background()))
+	require.NoError(t, doc.Operations[0].Execute(context.Background(), doc))
 
 	records := doc.ExecutionRecords()
 	record := records["op:op1"]
@@ -383,11 +550,15 @@ func TestOrchestratorExecuteMergeUsesDeclaredDependenciesOnly(t *testing.T) {
 }
 
 func TestDocumentValidateExecutableRejectsAmbiguousIDs(t *testing.T) {
-	doc := testDocument(&Operation{OperationID: "shared"})
+	doc := testDocument(&Operation{OperationID: "op1"})
 	doc.Workflows = []*Workflow{{
+		WorkflowID: "shared",
+		Type:       flowcore.WorkflowTypeSequence,
+		Steps:      []*Step{{StepID: "shared", OperationRef: "op1"}},
+	}, {
 		WorkflowID: "main",
 		Type:       flowcore.WorkflowTypeSequence,
-		Steps:      []*Step{{StepID: "shared", OperationRef: "shared"}},
+		Steps:      []*Step{{StepID: "root", StepExecutionFields: flowcore.StepExecutionFields{Workflow: "shared"}}},
 	}}
 
 	err := doc.ValidateExecutable()
@@ -465,6 +636,11 @@ func TestOrchestratorExecutesRegexCriterion(t *testing.T) {
 	}
 	doc.SetRuntime(runtime)
 
+	doc.Workflows = []*Workflow{{
+		WorkflowID: "main",
+		Type:       flowcore.WorkflowTypeSequence,
+		Steps:      []*Step{{StepID: "fetch_step", OperationRef: "fetch"}},
+	}}
 	require.NoError(t, doc.Execute(context.Background()))
 	assert.Equal(t, []string{"fetch"}, runtime.executedLeafs)
 }
@@ -488,6 +664,11 @@ func TestOrchestratorExecutesJSONPathCriterion(t *testing.T) {
 	}
 	doc.SetRuntime(runtime)
 
+	doc.Workflows = []*Workflow{{
+		WorkflowID: "main",
+		Type:       flowcore.WorkflowTypeSequence,
+		Steps:      []*Step{{StepID: "fetch_step", OperationRef: "fetch"}},
+	}}
 	require.NoError(t, doc.Execute(context.Background()))
 	assert.Equal(t, []string{"fetch"}, runtime.executedLeafs)
 }
@@ -511,6 +692,11 @@ func TestOrchestratorExecutesXPathCriterion(t *testing.T) {
 	}
 	doc.SetRuntime(runtime)
 
+	doc.Workflows = []*Workflow{{
+		WorkflowID: "main",
+		Type:       flowcore.WorkflowTypeSequence,
+		Steps:      []*Step{{StepID: "fetch_step", OperationRef: "fetch"}},
+	}}
 	require.NoError(t, doc.Execute(context.Background()))
 	assert.Equal(t, []string{"fetch"}, runtime.executedLeafs)
 }

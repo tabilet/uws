@@ -63,6 +63,8 @@ type validationIndex struct {
 	workflows            map[string]bool
 	workflowTypes        map[string]string
 	workflowSteps        map[string]map[string]string
+	entryWorkflowID      string
+	entryWorkflowSteps   map[string]bool
 	steps                map[string]bool
 	triggers             map[string]bool
 	parallelGroups       map[string]bool
@@ -129,6 +131,7 @@ func newValidationIndex() *validationIndex {
 		workflows:            make(map[string]bool),
 		workflowTypes:        make(map[string]string),
 		workflowSteps:        make(map[string]map[string]string),
+		entryWorkflowSteps:   make(map[string]bool),
 		steps:                make(map[string]bool),
 		triggers:             make(map[string]bool),
 		parallelGroups:       make(map[string]bool),
@@ -139,6 +142,14 @@ func newValidationIndex() *validationIndex {
 }
 
 func (d *Document) collectDocumentIDs(idx *validationIndex, result *ValidationResult) {
+	if entry, err := executableEntryWorkflow(d); err == nil && entry != nil {
+		idx.entryWorkflowID = entry.WorkflowID
+		for _, step := range entry.Steps {
+			if step != nil && step.StepID != "" {
+				idx.entryWorkflowSteps[step.StepID] = true
+			}
+		}
+	}
 	for i, sd := range d.SourceDescriptions {
 		path := fmt.Sprintf("sourceDescriptions[%d]", i)
 		if sd == nil {
@@ -169,6 +180,9 @@ func (d *Document) collectDocumentIDs(idx *validationIndex, result *ValidationRe
 			}
 		}
 		if op.ParallelGroup != "" {
+			if idx.operations[op.ParallelGroup] || idx.workflows[op.ParallelGroup] || idx.steps[op.ParallelGroup] {
+				result.addError(path+".parallelGroup", fmt.Sprintf("parallelGroup %q collides with an executable identifier", op.ParallelGroup))
+			}
 			idx.parallelGroups[op.ParallelGroup] = true
 			if op.OperationID != "" {
 				idx.parallelGroupMembers[op.ParallelGroup] = append(idx.parallelGroupMembers[op.ParallelGroup], op.OperationID)
@@ -257,6 +271,9 @@ func collectStepIDs(steps []*Step, path string, idx *validationIndex, result *Va
 			}
 		}
 		if step.ParallelGroup != "" {
+			if idx.operations[step.ParallelGroup] || idx.workflows[step.ParallelGroup] || idx.steps[step.ParallelGroup] {
+				result.addError(stepPath+".parallelGroup", fmt.Sprintf("parallelGroup %q collides with an executable identifier", step.ParallelGroup))
+			}
 			idx.parallelGroups[step.ParallelGroup] = true
 			if step.StepID != "" {
 				idx.parallelGroupMembers[step.ParallelGroup] = append(idx.parallelGroupMembers[step.ParallelGroup], step.StepID)
@@ -571,13 +588,13 @@ func (r *TriggerRoute) validate(path string, outputList []string, outputs map[st
 		result.addError(path+".output", fmt.Sprintf("%q is not a declared trigger output", r.Output))
 	}
 	if len(r.To) == 0 {
-		result.addError(path+".to", "must contain at least one operationId")
+		result.addError(path+".to", "must contain at least one top-level stepId or workflowId")
 	}
 	for i, target := range r.To {
 		if target == "" {
 			result.addError(fmt.Sprintf("%s.to[%d]", path, i), "is required")
-		} else if !idx.operations[target] {
-			result.addError(fmt.Sprintf("%s.to[%d]", path, i), fmt.Sprintf("references unknown operationId %q", target))
+		} else if !idx.workflows[target] && !idx.entryWorkflowSteps[target] {
+			result.addError(fmt.Sprintf("%s.to[%d]", path, i), fmt.Sprintf("references unknown top-level stepId or workflowId %q", target))
 		}
 	}
 }

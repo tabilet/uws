@@ -11,9 +11,6 @@ func (d *Document) ValidateExecutable() error {
 	if err := validateExecutableNames(d); err != nil {
 		return err
 	}
-	if _, err := executableEntryWorkflow(d); err != nil {
-		return err
-	}
 	if err := validateExecutableOperations(d.Operations); err != nil {
 		return err
 	}
@@ -67,17 +64,17 @@ func validateExecutableNames(d *Document) error {
 		if err := add(wf.WorkflowID, "workflow"); err != nil {
 			return err
 		}
-		if err := validateExecutableStepNames(wf.Steps, add); err != nil {
+		if err := validateExecutableStepNames(wf.Steps, seen, add); err != nil {
 			return err
 		}
-		if err := validateExecutableStepNames(wf.Default, add); err != nil {
+		if err := validateExecutableStepNames(wf.Default, seen, add); err != nil {
 			return err
 		}
 		for _, c := range wf.Cases {
 			if c == nil {
 				continue
 			}
-			if err := validateExecutableStepNames(c.Steps, add); err != nil {
+			if err := validateExecutableStepNames(c.Steps, seen, add); err != nil {
 				return err
 			}
 		}
@@ -85,28 +82,39 @@ func validateExecutableNames(d *Document) error {
 	return nil
 }
 
-func validateExecutableStepNames(steps []*Step, add func(name, kind string) error) error {
+func validateExecutableStepNames(steps []*Step, seen map[string]string, add func(name, kind string) error) error {
 	for _, step := range steps {
 		if step == nil {
 			continue
 		}
-		if err := add(step.StepID, "step"); err != nil {
-			return err
+		if step.StepID != "" {
+			if prev, ok := seen[step.StepID]; ok {
+				switch {
+				case prev == "operation" && step.OperationRef == step.StepID:
+					seen[step.StepID] = "step"
+				default:
+					if err := add(step.StepID, "step"); err != nil {
+						return err
+					}
+				}
+			} else if err := add(step.StepID, "step"); err != nil {
+				return err
+			}
 		}
 		if err := add(step.ParallelGroup, "parallelGroup"); err != nil {
 			return err
 		}
-		if err := validateExecutableStepNames(step.Steps, add); err != nil {
+		if err := validateExecutableStepNames(step.Steps, seen, add); err != nil {
 			return err
 		}
-		if err := validateExecutableStepNames(step.Default, add); err != nil {
+		if err := validateExecutableStepNames(step.Default, seen, add); err != nil {
 			return err
 		}
 		for _, c := range step.Cases {
 			if c == nil {
 				continue
 			}
-			if err := validateExecutableStepNames(c.Steps, add); err != nil {
+			if err := validateExecutableStepNames(c.Steps, seen, add); err != nil {
 				return err
 			}
 		}
@@ -134,6 +142,24 @@ func executableEntryWorkflow(d *Document) (*Workflow, error) {
 		return nil, fmt.Errorf("uws1: multiple workflows require an explicit %q entry workflow", "main")
 	}
 	return main, nil
+}
+
+func requireExecutableEntryWorkflow(d *Document) (*Workflow, error) {
+	entry, err := executableEntryWorkflow(d)
+	if err != nil {
+		return nil, err
+	}
+	if entry == nil {
+		return nil, fmt.Errorf("uws1: document execution requires an entry workflow")
+	}
+	return entry, nil
+}
+
+// ValidateExecutionEntrypoint checks the additional document-level requirement
+// for Document.Execute(): there must be one executable entry workflow.
+func (d *Document) ValidateExecutionEntrypoint() error {
+	_, err := requireExecutableEntryWorkflow(d)
+	return err
 }
 
 func validateExecutableOperations(ops []*Operation) error {

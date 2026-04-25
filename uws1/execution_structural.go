@@ -13,6 +13,24 @@ import (
 
 const awaitPollInterval = 200 * time.Millisecond
 
+// AwaitTimeoutError reports that an await construct exceeded the executor's
+// configured internal timeout.
+type AwaitTimeoutError struct {
+	Timeout time.Duration
+}
+
+func (e *AwaitTimeoutError) Error() string {
+	if e == nil || e.Timeout <= 0 {
+		return "uws1: await timed out"
+	}
+	return fmt.Sprintf("uws1: await timed out after %s", e.Timeout)
+}
+
+func (e *AwaitTimeoutError) Is(target error) bool {
+	_, ok := target.(*AwaitTimeoutError)
+	return ok
+}
+
 func (o *Orchestrator) executeStructural(ctx context.Context, typeName string, deps []string, steps []*Step, cases []*Case, defaultSteps []*Step, itemsExpr, mode, batchSizeExpr, waitExpr, key string) error {
 	switch typeName {
 	case flowcore.WorkflowTypeSequence:
@@ -236,6 +254,12 @@ func (o *Orchestrator) resolveBatchSize(ctx context.Context, batchSizeExpr strin
 func (o *Orchestrator) executeAwait(ctx context.Context, steps []*Step, waitExpr string) error {
 	ticker := time.NewTicker(awaitPollInterval)
 	defer ticker.Stop()
+	var timeout <-chan time.Time
+	if o != nil && o.Document != nil && o.Document.ExecutionOptions.AwaitTimeout > 0 {
+		timer := time.NewTimer(o.Document.ExecutionOptions.AwaitTimeout)
+		defer timer.Stop()
+		timeout = timer.C
+	}
 	for {
 		ok, err := o.evaluateTruthy(ctx, waitExpr)
 		if err != nil {
@@ -247,6 +271,8 @@ func (o *Orchestrator) executeAwait(ctx context.Context, steps []*Step, waitExpr
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
+		case <-timeout:
+			return &AwaitTimeoutError{Timeout: o.Document.ExecutionOptions.AwaitTimeout}
 		case <-ticker.C:
 		}
 	}

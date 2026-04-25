@@ -183,7 +183,7 @@
                     "type": "string"
                 },
                 "wait": {
-                    "description": "Duration to wait before execution",
+                    "description": "Executor-owned wait selector; await timeout is configured out of band by the orchestrator",
                     "type": "string"
                 },
                 "workflow": {
@@ -191,7 +191,7 @@
                     "type": "string"
                 },
                 "parallelGroup": {
-                    "description": "Enclosing parallel group name",
+                    "description": "Dependency barrier group name; dependsOn may reference this group to wait for all members",
                     "type": "string"
                 },
                 "successCriteria": {
@@ -493,7 +493,7 @@
                     }
                 },
                 "routes": {
-                    "description": "Output-to-operation routing",
+                    "description": "Output-to-execution-target routing",
                     "type": "array",
                     "items": { "$ref": "#/$defs/trigger-route-object" }
                 }
@@ -509,7 +509,7 @@
             "unevaluatedProperties": false
         },
         "trigger-route-object": {
-            "description": "Maps a trigger output to downstream operations",
+            "description": "Maps a trigger output to top-level stepId or workflowId targets",
             "type": "object",
             "properties": {
                 "output": {

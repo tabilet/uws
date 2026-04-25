@@ -54,7 +54,7 @@ func TestDocument_RoundTrip(t *testing.T) {
 				TriggerFields: flowcore.TriggerFields{Path: "/hooks/test", Methods: []string{"POST"}},
 				Outputs:       []string{"primary"},
 				Routes: []*TriggerRoute{
-					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "primary", To: []string{"get_users"}}},
+					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "primary", To: []string{"parallel_block"}}},
 				},
 			},
 		},
@@ -301,4 +301,31 @@ func TestWorkflow_RoundTrip(t *testing.T) {
 	assert.Equal(t, "process_dog", decoded.Cases[0].Steps[0].StepID)
 	assert.Len(t, decoded.Default, 1)
 	assert.Equal(t, "sequence", decoded.Default[0].Type)
+}
+
+func TestDocumentValidateExecutionEntrypoint(t *testing.T) {
+	doc := &Document{
+		UWS:  "1.0.0",
+		Info: &Info{Title: "test", Version: "1.0.0"},
+		Operations: []*Operation{
+			{OperationID: "fetch", Extensions: map[string]any{ExtensionOperationProfile: "udon"}},
+		},
+	}
+
+	require.ErrorContains(t, doc.ValidateExecutionEntrypoint(), "entry workflow")
+
+	doc.Workflows = []*Workflow{{WorkflowID: "secondary", Type: flowcore.WorkflowTypeSequence}}
+	require.NoError(t, doc.ValidateExecutionEntrypoint())
+
+	doc.Workflows = []*Workflow{
+		{WorkflowID: "secondary", Type: flowcore.WorkflowTypeSequence},
+		{WorkflowID: "tertiary", Type: flowcore.WorkflowTypeSequence},
+	}
+	require.ErrorContains(t, doc.ValidateExecutionEntrypoint(), "main")
+
+	doc.Workflows = []*Workflow{
+		{WorkflowID: "main", Type: flowcore.WorkflowTypeSequence},
+		{WorkflowID: "secondary", Type: flowcore.WorkflowTypeSequence},
+	}
+	require.NoError(t, doc.ValidateExecutionEntrypoint())
 }

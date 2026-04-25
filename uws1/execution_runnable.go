@@ -190,7 +190,7 @@ func (o *Orchestrator) executeDependency(ctx context.Context, name string) error
 }
 
 func (o *Orchestrator) entryWorkflow() (*Workflow, error) {
-	return executableEntryWorkflow(o.Document)
+	return requireExecutableEntryWorkflow(o.Document)
 }
 
 func (o *Orchestrator) evaluateTruthy(ctx context.Context, expr string) (bool, error) {
@@ -222,6 +222,7 @@ func (o *Orchestrator) withRecordContext(ctx context.Context) context.Context {
 		state = &ExecutionContext{}
 	}
 	state.Iteration = cloneIteration(state.Iteration)
+	state.Trigger = cloneTriggerContext(state.Trigger)
 	state.Records = o.snapshotRecords()
 	state.Current = cloneCurrentExecution(state.Current)
 	return WithExecutionContext(ctx, state)
@@ -234,6 +235,7 @@ func (o *Orchestrator) withIterationContext(ctx context.Context, item any, index
 	} else {
 		state = &ExecutionContext{
 			Iteration: cloneIteration(state.Iteration),
+			Trigger:   cloneTriggerContext(state.Trigger),
 			Records:   state.Records,
 			Current:   cloneCurrentExecution(state.Current),
 		}
@@ -285,6 +287,7 @@ func (o *Orchestrator) withCurrentExecutionContext(ctx context.Context, key, id,
 	} else {
 		state = &ExecutionContext{
 			Iteration: cloneIteration(state.Iteration),
+			Trigger:   cloneTriggerContext(state.Trigger),
 			Records:   state.Records,
 			Current:   cloneCurrentExecution(state.Current),
 		}
