@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/tabilet/uws/flowcore"
 	"github.com/tabilet/uws/uws1"
 )
 
@@ -152,7 +151,7 @@ func stripCasesExtensions(cases []*uws1.Case) {
 	}
 }
 
-// TestHCLRoundTripDropsExtensions locks the contract stated in CLAUDE.md: HCL
+// TestHCLRoundTripDropsExtensions locks the contract stated in AGENTS.md: HCL
 // conversion intentionally drops x-* extensions. After JSON -> strip -> HCL ->
 // JSON, the resulting document must deep-equal the stripped original.
 func TestHCLRoundTripDropsExtensions(t *testing.T) {
@@ -264,7 +263,7 @@ func TestRoundTripRichDocument(t *testing.T) {
 				Type:       "switch",
 				Cases: []*uws1.Case{
 					{
-						CaseFields: flowcore.CaseFields{
+						CaseFields: uws1.CaseFields{
 							Name: "c1",
 							When: "$outputs.op1.id == 1",
 						},
@@ -281,7 +280,7 @@ func TestRoundTripRichDocument(t *testing.T) {
 			{
 				WorkflowID: "iter",
 				Type:       "loop",
-				StructuralFields: flowcore.StructuralFields{
+				StructuralFields: uws1.StructuralFields{
 					Items: "$outputs.op1.ids",
 				},
 				Steps: []*uws1.Step{
@@ -292,7 +291,7 @@ func TestRoundTripRichDocument(t *testing.T) {
 		Triggers: []*uws1.Trigger{
 			{
 				TriggerID: "hook",
-				TriggerFields: flowcore.TriggerFields{
+				TriggerFields: uws1.TriggerFields{
 					Path:           "/hook",
 					Methods:        []string{"POST"},
 					Authentication: "bearer",
@@ -300,7 +299,7 @@ func TestRoundTripRichDocument(t *testing.T) {
 				Options: map[string]any{"timeout": float64(30), "nested": map[string]any{"k": "v"}},
 				Outputs: []string{"received"},
 				Routes: []*uws1.TriggerRoute{
-					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "received", To: []string{"op1"}}},
+					{TriggerRouteFields: uws1.TriggerRouteFields{Output: "received", To: []string{"op1"}}},
 				},
 			},
 		},

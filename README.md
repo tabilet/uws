@@ -8,8 +8,7 @@ Non-OpenAPI runtimes such as command execution, function calls, file I/O, SSH, S
 
 ## Packages
 
-- `flowcore` contains the concrete, format-agnostic semantic field groups and structural kind constants shared across UWS model types and downstream authoring layers.
-- `uws1` contains the UWS 1.x Go model and structural validation.
+- `uws1` contains the UWS 1.x Go model, structural vocabulary, and structural validation.
 - `convert` converts UWS documents between JSON, YAML, and the HCL authoring form.
 - `versions/1.0.0.md` is the human-readable UWS 1.0 specification.
 - `uws.json` is the JSON Schema for UWS 1.0 documents.

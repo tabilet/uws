@@ -3,14 +3,12 @@ package uws1
 import (
 	"encoding/json"
 	"fmt"
-
-	"github.com/tabilet/uws/flowcore"
 )
 
 // Trigger defines an entry point that initiates workflow execution.
 type Trigger struct {
 	TriggerID string `json:"triggerId" yaml:"triggerId" hcl:"triggerId,label"`
-	flowcore.TriggerFields
+	TriggerFields
 	// Options is an intentionally open-shape map so each trigger implementation
 	// can carry its own configuration. UWS does not restrict keys or values
 	// beyond the JSON Schema's object shape.
@@ -55,7 +53,7 @@ func (t Trigger) MarshalJSON() ([]byte, error) {
 
 // TriggerRoute maps a trigger output to top-level step or workflow targets.
 type TriggerRoute struct {
-	flowcore.TriggerRouteFields
+	TriggerRouteFields
 	Extensions map[string]any `json:"-" yaml:"-" hcl:"-"`
 }
 

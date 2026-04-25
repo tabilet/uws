@@ -30,7 +30,7 @@ type schemaDefRules struct {
 	required []string
 	// enumProps lists property names that carry an `enum` or `const` in the
 	// schema. The validator enforces these via shared helpers or package-level
-	// tables such as flowcore.IsWorkflowType / validFailureActionTypes.
+	// tables such as IsWorkflowType / validFailureActionTypes.
 	enumProps []string
 	// patternProps lists property names that carry a regex `pattern`.
 	patternProps []string

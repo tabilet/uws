@@ -1,4 +1,4 @@
-package flowcore
+package uws1
 
 import "testing"
 

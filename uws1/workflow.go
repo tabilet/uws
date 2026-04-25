@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
-	"github.com/tabilet/uws/flowcore"
 )
 
 // Workflow describes a control-flow construct (sequence, parallel, switch, merge, loop, await).
@@ -14,8 +12,8 @@ type Workflow struct {
 	Type        string       `json:"type" yaml:"type" hcl:"type"`
 	Description string       `json:"description,omitempty" yaml:"description,omitempty" hcl:"description,optional"`
 	Inputs      *ParamSchema `json:"inputs,omitempty" yaml:"inputs,omitempty" hcl:"inputs,block"`
-	flowcore.WorkflowExecutionFields
-	flowcore.StructuralFields
+	WorkflowExecutionFields
+	StructuralFields
 	Steps      []*Step           `json:"steps,omitempty" yaml:"steps,omitempty" hcl:"step,block"`
 	Cases      []*Case           `json:"cases,omitempty" yaml:"cases,omitempty" hcl:"case,block"`
 	Default    []*Step           `json:"default,omitempty" yaml:"default,omitempty" hcl:"default,block"`
@@ -85,8 +83,8 @@ type Step struct {
 	Description  string         `json:"description,omitempty" yaml:"description,omitempty" hcl:"description,optional"`
 	OperationRef string         `json:"operationRef,omitempty" yaml:"operationRef,omitempty" hcl:"operationRef,optional"`
 	Body         map[string]any `json:"body,omitempty" yaml:"body,omitempty" hcl:"body,optional"`
-	flowcore.StepExecutionFields
-	flowcore.StructuralFields
+	StepExecutionFields
+	StructuralFields
 	Steps      []*Step           `json:"steps,omitempty" yaml:"steps,omitempty" hcl:"step,block"`
 	Cases      []*Case           `json:"cases,omitempty" yaml:"cases,omitempty" hcl:"case,block"`
 	Default    []*Step           `json:"default,omitempty" yaml:"default,omitempty" hcl:"default,block"`
@@ -151,7 +149,7 @@ func (s Step) MarshalJSON() ([]byte, error) {
 
 // Case describes a single branch within a switch construct.
 type Case struct {
-	flowcore.CaseFields
+	CaseFields
 	Body       map[string]any `json:"body,omitempty" yaml:"body,omitempty" hcl:"body,optional"`
 	Steps      []*Step        `json:"steps,omitempty" yaml:"steps,omitempty" hcl:"step,block"`
 	Extensions map[string]any `json:"-" yaml:"-" hcl:"-"`

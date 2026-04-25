@@ -7,8 +7,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-
-	"github.com/tabilet/uws/flowcore"
 )
 
 // ValidationError represents one UWS validation error.
@@ -451,11 +449,11 @@ func (w *Workflow) validate(path string, idx *validationIndex, result *Validatio
 	}
 	if w.Type == "" {
 		result.addError(path+".type", "is required")
-	} else if !flowcore.IsWorkflowType(w.Type) {
+	} else if !IsWorkflowType(w.Type) {
 		result.addError(path+".type", fmt.Sprintf("%q is not valid", w.Type))
 	} else {
 		validateStructuralTypeFields(w.Type, w.Items, w.Wait, len(w.Cases) > 0, len(w.Default) > 0, path, result)
-		if flowcore.RequiresDependsOnForMerge(w.Type) && len(w.DependsOn) == 0 {
+		if RequiresDependsOnForMerge(w.Type) && len(w.DependsOn) == 0 {
 			result.addError(path+".dependsOn", "is required and must name at least one upstream construct for merge")
 		}
 	}
@@ -472,20 +470,20 @@ func (w *Workflow) validate(path string, idx *validationIndex, result *Validatio
 // empty strings indicate the field is unset.
 func validateStructuralTypeFields(typeName, items, wait string, hasCases, hasDefault bool, path string, result *ValidationResult) {
 	trimmedItems := strings.TrimSpace(items)
-	if flowcore.RequiresItems(typeName) {
+	if RequiresItems(typeName) {
 		if trimmedItems == "" {
 			result.addError(path+".items", fmt.Sprintf("is required for %s", typeName))
 		}
 	} else if trimmedItems != "" {
 		result.addError(path+".items", fmt.Sprintf("is not valid on %s", typeName))
 	}
-	if flowcore.RequiresWait(typeName) && strings.TrimSpace(wait) == "" {
+	if RequiresWait(typeName) && strings.TrimSpace(wait) == "" {
 		result.addError(path+".wait", fmt.Sprintf("is required for %s", typeName))
 	}
-	if hasCases && !flowcore.AllowsCases(typeName) {
+	if hasCases && !AllowsCases(typeName) {
 		result.addError(path+".cases", fmt.Sprintf("is not valid on %s", typeName))
 	}
-	if hasDefault && !flowcore.AllowsDefault(typeName) {
+	if hasDefault && !AllowsDefault(typeName) {
 		result.addError(path+".default", fmt.Sprintf("is not valid on %s", typeName))
 	}
 }
@@ -506,11 +504,11 @@ func (s *Step) validate(path string, idx *validationIndex, result *ValidationRes
 		result.addError(path+".stepId", fmt.Sprintf("must match pattern ^[A-Za-z0-9_-]+$; got %s", s.StepID))
 	}
 	if s.Type != "" {
-		if !flowcore.IsWorkflowType(s.Type) {
+		if !IsWorkflowType(s.Type) {
 			result.addError(path+".type", fmt.Sprintf("%q is not valid", s.Type))
 		} else {
 			validateStructuralTypeFields(s.Type, s.Items, s.Wait, len(s.Cases) > 0, len(s.Default) > 0, path, result)
-			if flowcore.RequiresDependsOnForMerge(s.Type) && len(s.DependsOn) == 0 {
+			if RequiresDependsOnForMerge(s.Type) && len(s.DependsOn) == 0 {
 				result.addError(path+".dependsOn", "is required and must name at least one upstream construct for merge")
 			}
 		}
@@ -623,7 +621,7 @@ func (r *StructuralResult) validate(path string, idx *validationIndex, seenNames
 	}
 	if r.Kind == "" {
 		result.addError(path+".kind", "is required")
-	} else if !flowcore.IsStructuralResultKind(r.Kind) {
+	} else if !IsStructuralResultKind(r.Kind) {
 		result.addError(path+".kind", fmt.Sprintf("%q is not valid", r.Kind))
 	}
 	if r.From == "" {

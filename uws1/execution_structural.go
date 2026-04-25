@@ -3,12 +3,10 @@ package uws1
 import (
 	"context"
 	"fmt"
+	"golang.org/x/sync/errgroup"
 	"math"
 	"sort"
 	"time"
-
-	"github.com/tabilet/uws/flowcore"
-	"golang.org/x/sync/errgroup"
 )
 
 const awaitPollInterval = 200 * time.Millisecond
@@ -33,17 +31,17 @@ func (e *AwaitTimeoutError) Is(target error) bool {
 
 func (o *Orchestrator) executeStructural(ctx context.Context, typeName string, deps []string, steps []*Step, cases []*Case, defaultSteps []*Step, itemsExpr, mode, batchSizeExpr, waitExpr, key string) error {
 	switch typeName {
-	case flowcore.WorkflowTypeSequence:
+	case WorkflowTypeSequence:
 		return o.executeSteps(ctx, steps)
-	case flowcore.WorkflowTypeParallel:
+	case WorkflowTypeParallel:
 		return o.executeStepsParallel(ctx, steps)
-	case flowcore.WorkflowTypeSwitch:
+	case WorkflowTypeSwitch:
 		return o.executeSwitch(ctx, cases, defaultSteps)
-	case flowcore.WorkflowTypeMerge:
+	case WorkflowTypeMerge:
 		return o.executeMerge(ctx, deps, key)
-	case flowcore.WorkflowTypeLoop:
+	case WorkflowTypeLoop:
 		return o.executeLoop(ctx, steps, itemsExpr, batchSizeExpr, key)
-	case flowcore.WorkflowTypeAwait:
+	case WorkflowTypeAwait:
 		return o.executeAwait(ctx, steps, waitExpr)
 	default:
 		return fmt.Errorf("uws1: unsupported workflow type %q", typeName)

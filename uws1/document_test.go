@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tabilet/uws/flowcore"
 )
 
 func TestDocument_RoundTrip(t *testing.T) {
@@ -32,7 +31,7 @@ func TestDocument_RoundTrip(t *testing.T) {
 				Request: map[string]any{
 					"query": map[string]any{"limit": float64(10)},
 				},
-				OperationExecutionFields: flowcore.OperationExecutionFields{
+				OperationExecutionFields: OperationExecutionFields{
 					DependsOn: []string{},
 				},
 				Outputs: map[string]string{
@@ -43,7 +42,7 @@ func TestDocument_RoundTrip(t *testing.T) {
 				OperationID:         "create_user",
 				SourceDescription:   "api",
 				OpenAPIOperationRef: "#/paths/~1users/post",
-				OperationExecutionFields: flowcore.OperationExecutionFields{
+				OperationExecutionFields: OperationExecutionFields{
 					DependsOn: []string{"get_users"},
 				},
 			},
@@ -51,10 +50,10 @@ func TestDocument_RoundTrip(t *testing.T) {
 		Triggers: []*Trigger{
 			{
 				TriggerID:     "webhook_1",
-				TriggerFields: flowcore.TriggerFields{Path: "/hooks/test", Methods: []string{"POST"}},
+				TriggerFields: TriggerFields{Path: "/hooks/test", Methods: []string{"POST"}},
 				Outputs:       []string{"primary"},
 				Routes: []*TriggerRoute{
-					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "primary", To: []string{"parallel_block"}}},
+					{TriggerRouteFields: TriggerRouteFields{Output: "primary", To: []string{"parallel_block"}}},
 				},
 			},
 		},
@@ -65,7 +64,7 @@ func TestDocument_RoundTrip(t *testing.T) {
 				Steps: []*Step{
 					{StepID: "step_a", OperationRef: "get_users"},
 					{StepID: "step_b", Type: "sequence", Steps: []*Step{{StepID: "nested", OperationRef: "create_user"}}},
-					{StepID: "merge_users", Type: "merge", StepExecutionFields: flowcore.StepExecutionFields{DependsOn: []string{"step_a", "step_b"}}},
+					{StepID: "merge_users", Type: "merge", StepExecutionFields: StepExecutionFields{DependsOn: []string{"step_a", "step_b"}}},
 				},
 			},
 		},
@@ -276,7 +275,7 @@ func TestWorkflow_RoundTrip(t *testing.T) {
 		Type:       "switch",
 		Cases: []*Case{
 			{
-				CaseFields: flowcore.CaseFields{
+				CaseFields: CaseFields{
 					Name: "dog",
 					When: "$response.body#/type == \"dog\"",
 				},
@@ -314,18 +313,18 @@ func TestDocumentValidateExecutionEntrypoint(t *testing.T) {
 
 	require.ErrorContains(t, doc.ValidateExecutionEntrypoint(), "entry workflow")
 
-	doc.Workflows = []*Workflow{{WorkflowID: "secondary", Type: flowcore.WorkflowTypeSequence}}
+	doc.Workflows = []*Workflow{{WorkflowID: "secondary", Type: WorkflowTypeSequence}}
 	require.NoError(t, doc.ValidateExecutionEntrypoint())
 
 	doc.Workflows = []*Workflow{
-		{WorkflowID: "secondary", Type: flowcore.WorkflowTypeSequence},
-		{WorkflowID: "tertiary", Type: flowcore.WorkflowTypeSequence},
+		{WorkflowID: "secondary", Type: WorkflowTypeSequence},
+		{WorkflowID: "tertiary", Type: WorkflowTypeSequence},
 	}
 	require.ErrorContains(t, doc.ValidateExecutionEntrypoint(), "main")
 
 	doc.Workflows = []*Workflow{
-		{WorkflowID: "main", Type: flowcore.WorkflowTypeSequence},
-		{WorkflowID: "secondary", Type: flowcore.WorkflowTypeSequence},
+		{WorkflowID: "main", Type: WorkflowTypeSequence},
+		{WorkflowID: "secondary", Type: WorkflowTypeSequence},
 	}
 	require.NoError(t, doc.ValidateExecutionEntrypoint())
 }

@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-
-	"github.com/tabilet/uws/flowcore"
 )
 
 // Operation describes a UWS-local operation bound to an OpenAPI operation.
@@ -18,7 +16,7 @@ type Operation struct {
 	Description         string         `json:"description,omitempty" yaml:"description,omitempty" hcl:"description,optional"`
 	Request             map[string]any `json:"request,omitempty" yaml:"request,omitempty" hcl:"request,optional"`
 
-	flowcore.OperationExecutionFields
+	OperationExecutionFields
 
 	// Success criteria and action handlers
 	SuccessCriteria []*Criterion     `json:"successCriteria,omitempty" yaml:"successCriteria,omitempty" hcl:"successCriterion,block"`

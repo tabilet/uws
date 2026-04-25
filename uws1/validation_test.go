@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tabilet/uws/flowcore"
 )
 
 func validDocument() *Document {
@@ -350,7 +349,7 @@ func TestValidate_WorkflowAndStepReferences(t *testing.T) {
 		{
 			WorkflowID: "wf",
 			Type:       "parallel",
-			WorkflowExecutionFields: flowcore.WorkflowExecutionFields{
+			WorkflowExecutionFields: WorkflowExecutionFields{
 				DependsOn: []string{"missing_dependency"},
 			},
 			Steps: []*Step{
@@ -358,7 +357,7 @@ func TestValidate_WorkflowAndStepReferences(t *testing.T) {
 					StepID:       "step",
 					Type:         "not-a-step-type",
 					OperationRef: "missing_operation",
-					StepExecutionFields: flowcore.StepExecutionFields{
+					StepExecutionFields: StepExecutionFields{
 						DependsOn: []string{"missing_step"},
 					},
 				},
@@ -452,13 +451,13 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 				TriggerID: "webhook",
 				Outputs:   []string{"primary"},
 				Routes: []*TriggerRoute{
-					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "primary", To: []string{"main"}}},
+					{TriggerRouteFields: TriggerRouteFields{Output: "primary", To: []string{"main"}}},
 				},
 			},
 		}
 		doc.Workflows = []*Workflow{{
 			WorkflowID: "main",
-			Type:       flowcore.WorkflowTypeSequence,
+			Type:       WorkflowTypeSequence,
 			Steps:      []*Step{{StepID: "get_data", OperationRef: "get_data"}},
 		}}
 		assert.NoError(t, doc.Validate())
@@ -471,13 +470,13 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 				TriggerID: "webhook",
 				Outputs:   []string{"primary", "secondary"},
 				Routes: []*TriggerRoute{
-					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "1", To: []string{"step_a"}}},
+					{TriggerRouteFields: TriggerRouteFields{Output: "1", To: []string{"step_a"}}},
 				},
 			},
 		}
 		doc.Workflows = []*Workflow{{
 			WorkflowID: "main",
-			Type:       flowcore.WorkflowTypeSequence,
+			Type:       WorkflowTypeSequence,
 			Steps:      []*Step{{StepID: "step_a", OperationRef: "get_data"}},
 		}}
 		assert.NoError(t, doc.Validate())
@@ -490,13 +489,13 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 				TriggerID: "webhook",
 				Outputs:   []string{"primary"},
 				Routes: []*TriggerRoute{
-					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "primary", To: []string{"missing"}}},
+					{TriggerRouteFields: TriggerRouteFields{Output: "primary", To: []string{"missing"}}},
 				},
 			},
 		}
 		doc.Workflows = []*Workflow{{
 			WorkflowID: "main",
-			Type:       flowcore.WorkflowTypeSequence,
+			Type:       WorkflowTypeSequence,
 			Steps:      []*Step{{StepID: "get_data", OperationRef: "get_data"}},
 		}}
 		assert.ErrorContains(t, doc.Validate(), "references unknown top-level stepId or workflowId")
@@ -509,7 +508,7 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 				TriggerID: "webhook",
 				Outputs:   []string{"primary"},
 				Routes: []*TriggerRoute{
-					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "primary"}},
+					{TriggerRouteFields: TriggerRouteFields{Output: "primary"}},
 				},
 			},
 		}
@@ -522,7 +521,7 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 			{
 				TriggerID: "webhook",
 				Routes: []*TriggerRoute{
-					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "primary", To: []string{"main"}}},
+					{TriggerRouteFields: TriggerRouteFields{Output: "primary", To: []string{"main"}}},
 				},
 			},
 		}
@@ -536,7 +535,7 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 				TriggerID: "webhook",
 				Outputs:   []string{"primary"},
 				Routes: []*TriggerRoute{
-					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "other", To: []string{"main"}}},
+					{TriggerRouteFields: TriggerRouteFields{Output: "other", To: []string{"main"}}},
 				},
 			},
 		}
@@ -550,7 +549,7 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 				TriggerID: "webhook",
 				Outputs:   []string{"primary"},
 				Routes: []*TriggerRoute{
-					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "5", To: []string{"main"}}},
+					{TriggerRouteFields: TriggerRouteFields{Output: "5", To: []string{"main"}}},
 				},
 			},
 		}
@@ -564,7 +563,7 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 				TriggerID: "webhook",
 				Outputs:   []string{"primary", "primary"},
 				Routes: []*TriggerRoute{
-					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "primary", To: []string{"main"}}},
+					{TriggerRouteFields: TriggerRouteFields{Output: "primary", To: []string{"main"}}},
 				},
 			},
 		}
@@ -575,10 +574,10 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 		doc := validDocument()
 		doc.Workflows = []*Workflow{{
 			WorkflowID: "main",
-			Type:       flowcore.WorkflowTypeSequence,
+			Type:       WorkflowTypeSequence,
 			Steps: []*Step{{
 				StepID: "outer",
-				Type:   flowcore.WorkflowTypeSequence,
+				Type:   WorkflowTypeSequence,
 				Steps:  []*Step{{StepID: "nested", OperationRef: "get_data"}},
 			}},
 		}}
@@ -586,7 +585,7 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 			TriggerID: "webhook",
 			Outputs:   []string{"primary"},
 			Routes: []*TriggerRoute{
-				{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "primary", To: []string{"nested"}}},
+				{TriggerRouteFields: TriggerRouteFields{Output: "primary", To: []string{"nested"}}},
 			},
 		}}
 		assert.ErrorContains(t, doc.Validate(), "references unknown top-level stepId or workflowId")
@@ -597,7 +596,7 @@ func TestValidate_StructuralTypeConstraints(t *testing.T) {
 	t.Run("loop requires items", func(t *testing.T) {
 		doc := validDocument()
 		doc.Workflows = []*Workflow{
-			{WorkflowID: "loop_wf", Type: flowcore.WorkflowTypeLoop},
+			{WorkflowID: "loop_wf", Type: WorkflowTypeLoop},
 		}
 		assert.ErrorContains(t, doc.Validate(), "items is required for loop")
 	})
@@ -605,7 +604,7 @@ func TestValidate_StructuralTypeConstraints(t *testing.T) {
 	t.Run("loop with items is valid", func(t *testing.T) {
 		doc := validDocument()
 		doc.Workflows = []*Workflow{
-			{WorkflowID: "loop_wf", Type: flowcore.WorkflowTypeLoop, StructuralFields: flowcore.StructuralFields{Items: "$variables.tags"}},
+			{WorkflowID: "loop_wf", Type: WorkflowTypeLoop, StructuralFields: StructuralFields{Items: "$variables.tags"}},
 		}
 		assert.NoError(t, doc.Validate())
 	})
@@ -613,7 +612,7 @@ func TestValidate_StructuralTypeConstraints(t *testing.T) {
 	t.Run("await requires wait", func(t *testing.T) {
 		doc := validDocument()
 		doc.Workflows = []*Workflow{
-			{WorkflowID: "await_wf", Type: flowcore.WorkflowTypeAwait},
+			{WorkflowID: "await_wf", Type: WorkflowTypeAwait},
 		}
 		assert.ErrorContains(t, doc.Validate(), "wait is required for await")
 	})
@@ -621,7 +620,7 @@ func TestValidate_StructuralTypeConstraints(t *testing.T) {
 	t.Run("await with wait is valid", func(t *testing.T) {
 		doc := validDocument()
 		doc.Workflows = []*Workflow{
-			{WorkflowID: "await_wf", Type: flowcore.WorkflowTypeAwait, WorkflowExecutionFields: flowcore.WorkflowExecutionFields{Wait: "$response.statusCode == 200"}},
+			{WorkflowID: "await_wf", Type: WorkflowTypeAwait, WorkflowExecutionFields: WorkflowExecutionFields{Wait: "$response.statusCode == 200"}},
 		}
 		assert.NoError(t, doc.Validate())
 	})
@@ -629,7 +628,7 @@ func TestValidate_StructuralTypeConstraints(t *testing.T) {
 	t.Run("switch rejects items", func(t *testing.T) {
 		doc := validDocument()
 		doc.Workflows = []*Workflow{
-			{WorkflowID: "sw", Type: flowcore.WorkflowTypeSwitch, StructuralFields: flowcore.StructuralFields{Items: "$variables.tags"}},
+			{WorkflowID: "sw", Type: WorkflowTypeSwitch, StructuralFields: StructuralFields{Items: "$variables.tags"}},
 		}
 		assert.ErrorContains(t, doc.Validate(), "items is not valid on switch")
 	})
@@ -639,7 +638,7 @@ func TestValidate_StructuralTypeConstraints(t *testing.T) {
 		doc.Workflows = []*Workflow{
 			{
 				WorkflowID: "wf",
-				Type:       flowcore.WorkflowTypeSequence,
+				Type:       WorkflowTypeSequence,
 				Default:    []*Step{{StepID: "fallback", OperationRef: "get_data"}},
 			},
 		}
@@ -651,8 +650,8 @@ func TestValidate_StructuralTypeConstraints(t *testing.T) {
 		doc.Workflows = []*Workflow{
 			{
 				WorkflowID: "wf",
-				Type:       flowcore.WorkflowTypeParallel,
-				Cases:      []*Case{{CaseFields: flowcore.CaseFields{Name: "a"}}},
+				Type:       WorkflowTypeParallel,
+				Cases:      []*Case{{CaseFields: CaseFields{Name: "a"}}},
 			},
 		}
 		assert.ErrorContains(t, doc.Validate(), "cases is not valid on parallel")
@@ -663,8 +662,8 @@ func TestValidate_StructuralTypeConstraints(t *testing.T) {
 		doc.Workflows = []*Workflow{
 			{
 				WorkflowID: "wf",
-				Type:       flowcore.WorkflowTypeSwitch,
-				Cases:      []*Case{{CaseFields: flowcore.CaseFields{Name: "premium"}}},
+				Type:       WorkflowTypeSwitch,
+				Cases:      []*Case{{CaseFields: CaseFields{Name: "premium"}}},
 				Default:    []*Step{{StepID: "fallback", OperationRef: "get_data"}},
 			},
 		}
@@ -676,8 +675,8 @@ func TestValidate_StructuralTypeConstraints(t *testing.T) {
 		doc.Workflows = []*Workflow{
 			{
 				WorkflowID: "wf",
-				Type:       flowcore.WorkflowTypeParallel,
-				Steps:      []*Step{{StepID: "loop_step", Type: flowcore.WorkflowTypeLoop}},
+				Type:       WorkflowTypeParallel,
+				Steps:      []*Step{{StepID: "loop_step", Type: WorkflowTypeLoop}},
 			},
 		}
 		assert.ErrorContains(t, doc.Validate(), "items is required for loop")
@@ -686,7 +685,7 @@ func TestValidate_StructuralTypeConstraints(t *testing.T) {
 	t.Run("merge workflow requires dependsOn", func(t *testing.T) {
 		doc := validDocument()
 		doc.Workflows = []*Workflow{
-			{WorkflowID: "merge_wf", Type: flowcore.WorkflowTypeMerge},
+			{WorkflowID: "merge_wf", Type: WorkflowTypeMerge},
 		}
 		assert.ErrorContains(t, doc.Validate(), "dependsOn is required and must name at least one upstream construct for merge")
 	})
@@ -696,8 +695,8 @@ func TestValidate_StructuralTypeConstraints(t *testing.T) {
 		doc.Workflows = []*Workflow{
 			{
 				WorkflowID: "wf",
-				Type:       flowcore.WorkflowTypeParallel,
-				Steps:      []*Step{{StepID: "merge_step", Type: flowcore.WorkflowTypeMerge}},
+				Type:       WorkflowTypeParallel,
+				Steps:      []*Step{{StepID: "merge_step", Type: WorkflowTypeMerge}},
 			},
 		}
 		assert.ErrorContains(t, doc.Validate(), "dependsOn is required and must name at least one upstream construct for merge")
@@ -710,15 +709,15 @@ func TestValidate_StructuralResult(t *testing.T) {
 		doc.Workflows = []*Workflow{
 			{
 				WorkflowID: "wf_merge",
-				Type:       flowcore.WorkflowTypeMerge,
-				WorkflowExecutionFields: flowcore.WorkflowExecutionFields{
+				Type:       WorkflowTypeMerge,
+				WorkflowExecutionFields: WorkflowExecutionFields{
 					DependsOn: []string{"get_data"},
 				},
 			},
 			{
 				WorkflowID: "wf_parallel",
-				Type:       flowcore.WorkflowTypeParallel,
-				Steps: []*Step{{StepID: "merge_step", Type: flowcore.WorkflowTypeMerge, StepExecutionFields: flowcore.StepExecutionFields{
+				Type:       WorkflowTypeParallel,
+				Steps: []*Step{{StepID: "merge_step", Type: WorkflowTypeMerge, StepExecutionFields: StepExecutionFields{
 					DependsOn: []string{"get_data"},
 				}}},
 			},
@@ -729,7 +728,7 @@ func TestValidate_StructuralResult(t *testing.T) {
 	t.Run("valid workflow reference", func(t *testing.T) {
 		doc := baseDoc()
 		doc.Results = []*StructuralResult{
-			{Name: "out", Kind: flowcore.StructuralResultKindMerge, From: "wf_merge"},
+			{Name: "out", Kind: StructuralResultKindMerge, From: "wf_merge"},
 		}
 		assert.NoError(t, doc.Validate())
 	})
@@ -737,7 +736,7 @@ func TestValidate_StructuralResult(t *testing.T) {
 	t.Run("valid step reference", func(t *testing.T) {
 		doc := baseDoc()
 		doc.Results = []*StructuralResult{
-			{Name: "out", Kind: flowcore.StructuralResultKindMerge, From: "wf_parallel.merge_step"},
+			{Name: "out", Kind: StructuralResultKindMerge, From: "wf_parallel.merge_step"},
 		}
 		assert.NoError(t, doc.Validate())
 	})
@@ -745,7 +744,7 @@ func TestValidate_StructuralResult(t *testing.T) {
 	t.Run("missing from", func(t *testing.T) {
 		doc := baseDoc()
 		doc.Results = []*StructuralResult{
-			{Name: "out", Kind: flowcore.StructuralResultKindMerge},
+			{Name: "out", Kind: StructuralResultKindMerge},
 		}
 		assert.ErrorContains(t, doc.Validate(), "from is required")
 	})
@@ -912,7 +911,7 @@ func TestValidateResult_StructuredErrorShape(t *testing.T) {
 				TriggerID: "hook",
 				Outputs:   []string{"ok"},
 				Routes: []*TriggerRoute{
-					{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "missing", To: []string{"get_data"}}},
+					{TriggerRouteFields: TriggerRouteFields{Output: "missing", To: []string{"get_data"}}},
 				},
 			},
 		}
@@ -967,7 +966,7 @@ func TestValidate_DependencyCycle_TwoNodes(t *testing.T) {
 			OperationID:        "a",
 			SourceDescription:  "api",
 			OpenAPIOperationID: "getA",
-			OperationExecutionFields: flowcore.OperationExecutionFields{
+			OperationExecutionFields: OperationExecutionFields{
 				DependsOn: []string{"b"},
 			},
 		},
@@ -975,7 +974,7 @@ func TestValidate_DependencyCycle_TwoNodes(t *testing.T) {
 			OperationID:        "b",
 			SourceDescription:  "api",
 			OpenAPIOperationID: "getB",
-			OperationExecutionFields: flowcore.OperationExecutionFields{
+			OperationExecutionFields: OperationExecutionFields{
 				DependsOn: []string{"a"},
 			},
 		},
@@ -997,9 +996,9 @@ func TestValidate_DependencyCycle_SelfLoop(t *testing.T) {
 func TestValidate_DependencyCycle_ThreeNodes(t *testing.T) {
 	doc := validDocument()
 	doc.Operations = []*Operation{
-		{OperationID: "a", SourceDescription: "api", OpenAPIOperationID: "getA", OperationExecutionFields: flowcore.OperationExecutionFields{DependsOn: []string{"b"}}},
-		{OperationID: "b", SourceDescription: "api", OpenAPIOperationID: "getB", OperationExecutionFields: flowcore.OperationExecutionFields{DependsOn: []string{"c"}}},
-		{OperationID: "c", SourceDescription: "api", OpenAPIOperationID: "getC", OperationExecutionFields: flowcore.OperationExecutionFields{DependsOn: []string{"a"}}},
+		{OperationID: "a", SourceDescription: "api", OpenAPIOperationID: "getA", OperationExecutionFields: OperationExecutionFields{DependsOn: []string{"b"}}},
+		{OperationID: "b", SourceDescription: "api", OpenAPIOperationID: "getB", OperationExecutionFields: OperationExecutionFields{DependsOn: []string{"c"}}},
+		{OperationID: "c", SourceDescription: "api", OpenAPIOperationID: "getC", OperationExecutionFields: OperationExecutionFields{DependsOn: []string{"a"}}},
 	}
 
 	err := doc.Validate()
@@ -1014,7 +1013,7 @@ func TestValidate_DependencyCycle_ThroughParallelGroup(t *testing.T) {
 			OperationID:        "a",
 			SourceDescription:  "api",
 			OpenAPIOperationID: "getA",
-			OperationExecutionFields: flowcore.OperationExecutionFields{
+			OperationExecutionFields: OperationExecutionFields{
 				ParallelGroup: "fanout",
 				DependsOn:     []string{"b"},
 			},
@@ -1023,7 +1022,7 @@ func TestValidate_DependencyCycle_ThroughParallelGroup(t *testing.T) {
 			OperationID:        "b",
 			SourceDescription:  "api",
 			OpenAPIOperationID: "getB",
-			OperationExecutionFields: flowcore.OperationExecutionFields{
+			OperationExecutionFields: OperationExecutionFields{
 				DependsOn: []string{"fanout"},
 			},
 		},
@@ -1037,8 +1036,8 @@ func TestValidate_DependencyCycle_AcyclicIsFine(t *testing.T) {
 	doc := validDocument()
 	doc.Operations = []*Operation{
 		{OperationID: "a", SourceDescription: "api", OpenAPIOperationID: "getA"},
-		{OperationID: "b", SourceDescription: "api", OpenAPIOperationID: "getB", OperationExecutionFields: flowcore.OperationExecutionFields{DependsOn: []string{"a"}}},
-		{OperationID: "c", SourceDescription: "api", OpenAPIOperationID: "getC", OperationExecutionFields: flowcore.OperationExecutionFields{DependsOn: []string{"a", "b"}}},
+		{OperationID: "b", SourceDescription: "api", OpenAPIOperationID: "getB", OperationExecutionFields: OperationExecutionFields{DependsOn: []string{"a"}}},
+		{OperationID: "c", SourceDescription: "api", OpenAPIOperationID: "getC", OperationExecutionFields: OperationExecutionFields{DependsOn: []string{"a", "b"}}},
 	}
 
 	assert.NoError(t, doc.Validate())
@@ -1047,8 +1046,8 @@ func TestValidate_DependencyCycle_AcyclicIsFine(t *testing.T) {
 func TestValidate_DependencyCycle_ReportedOnce(t *testing.T) {
 	doc := validDocument()
 	doc.Operations = []*Operation{
-		{OperationID: "a", SourceDescription: "api", OpenAPIOperationID: "getA", OperationExecutionFields: flowcore.OperationExecutionFields{DependsOn: []string{"b"}}},
-		{OperationID: "b", SourceDescription: "api", OpenAPIOperationID: "getB", OperationExecutionFields: flowcore.OperationExecutionFields{DependsOn: []string{"a"}}},
+		{OperationID: "a", SourceDescription: "api", OpenAPIOperationID: "getA", OperationExecutionFields: OperationExecutionFields{DependsOn: []string{"b"}}},
+		{OperationID: "b", SourceDescription: "api", OpenAPIOperationID: "getB", OperationExecutionFields: OperationExecutionFields{DependsOn: []string{"a"}}},
 	}
 
 	result := doc.ValidateResult()

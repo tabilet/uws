@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tabilet/uws/flowcore"
 )
 
 type mockRuntime struct {
@@ -66,7 +65,7 @@ func TestOrchestratorExecuteSequenceWorkflow(t *testing.T) {
 	)
 	doc.Workflows = []*Workflow{{
 		WorkflowID: "main",
-		Type:       flowcore.WorkflowTypeSequence,
+		Type:       WorkflowTypeSequence,
 		Steps: []*Step{
 			{StepID: "step1", OperationRef: "op1"},
 			{StepID: "step2", OperationRef: "op2"},
@@ -90,10 +89,10 @@ func TestOrchestratorSkipsWhenFalse(t *testing.T) {
 	)
 	doc.Workflows = []*Workflow{{
 		WorkflowID: "main",
-		Type:       flowcore.WorkflowTypeSequence,
+		Type:       WorkflowTypeSequence,
 		Steps: []*Step{
-			{StepID: "step1", OperationRef: "op1", StepExecutionFields: flowcore.RunnableExecutionFields{When: "false"}},
-			{StepID: "step2", OperationRef: "op2", StepExecutionFields: flowcore.RunnableExecutionFields{When: "true"}},
+			{StepID: "step1", OperationRef: "op1", StepExecutionFields: RunnableExecutionFields{When: "false"}},
+			{StepID: "step2", OperationRef: "op2", StepExecutionFields: RunnableExecutionFields{When: "true"}},
 		},
 	}}
 	runtime := &mockRuntime{expressions: map[string]any{"false": false, "true": true}}
@@ -109,17 +108,17 @@ func TestOrchestratorSkipsWhenFalse(t *testing.T) {
 
 func TestOrchestratorParallelGroupDependencyBarrier(t *testing.T) {
 	doc := testDocument(
-		&Operation{OperationID: "op1", OperationExecutionFields: flowcore.OperationExecutionFields{ParallelGroup: "grp"}},
-		&Operation{OperationID: "op2", OperationExecutionFields: flowcore.OperationExecutionFields{ParallelGroup: "grp"}},
+		&Operation{OperationID: "op1", OperationExecutionFields: OperationExecutionFields{ParallelGroup: "grp"}},
+		&Operation{OperationID: "op2", OperationExecutionFields: OperationExecutionFields{ParallelGroup: "grp"}},
 		&Operation{OperationID: "op3"},
 	)
 	doc.Workflows = []*Workflow{{
 		WorkflowID: "main",
-		Type:       flowcore.WorkflowTypeSequence,
+		Type:       WorkflowTypeSequence,
 		Steps: []*Step{
 			{StepID: "step1", OperationRef: "op1"},
 			{StepID: "step2", OperationRef: "op2"},
-			{StepID: "step3", OperationRef: "op3", StepExecutionFields: flowcore.RunnableExecutionFields{DependsOn: []string{"grp"}}},
+			{StepID: "step3", OperationRef: "op3", StepExecutionFields: RunnableExecutionFields{DependsOn: []string{"grp"}}},
 		},
 	}}
 	runtime := &mockRuntime{}
@@ -140,10 +139,10 @@ func TestOrchestratorExecuteSwitch(t *testing.T) {
 	)
 	doc.Workflows = []*Workflow{{
 		WorkflowID: "main",
-		Type:       flowcore.WorkflowTypeSwitch,
+		Type:       WorkflowTypeSwitch,
 		Cases: []*Case{
-			{CaseFields: flowcore.CaseFields{Name: "case1", When: "false"}, Steps: []*Step{{StepID: "s1", OperationRef: "op1"}}},
-			{CaseFields: flowcore.CaseFields{Name: "case2", When: "true"}, Steps: []*Step{{StepID: "s2", OperationRef: "op2"}}},
+			{CaseFields: CaseFields{Name: "case1", When: "false"}, Steps: []*Step{{StepID: "s1", OperationRef: "op1"}}},
+			{CaseFields: CaseFields{Name: "case2", When: "true"}, Steps: []*Step{{StepID: "s2", OperationRef: "op2"}}},
 		},
 	}}
 	runtime := &mockRuntime{expressions: map[string]any{"false": false, "true": true}}
@@ -161,8 +160,8 @@ func TestOrchestratorExecuteLoop(t *testing.T) {
 	doc := testDocument(&Operation{OperationID: "op1"})
 	doc.Workflows = []*Workflow{{
 		WorkflowID:       "main",
-		Type:             flowcore.WorkflowTypeLoop,
-		StructuralFields: flowcore.StructuralFields{Items: "items"},
+		Type:             WorkflowTypeLoop,
+		StructuralFields: StructuralFields{Items: "items"},
 		Steps: []*Step{
 			{StepID: "step1", OperationRef: "op1"},
 		},
@@ -204,7 +203,7 @@ func TestWorkflowAndStepExecute_PersistExecutionRecords(t *testing.T) {
 	doc.SetRuntime(&mockRuntime{})
 	wf := &Workflow{
 		WorkflowID: "main",
-		Type:       flowcore.WorkflowTypeSequence,
+		Type:       WorkflowTypeSequence,
 		Steps: []*Step{{
 			StepID:       "step1",
 			OperationRef: "leaf",
@@ -223,8 +222,8 @@ func TestOrchestratorExecuteAwait(t *testing.T) {
 	doc := testDocument(&Operation{OperationID: "op1"})
 	doc.Workflows = []*Workflow{{
 		WorkflowID: "main",
-		Type:       flowcore.WorkflowTypeAwait,
-		WorkflowExecutionFields: flowcore.WorkflowExecutionFields{
+		Type:       WorkflowTypeAwait,
+		WorkflowExecutionFields: WorkflowExecutionFields{
 			Wait: "ready",
 		},
 		Steps: []*Step{{StepID: "step1", OperationRef: "op1"}},
@@ -258,7 +257,7 @@ func TestExplicitEntryPointsDoNotRequireDocumentEntryWorkflow(t *testing.T) {
 	workflowDoc.SetRuntime(&mockRuntime{})
 	wf := &Workflow{
 		WorkflowID: "secondary",
-		Type:       flowcore.WorkflowTypeSequence,
+		Type:       WorkflowTypeSequence,
 		Steps:      []*Step{{StepID: "step1", OperationRef: "op2"}},
 	}
 	require.NoError(t, wf.Execute(context.Background(), workflowDoc))
@@ -273,8 +272,8 @@ func TestOrchestratorExecuteAwaitTimesOut(t *testing.T) {
 	doc.ExecutionOptions = ExecutionOptions{AwaitTimeout: 25 * time.Millisecond}
 	doc.Workflows = []*Workflow{{
 		WorkflowID: "main",
-		Type:       flowcore.WorkflowTypeAwait,
-		WorkflowExecutionFields: flowcore.WorkflowExecutionFields{
+		Type:       WorkflowTypeAwait,
+		WorkflowExecutionFields: WorkflowExecutionFields{
 			Wait: "ready",
 		},
 		Steps: []*Step{{StepID: "step1", OperationRef: "op1"}},
@@ -294,8 +293,8 @@ func TestOrchestratorExecuteAwaitHonorsContextCancellation(t *testing.T) {
 	doc.ExecutionOptions = ExecutionOptions{AwaitTimeout: time.Second}
 	doc.Workflows = []*Workflow{{
 		WorkflowID: "main",
-		Type:       flowcore.WorkflowTypeAwait,
-		WorkflowExecutionFields: flowcore.WorkflowExecutionFields{
+		Type:       WorkflowTypeAwait,
+		WorkflowExecutionFields: WorkflowExecutionFields{
 			Wait: "ready",
 		},
 		Steps: []*Step{{StepID: "step1", OperationRef: "op1"}},
@@ -313,15 +312,15 @@ func TestDocumentDispatchTriggerExecutesTopLevelStepTargets(t *testing.T) {
 	doc.Workflows = []*Workflow{
 		{
 			WorkflowID: "secondary",
-			Type:       flowcore.WorkflowTypeSequence,
+			Type:       WorkflowTypeSequence,
 			Steps:      []*Step{{StepID: "secondary_fetch", OperationRef: "fetch"}},
 		},
 		{
 			WorkflowID: "main",
-			Type:       flowcore.WorkflowTypeSequence,
+			Type:       WorkflowTypeSequence,
 			Steps: []*Step{
 				{StepID: "fetch_step", OperationRef: "fetch"},
-				{StepID: "save_step", OperationRef: "save", StepExecutionFields: flowcore.StepExecutionFields{DependsOn: []string{"fetch_step"}}},
+				{StepID: "save_step", OperationRef: "save", StepExecutionFields: StepExecutionFields{DependsOn: []string{"fetch_step"}}},
 			},
 		},
 	}
@@ -329,7 +328,7 @@ func TestDocumentDispatchTriggerExecutesTopLevelStepTargets(t *testing.T) {
 		TriggerID: "incoming",
 		Outputs:   []string{"primary"},
 		Routes: []*TriggerRoute{
-			{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "primary", To: []string{"save_step"}}},
+			{TriggerRouteFields: TriggerRouteFields{Output: "primary", To: []string{"save_step"}}},
 		},
 	}}
 	runtime := &mockRuntime{
@@ -361,20 +360,20 @@ func TestDocumentDispatchTriggerExecutesWorkflowTargets(t *testing.T) {
 	doc.Workflows = []*Workflow{
 		{
 			WorkflowID: "secondary",
-			Type:       flowcore.WorkflowTypeSequence,
+			Type:       WorkflowTypeSequence,
 			Steps:      []*Step{{StepID: "secondary_fetch", OperationRef: "fetch"}},
 		},
 		{
 			WorkflowID: "main",
-			Type:       flowcore.WorkflowTypeSequence,
-			Steps:      []*Step{{StepID: "root", StepExecutionFields: flowcore.StepExecutionFields{Workflow: "secondary"}}},
+			Type:       WorkflowTypeSequence,
+			Steps:      []*Step{{StepID: "root", StepExecutionFields: StepExecutionFields{Workflow: "secondary"}}},
 		},
 	}
 	doc.Triggers = []*Trigger{{
 		TriggerID: "incoming",
 		Outputs:   []string{"primary"},
 		Routes: []*TriggerRoute{
-			{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "0", To: []string{"secondary"}}},
+			{TriggerRouteFields: TriggerRouteFields{Output: "0", To: []string{"secondary"}}},
 		},
 	}}
 	runtime := &mockRuntime{}
@@ -389,14 +388,14 @@ func TestDocumentDispatchTriggerRejectsUnknownTarget(t *testing.T) {
 	doc := testDocument(&Operation{OperationID: "fetch"})
 	doc.Workflows = []*Workflow{{
 		WorkflowID: "main",
-		Type:       flowcore.WorkflowTypeSequence,
+		Type:       WorkflowTypeSequence,
 		Steps:      []*Step{{StepID: "fetch_step", OperationRef: "fetch"}},
 	}}
 	doc.Triggers = []*Trigger{{
 		TriggerID: "incoming",
 		Outputs:   []string{"primary"},
 		Routes: []*TriggerRoute{
-			{TriggerRouteFields: flowcore.TriggerRouteFields{Output: "primary", To: []string{"fetch"}}},
+			{TriggerRouteFields: TriggerRouteFields{Output: "primary", To: []string{"fetch"}}},
 		},
 	}}
 	doc.SetRuntime(&mockRuntime{})
@@ -408,7 +407,7 @@ func TestDocumentDispatchTriggerRejectsUnknownTarget(t *testing.T) {
 func TestOrchestratorForEachAggregatesOutputsAndResults(t *testing.T) {
 	doc := testDocument(&Operation{
 		OperationID: "op1",
-		OperationExecutionFields: flowcore.OperationExecutionFields{
+		OperationExecutionFields: OperationExecutionFields{
 			ForEach: "items",
 		},
 		Outputs: map[string]string{
@@ -451,7 +450,7 @@ func TestOrchestratorExecuteStepWorkflowReference(t *testing.T) {
 	doc.Workflows = []*Workflow{
 		{
 			WorkflowID: "secondary",
-			Type:       flowcore.WorkflowTypeSequence,
+			Type:       WorkflowTypeSequence,
 			Steps: []*Step{{
 				StepID:       "child",
 				OperationRef: "leaf",
@@ -459,10 +458,10 @@ func TestOrchestratorExecuteStepWorkflowReference(t *testing.T) {
 		},
 		{
 			WorkflowID: "main",
-			Type:       flowcore.WorkflowTypeSequence,
+			Type:       WorkflowTypeSequence,
 			Steps: []*Step{{
 				StepID: "call_secondary",
-				StepExecutionFields: flowcore.StepExecutionFields{
+				StepExecutionFields: StepExecutionFields{
 					Workflow: "secondary",
 				},
 			}},
@@ -485,14 +484,14 @@ func TestOrchestratorExecuteMerge(t *testing.T) {
 	)
 	doc.Workflows = []*Workflow{{
 		WorkflowID: "main",
-		Type:       flowcore.WorkflowTypeSequence,
+		Type:       WorkflowTypeSequence,
 		Steps: []*Step{
 			{StepID: "left", OperationRef: "op1"},
 			{StepID: "right", OperationRef: "op2"},
 			{
 				StepID: "join",
-				Type:   flowcore.WorkflowTypeMerge,
-				StepExecutionFields: flowcore.RunnableExecutionFields{
+				Type:   WorkflowTypeMerge,
+				StepExecutionFields: RunnableExecutionFields{
 					DependsOn: []string{"left", "right"},
 				},
 			},
@@ -517,15 +516,15 @@ func TestOrchestratorExecuteMergeUsesDeclaredDependenciesOnly(t *testing.T) {
 	)
 	doc.Workflows = []*Workflow{{
 		WorkflowID: "main",
-		Type:       flowcore.WorkflowTypeSequence,
+		Type:       WorkflowTypeSequence,
 		Steps: []*Step{
 			{StepID: "prep", OperationRef: "prep"},
 			{StepID: "left", OperationRef: "left"},
 			{StepID: "right", OperationRef: "right"},
 			{
 				StepID: "join",
-				Type:   flowcore.WorkflowTypeMerge,
-				StepExecutionFields: flowcore.RunnableExecutionFields{
+				Type:   WorkflowTypeMerge,
+				StepExecutionFields: RunnableExecutionFields{
 					DependsOn: []string{"left", "right"},
 				},
 			},
@@ -553,12 +552,12 @@ func TestDocumentValidateExecutableRejectsAmbiguousIDs(t *testing.T) {
 	doc := testDocument(&Operation{OperationID: "op1"})
 	doc.Workflows = []*Workflow{{
 		WorkflowID: "shared",
-		Type:       flowcore.WorkflowTypeSequence,
+		Type:       WorkflowTypeSequence,
 		Steps:      []*Step{{StepID: "shared", OperationRef: "op1"}},
 	}, {
 		WorkflowID: "main",
-		Type:       flowcore.WorkflowTypeSequence,
-		Steps:      []*Step{{StepID: "root", StepExecutionFields: flowcore.StepExecutionFields{Workflow: "shared"}}},
+		Type:       WorkflowTypeSequence,
+		Steps:      []*Step{{StepID: "root", StepExecutionFields: StepExecutionFields{Workflow: "shared"}}},
 	}}
 
 	err := doc.ValidateExecutable()
@@ -592,13 +591,13 @@ func TestDocumentValidateExecutableAllowsOutputsAndResults(t *testing.T) {
 	})
 	doc.Workflows = []*Workflow{{
 		WorkflowID: "main",
-		Type:       flowcore.WorkflowTypeSequence,
+		Type:       WorkflowTypeSequence,
 		Steps: []*Step{
 			{StepID: "fetch_step", OperationRef: "fetch"},
 			{
 				StepID: "joined_step",
-				Type:   flowcore.WorkflowTypeMerge,
-				StepExecutionFields: flowcore.RunnableExecutionFields{
+				Type:   WorkflowTypeMerge,
+				StepExecutionFields: RunnableExecutionFields{
 					DependsOn: []string{"fetch_step"},
 				},
 				Outputs: map[string]string{
@@ -609,7 +608,7 @@ func TestDocumentValidateExecutableAllowsOutputsAndResults(t *testing.T) {
 	}}
 	doc.Results = []*StructuralResult{{
 		Name:  "joined_result",
-		Kind:  flowcore.StructuralResultKindMerge,
+		Kind:  StructuralResultKindMerge,
 		From:  "main.joined_step",
 		Value: "$steps.joined_step.outputs.body",
 	}}
@@ -638,7 +637,7 @@ func TestOrchestratorExecutesRegexCriterion(t *testing.T) {
 
 	doc.Workflows = []*Workflow{{
 		WorkflowID: "main",
-		Type:       flowcore.WorkflowTypeSequence,
+		Type:       WorkflowTypeSequence,
 		Steps:      []*Step{{StepID: "fetch_step", OperationRef: "fetch"}},
 	}}
 	require.NoError(t, doc.Execute(context.Background()))
@@ -666,7 +665,7 @@ func TestOrchestratorExecutesJSONPathCriterion(t *testing.T) {
 
 	doc.Workflows = []*Workflow{{
 		WorkflowID: "main",
-		Type:       flowcore.WorkflowTypeSequence,
+		Type:       WorkflowTypeSequence,
 		Steps:      []*Step{{StepID: "fetch_step", OperationRef: "fetch"}},
 	}}
 	require.NoError(t, doc.Execute(context.Background()))
@@ -694,7 +693,7 @@ func TestOrchestratorExecutesXPathCriterion(t *testing.T) {
 
 	doc.Workflows = []*Workflow{{
 		WorkflowID: "main",
-		Type:       flowcore.WorkflowTypeSequence,
+		Type:       WorkflowTypeSequence,
 		Steps:      []*Step{{StepID: "fetch_step", OperationRef: "fetch"}},
 	}}
 	require.NoError(t, doc.Execute(context.Background()))
@@ -710,7 +709,7 @@ func TestOrchestratorCapturesOutputs(t *testing.T) {
 	})
 	doc.Workflows = []*Workflow{{
 		WorkflowID: "main",
-		Type:       flowcore.WorkflowTypeSequence,
+		Type:       WorkflowTypeSequence,
 		Steps: []*Step{{
 			StepID:       "fetch_step",
 			OperationRef: "fetch",
