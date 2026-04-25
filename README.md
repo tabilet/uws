@@ -6,6 +6,11 @@ UWS is similar in role to Arazzo, but it is a workflow overlay for OpenAPI-backe
 
 Non-OpenAPI runtimes such as command execution, function calls, file I/O, SSH, SQL, or LLM calls are extension-profile concerns represented with `x-*` fields, not UWS core service types. Operations without an OpenAPI binding are extension-owned and require `x-uws-operation-profile` to name the implementation profile that can execute them.
 
+## Protocol
+
+- Human-readable specification: [versions/1.0.0.md](versions/1.0.0.md)
+- JSON Schema: [uws.json](uws.json)
+
 ## Packages
 
 - `uws1` contains the UWS 1.x Go model, structural vocabulary, and structural validation.
@@ -28,17 +33,24 @@ Validation checks required root fields, OpenAPI operation bindings, extension-ow
 
 `uws.json` provides structural JSON Schema validation. Use the Go validator for semantic checks such as duplicate identifiers and reference integrity.
 
-## Conversion
+## Execution
 
-The `convert` package exposes JSON, YAML, and HCL helpers:
+UWS 1.0 defines a bound-runtime execution model. UWS core owns orchestration and structural execution semantics; the bound runtime owns leaf execution plus the evaluation services needed for expressions and iterative constructs.
 
-```go
-hclData, err := convert.JSONToHCL(jsonData)
-jsonData, err := convert.HCLToJSON(hclData)
-yamlData, err := convert.MarshalYAML(doc)
-```
+At a high level:
 
-`MarshalHCL` works on a deep copy and does not mutate the caller-owned document. HCL conversion preserves dynamic map keys such as `$ref` through reversible key rewriting. JSON and YAML helpers preserve `x-*` extensions through the JSON extension model; HCL conversion rejects documents with `x-*` extensions because extension maps are intentionally excluded from the HCL struct tags and would otherwise be lossy.
+- `Document.Execute(ctx)` executes the document through the orchestrator
+- `Document.DispatchTrigger(ctx, triggerID, output, payload)` dispatches a trigger event into the same execution model
+- `Document.ExecutionRecords()` exposes the accumulated execution snapshot
+- `Runtime` is responsible for leaf execution, expression evaluation, and item resolution
+
+Execution requires a bound runtime and a document that passes validation for execution. Trigger dispatch resolves outputs by label or decimal index and routes only to declared workflows or top-level entry-workflow steps.
+
+## Interchange
+
+The `convert` package provides JSON, YAML, and HCL helpers such as `JSONToHCL`, `HCLToJSON`, and `MarshalYAML`. `MarshalHCL` works on a deep copy and does not mutate the caller-owned document.
+
+HCL conversion preserves dynamic map keys such as `$ref` through reversible key rewriting. JSON and YAML preserve `x-*` extensions through the JSON extension model; HCL conversion rejects documents with `x-*` extensions because those fields would otherwise round-trip lossy.
 
 ## Development
 
