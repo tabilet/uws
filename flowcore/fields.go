@@ -72,9 +72,17 @@ type WorkflowExecutionFields struct {
 	Wait      string   `json:"wait,omitempty" yaml:"wait,omitempty" hcl:"wait,optional"`
 }
 
-// RunnableExecutionFields captures execution controls shared by runnable
-// constructs such as operations and nested steps.
-type RunnableExecutionFields struct {
+// OperationExecutionFields captures execution controls on leaf operations.
+type OperationExecutionFields struct {
+	DependsOn     []string `json:"dependsOn,omitempty" yaml:"dependsOn,omitempty" hcl:"dependsOn,optional"`
+	When          string   `json:"when,omitempty" yaml:"when,omitempty" hcl:"when,optional"`
+	ForEach       string   `json:"forEach,omitempty" yaml:"forEach,omitempty" hcl:"forEach,optional"`
+	Wait          string   `json:"wait,omitempty" yaml:"wait,omitempty" hcl:"wait,optional"`
+	ParallelGroup string   `json:"parallelGroup,omitempty" yaml:"parallelGroup,omitempty" hcl:"parallelGroup,optional"`
+}
+
+// StepExecutionFields captures execution controls on nested steps.
+type StepExecutionFields struct {
 	DependsOn     []string `json:"dependsOn,omitempty" yaml:"dependsOn,omitempty" hcl:"dependsOn,optional"`
 	When          string   `json:"when,omitempty" yaml:"when,omitempty" hcl:"when,optional"`
 	ForEach       string   `json:"forEach,omitempty" yaml:"forEach,omitempty" hcl:"forEach,optional"`
@@ -83,9 +91,10 @@ type RunnableExecutionFields struct {
 	ParallelGroup string   `json:"parallelGroup,omitempty" yaml:"parallelGroup,omitempty" hcl:"parallelGroup,optional"`
 }
 
-// StepExecutionFields is the compatibility name for runnable execution
-// controls on nested steps.
-type StepExecutionFields = RunnableExecutionFields
+// RunnableExecutionFields is the compatibility name for nested-step execution
+// controls. New code should use StepExecutionFields or OperationExecutionFields
+// depending on which UWS object is being modeled.
+type RunnableExecutionFields = StepExecutionFields
 
 // StructuralFields captures structural-control attributes shared by switch,
 // merge, and loop style nodes.

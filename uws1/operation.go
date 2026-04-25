@@ -18,7 +18,7 @@ type Operation struct {
 	Description         string         `json:"description,omitempty" yaml:"description,omitempty" hcl:"description,optional"`
 	Request             map[string]any `json:"request,omitempty" yaml:"request,omitempty" hcl:"request,optional"`
 
-	flowcore.RunnableExecutionFields
+	flowcore.OperationExecutionFields
 
 	// Success criteria and action handlers
 	SuccessCriteria []*Criterion     `json:"successCriteria,omitempty" yaml:"successCriteria,omitempty" hcl:"successCriterion,block"`
@@ -94,7 +94,7 @@ type operationAlias Operation
 var operationKnownFields = []string{
 	"operationId", "sourceDescription", "openapiOperationId", "openapiOperationRef",
 	"description", "request",
-	"dependsOn", "when", "forEach", "wait", "workflow", "parallelGroup",
+	"dependsOn", "when", "forEach", "wait", "parallelGroup",
 	"successCriteria", "onFailure", "onSuccess",
 	"outputs",
 }

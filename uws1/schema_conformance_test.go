@@ -34,6 +34,9 @@ type schemaDefRules struct {
 	enumProps []string
 	// patternProps lists property names that carry a regex `pattern`.
 	patternProps []string
+	// propertyNamePatternProps lists object-valued properties whose key names
+	// are constrained by a propertyNames.pattern rule.
+	propertyNamePatternProps []string
 }
 
 func schemaDefCoverage() map[string]schemaDefRules {
@@ -81,7 +84,9 @@ func schemaDefCoverage() map[string]schemaDefRules {
 			enumProps:    []string{"kind"},
 			patternProps: []string{"name", "from"},
 		},
-		"components-object": {},
+		"components-object": {
+			propertyNamePatternProps: []string{"variables"},
+		},
 		"criterion-object": {
 			required:  []string{"condition"},
 			enumProps: []string{"type"},
@@ -135,6 +140,8 @@ func TestSchemaConformance_DrivenRulesAreDeclared(t *testing.T) {
 				"$def %q enum/const properties mismatch", name)
 			assert.ElementsMatch(t, want.patternProps, got.patternProps,
 				"$def %q pattern properties mismatch", name)
+			assert.ElementsMatch(t, want.propertyNamePatternProps, got.propertyNamePatternProps,
+				"$def %q propertyNames pattern mismatch", name)
 		})
 	}
 }
@@ -286,6 +293,34 @@ func TestSchemaConformance_JSONSchemaValidator(t *testing.T) {
 		"workflows": [{"workflowId": "main", "type": "sequence", "steps": [{"stepId": "fetch.user", "operationRef": "fetch"}]}]
 	}`))
 	require.Error(t, schema.Validate(dottedStepID))
+
+	badComponentVariableKey := decodeJSONValue(t, []byte(`{
+		"uws": "1.0.0",
+		"info": {"title": "Bad Components", "version": "1.0.0"},
+		"operations": [{"operationId": "build_email", "x-uws-operation-profile": "udon"}],
+		"components": {"variables": {"bad name": true}}
+	}`))
+	require.Error(t, schema.Validate(badComponentVariableKey))
+
+	operationWorkflow := decodeJSONValue(t, []byte(`{
+		"uws": "1.0.0",
+		"info": {"title": "Bad Operation", "version": "1.0.0"},
+		"sourceDescriptions": [{"name": "api", "url": "./openapi.yaml", "type": "openapi"}],
+		"operations": [
+			{"operationId": "fetch", "sourceDescription": "api", "openapiOperationId": "getData", "workflow": "child"}
+		]
+	}`))
+	require.Error(t, schema.Validate(operationWorkflow))
+
+	paramSchemaRef := decodeJSONValue(t, []byte(`{
+		"uws": "1.0.0",
+		"info": {"title": "With Ref", "version": "1.0.0"},
+		"operations": [{"operationId": "build_email", "x-uws-operation-profile": "udon"}],
+		"workflows": [
+			{"workflowId": "main", "type": "sequence", "inputs": {"$ref": "#/$defs/shared"}}
+		]
+	}`))
+	require.NoError(t, schema.Validate(paramSchemaRef))
 }
 
 func compileUWSSchema(t *testing.T) *jsonschema.Schema {
@@ -309,8 +344,9 @@ func decodeJSONValue(t *testing.T, data []byte) any {
 }
 
 // collectSchemaRules walks uws.json and extracts, per $def plus the root,
-// every `required`, enum-bearing, and pattern-bearing property. Meta defs
-// (specification-extensions, structural-type-constraints) are skipped.
+// every `required`, enum-bearing, pattern-bearing, and propertyNames-pattern
+// property. Meta defs (specification-extensions, structural-type-constraints)
+// are skipped.
 func collectSchemaRules(t *testing.T, schema map[string]any) map[string]schemaDefRules {
 	t.Helper()
 	rules := map[string]schemaDefRules{
@@ -354,6 +390,9 @@ func extractRules(obj map[string]any) schemaDefRules {
 		if hasPattern(p) {
 			out.patternProps = append(out.patternProps, name)
 		}
+		if hasPropertyNamePattern(p) {
+			out.propertyNamePatternProps = append(out.propertyNamePatternProps, name)
+		}
 	}
 	return out
 }
@@ -371,6 +410,15 @@ func hasPattern(p map[string]any) bool {
 		}
 	}
 	return false
+}
+
+func hasPropertyNamePattern(p map[string]any) bool {
+	propertyNames, ok := p["propertyNames"].(map[string]any)
+	if !ok {
+		return false
+	}
+	_, ok = propertyNames["pattern"]
+	return ok
 }
 
 func sortedKeys(m map[string]schemaDefRules) []string {

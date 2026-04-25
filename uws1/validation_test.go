@@ -967,7 +967,7 @@ func TestValidate_DependencyCycle_TwoNodes(t *testing.T) {
 			OperationID:        "a",
 			SourceDescription:  "api",
 			OpenAPIOperationID: "getA",
-			RunnableExecutionFields: flowcore.RunnableExecutionFields{
+			OperationExecutionFields: flowcore.OperationExecutionFields{
 				DependsOn: []string{"b"},
 			},
 		},
@@ -975,7 +975,7 @@ func TestValidate_DependencyCycle_TwoNodes(t *testing.T) {
 			OperationID:        "b",
 			SourceDescription:  "api",
 			OpenAPIOperationID: "getB",
-			RunnableExecutionFields: flowcore.RunnableExecutionFields{
+			OperationExecutionFields: flowcore.OperationExecutionFields{
 				DependsOn: []string{"a"},
 			},
 		},
@@ -997,9 +997,9 @@ func TestValidate_DependencyCycle_SelfLoop(t *testing.T) {
 func TestValidate_DependencyCycle_ThreeNodes(t *testing.T) {
 	doc := validDocument()
 	doc.Operations = []*Operation{
-		{OperationID: "a", SourceDescription: "api", OpenAPIOperationID: "getA", RunnableExecutionFields: flowcore.RunnableExecutionFields{DependsOn: []string{"b"}}},
-		{OperationID: "b", SourceDescription: "api", OpenAPIOperationID: "getB", RunnableExecutionFields: flowcore.RunnableExecutionFields{DependsOn: []string{"c"}}},
-		{OperationID: "c", SourceDescription: "api", OpenAPIOperationID: "getC", RunnableExecutionFields: flowcore.RunnableExecutionFields{DependsOn: []string{"a"}}},
+		{OperationID: "a", SourceDescription: "api", OpenAPIOperationID: "getA", OperationExecutionFields: flowcore.OperationExecutionFields{DependsOn: []string{"b"}}},
+		{OperationID: "b", SourceDescription: "api", OpenAPIOperationID: "getB", OperationExecutionFields: flowcore.OperationExecutionFields{DependsOn: []string{"c"}}},
+		{OperationID: "c", SourceDescription: "api", OpenAPIOperationID: "getC", OperationExecutionFields: flowcore.OperationExecutionFields{DependsOn: []string{"a"}}},
 	}
 
 	err := doc.Validate()
@@ -1014,7 +1014,7 @@ func TestValidate_DependencyCycle_ThroughParallelGroup(t *testing.T) {
 			OperationID:        "a",
 			SourceDescription:  "api",
 			OpenAPIOperationID: "getA",
-			RunnableExecutionFields: flowcore.RunnableExecutionFields{
+			OperationExecutionFields: flowcore.OperationExecutionFields{
 				ParallelGroup: "fanout",
 				DependsOn:     []string{"b"},
 			},
@@ -1023,7 +1023,7 @@ func TestValidate_DependencyCycle_ThroughParallelGroup(t *testing.T) {
 			OperationID:        "b",
 			SourceDescription:  "api",
 			OpenAPIOperationID: "getB",
-			RunnableExecutionFields: flowcore.RunnableExecutionFields{
+			OperationExecutionFields: flowcore.OperationExecutionFields{
 				DependsOn: []string{"fanout"},
 			},
 		},
@@ -1037,8 +1037,8 @@ func TestValidate_DependencyCycle_AcyclicIsFine(t *testing.T) {
 	doc := validDocument()
 	doc.Operations = []*Operation{
 		{OperationID: "a", SourceDescription: "api", OpenAPIOperationID: "getA"},
-		{OperationID: "b", SourceDescription: "api", OpenAPIOperationID: "getB", RunnableExecutionFields: flowcore.RunnableExecutionFields{DependsOn: []string{"a"}}},
-		{OperationID: "c", SourceDescription: "api", OpenAPIOperationID: "getC", RunnableExecutionFields: flowcore.RunnableExecutionFields{DependsOn: []string{"a", "b"}}},
+		{OperationID: "b", SourceDescription: "api", OpenAPIOperationID: "getB", OperationExecutionFields: flowcore.OperationExecutionFields{DependsOn: []string{"a"}}},
+		{OperationID: "c", SourceDescription: "api", OpenAPIOperationID: "getC", OperationExecutionFields: flowcore.OperationExecutionFields{DependsOn: []string{"a", "b"}}},
 	}
 
 	assert.NoError(t, doc.Validate())
@@ -1047,8 +1047,8 @@ func TestValidate_DependencyCycle_AcyclicIsFine(t *testing.T) {
 func TestValidate_DependencyCycle_ReportedOnce(t *testing.T) {
 	doc := validDocument()
 	doc.Operations = []*Operation{
-		{OperationID: "a", SourceDescription: "api", OpenAPIOperationID: "getA", RunnableExecutionFields: flowcore.RunnableExecutionFields{DependsOn: []string{"b"}}},
-		{OperationID: "b", SourceDescription: "api", OpenAPIOperationID: "getB", RunnableExecutionFields: flowcore.RunnableExecutionFields{DependsOn: []string{"a"}}},
+		{OperationID: "a", SourceDescription: "api", OpenAPIOperationID: "getA", OperationExecutionFields: flowcore.OperationExecutionFields{DependsOn: []string{"b"}}},
+		{OperationID: "b", SourceDescription: "api", OpenAPIOperationID: "getB", OperationExecutionFields: flowcore.OperationExecutionFields{DependsOn: []string{"a"}}},
 	}
 
 	result := doc.ValidateResult()
@@ -1079,6 +1079,17 @@ func TestValidate_ParamSchema_RequiredMustExistInProperties(t *testing.T) {
 	err := doc.Validate()
 	assert.ErrorContains(t, err, `workflows[0].inputs.required[0]`)
 	assert.ErrorContains(t, err, `references unknown property "missing"`)
+}
+
+func TestOperationRejectsWorkflowField(t *testing.T) {
+	var op Operation
+	err := json.Unmarshal([]byte(`{
+		"operationId":"op",
+		"sourceDescription":"api",
+		"openapiOperationId":"getOp",
+		"workflow":"child"
+	}`), &op)
+	assert.ErrorContains(t, err, "not defined by UWS core")
 }
 
 func TestValidate_ParamSchema_DuplicateRequired(t *testing.T) {

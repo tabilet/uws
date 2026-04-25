@@ -109,8 +109,8 @@ func TestOrchestratorSkipsWhenFalse(t *testing.T) {
 
 func TestOrchestratorParallelGroupDependencyBarrier(t *testing.T) {
 	doc := testDocument(
-		&Operation{OperationID: "op1", RunnableExecutionFields: flowcore.RunnableExecutionFields{ParallelGroup: "grp"}},
-		&Operation{OperationID: "op2", RunnableExecutionFields: flowcore.RunnableExecutionFields{ParallelGroup: "grp"}},
+		&Operation{OperationID: "op1", OperationExecutionFields: flowcore.OperationExecutionFields{ParallelGroup: "grp"}},
+		&Operation{OperationID: "op2", OperationExecutionFields: flowcore.OperationExecutionFields{ParallelGroup: "grp"}},
 		&Operation{OperationID: "op3"},
 	)
 	doc.Workflows = []*Workflow{{
@@ -408,7 +408,7 @@ func TestDocumentDispatchTriggerRejectsUnknownTarget(t *testing.T) {
 func TestOrchestratorForEachAggregatesOutputsAndResults(t *testing.T) {
 	doc := testDocument(&Operation{
 		OperationID: "op1",
-		RunnableExecutionFields: flowcore.RunnableExecutionFields{
+		OperationExecutionFields: flowcore.OperationExecutionFields{
 			ForEach: "items",
 		},
 		Outputs: map[string]string{

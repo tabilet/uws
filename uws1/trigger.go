@@ -53,7 +53,7 @@ func (t Trigger) MarshalJSON() ([]byte, error) {
 	return marshalWithExtensions(&alias, t.Extensions)
 }
 
-// TriggerRoute maps a trigger output to downstream operations.
+// TriggerRoute maps a trigger output to top-level step or workflow targets.
 type TriggerRoute struct {
 	flowcore.TriggerRouteFields
 	Extensions map[string]any `json:"-" yaml:"-" hcl:"-"`
