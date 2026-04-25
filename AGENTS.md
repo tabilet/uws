@@ -29,16 +29,15 @@ func (d *Document) Execute() error {
 The specialized engine binds its runtime implementation to the document before execution.
 
 ```go
-func (s *Spider) ExecuteRuntimePlan(ctx context.Context, plan *runtimeplan.Plan) error {
-    doc := plan.Document()
-    doc.SetRuntime(s)
+func ExecuteWithRuntime(ctx context.Context, doc *uws1.Document, rt Runtime) error {
+    doc.SetRuntime(rt)
     return doc.Execute(ctx)
 }
 ```
 
 ## Benefits for UWS and Udon
 - **Single Source of Truth:** Structural orchestration logic (loops, switches, parallel, merge, await) is defined once in `uws1`.
-- **Decoupling:** `uws1` has zero knowledge of `udon`'s specific runtimes (SSH, HTTP, etc.).
+- **Decoupling:** `uws1` has zero knowledge of any concrete engine's specific runtimes (SSH, HTTP, etc.).
 - **Consistency:** All UWS-compliant executors share the same core orchestration behavior and bind their own runtime implementations at execution time.
 
 ## References
