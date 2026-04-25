@@ -14,6 +14,9 @@ func (d *Document) ValidateExecutable() error {
 	if err := validateExecutableOperations(d.Operations); err != nil {
 		return err
 	}
+	if _, err := executableEntryWorkflow(d); err != nil {
+		return err
+	}
 	for _, wf := range d.Workflows {
 		if wf == nil {
 			continue
@@ -195,10 +198,8 @@ func validateExecutableSteps(steps []*Step) error {
 		if step == nil {
 			continue
 		}
-		if step.OperationRef != "" && step.Workflow != "" {
-			return fmt.Errorf("uws1: step %q cannot specify both operationRef and workflow", step.StepID)
-		}
-		if step.Workflow != "" && (step.Type != "" || len(step.Steps) > 0 || len(step.Cases) > 0 || len(step.Default) > 0) {
+		isWorkflowReference := step.Workflow != "" && step.OperationRef == "" && step.Type == ""
+		if isWorkflowReference && (len(step.Steps) > 0 || len(step.Cases) > 0 || len(step.Default) > 0) {
 			return fmt.Errorf("uws1: step %q workflow references cannot also declare structural content", step.StepID)
 		}
 		if err := validateExecutableSteps(step.Steps); err != nil {

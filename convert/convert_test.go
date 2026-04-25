@@ -207,6 +207,32 @@ x-root: yaml
 	}
 }
 
+func TestUnmarshalYAMLRejectsExplicitEmptyCriterionType(t *testing.T) {
+	yamlData := []byte(`
+uws: 1.0.0
+info:
+  title: Criterion
+  version: 1.0.0
+sourceDescriptions:
+  - name: api
+    url: ./openapi.yaml
+    type: openapi
+operations:
+  - operationId: op1
+    sourceDescription: api
+    openapiOperationId: getOp
+    successCriteria:
+      - condition: "true"
+        type: ""
+`)
+
+	var doc uws1.Document
+	err := UnmarshalYAML(yamlData, &doc)
+	if err == nil || !strings.Contains(err.Error(), "criterion.type must be omitted") {
+		t.Fatalf("Expected explicit empty criterion.type error, got %v", err)
+	}
+}
+
 func TestHCLConversionRejectsExtensions(t *testing.T) {
 	jsonData := []byte(`{
 		"uws": "1.0.0",
@@ -232,6 +258,70 @@ func TestHCLConversionRejectsExtensions(t *testing.T) {
 	_, err = MarshalHCL(&doc)
 	if err == nil || !strings.Contains(err.Error(), "cannot preserve extension profiles") {
 		t.Fatalf("Expected extension-preservation error, got %v", err)
+	}
+}
+
+func TestHCLConversionRejectsDynamicExtensionKeys(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "document variables",
+			body: `"variables": {"x-env": "prod"},`,
+			want: "variables.x-env contains x-* extensions",
+		},
+		{
+			name: "operation request",
+			body: `"operations": [{"operationId": "op1", "sourceDescription": "api", "openapiOperationId": "getOp", "request": {"header": {"x-trace": "abc"}}}],`,
+			want: "operations[0].request.header.x-trace contains x-* extensions",
+		},
+		{
+			name: "step body",
+			body: `"workflows": [{"workflowId": "wf", "type": "sequence", "steps": [{"stepId": "s", "operationRef": "op1", "body": {"x-meta": true}}]}],`,
+			want: "workflows[0].steps[0].body.x-meta contains x-* extensions",
+		},
+		{
+			name: "case body",
+			body: `"workflows": [{"workflowId": "wf", "type": "switch", "cases": [{"name": "matched", "body": {"x-case": true}}]}],`,
+			want: "workflows[0].cases[0].body.x-case contains x-* extensions",
+		},
+		{
+			name: "trigger options",
+			body: `"triggers": [{"triggerId": "webhook", "options": {"x-defer": true}}],`,
+			want: "triggers[0].options.x-defer contains x-* extensions",
+		},
+		{
+			name: "components variables",
+			body: `"components": {"variables": {"x-component": true}},`,
+			want: "components.variables.x-component contains x-* extensions",
+		},
+		{
+			name: "param schema properties",
+			body: `"workflows": [{"workflowId": "wf", "type": "sequence", "inputs": {"type": "object", "properties": {"x-field": {"type": "string"}}}}],`,
+			want: "workflows[0].inputs.properties.x-field contains x-* extensions",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			operations := `"operations": [{"operationId": "op1", "sourceDescription": "api", "openapiOperationId": "getOp"}],`
+			if strings.Contains(tc.body, `"operations":`) {
+				operations = ""
+			}
+			jsonData := []byte(`{
+				"uws": "1.0.0",
+				"info": {"title": "Dynamic Extensions", "version": "1.0.0"},
+				"sourceDescriptions": [{"name": "api", "url": "./openapi.yaml", "type": "openapi"}],
+				` + operations + tc.body + `
+				"results": []
+			}`)
+			_, err := JSONToHCL(jsonData)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("Expected %q, got %v", tc.want, err)
+			}
+		})
 	}
 }
 

@@ -2,7 +2,6 @@ package uws1
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -31,7 +30,9 @@ type Document struct {
 	Components *Components         `json:"components,omitempty" yaml:"components,omitempty" hcl:"components,block"`
 	Extensions map[string]any      `json:"-" yaml:"-" hcl:"-"`
 
-	// Runtime is the specialized executor bound to this document.
+	// Runtime is the specialized executor bound to this document. Runtime
+	// rebinding and execution-record reads are not synchronized; callers that
+	// share a document across goroutines must provide their own synchronization.
 	Runtime Runtime `json:"-" yaml:"-" hcl:"-"`
 	// ExecutionOptions are executor-owned knobs and are not part of the UWS wire
 	// contract.
@@ -40,12 +41,16 @@ type Document struct {
 	lastExecutionRecords map[string]ExecutionRecord
 }
 
-// SetRuntime binds a specialized runtime to the document.
+// SetRuntime binds a specialized runtime to the document. It is not safe to
+// call concurrently with Execute, DispatchTrigger, or ExecutionRecords unless
+// the caller synchronizes access to the document.
 func (d *Document) SetRuntime(r Runtime) {
 	d.Runtime = r
 }
 
-// Execute executes the document using the bound runtime.
+// Execute executes the document using the bound runtime. It mutates execution
+// state and is not safe to run concurrently on the same document unless the
+// caller synchronizes access.
 func (d *Document) Execute(ctx context.Context) error {
 	if d.Runtime == nil {
 		return fmt.Errorf("uws1: document execution requires a bound runtime")
@@ -64,7 +69,9 @@ func (d *Document) Execute(ctx context.Context) error {
 }
 
 // DispatchTrigger routes one trigger event into the document's executable
-// targets using the bound runtime.
+// targets using the bound runtime. It mutates execution state and is not safe
+// to run concurrently on the same document unless the caller synchronizes
+// access.
 func (d *Document) DispatchTrigger(ctx context.Context, triggerID string, output int, payload any) error {
 	if d.Runtime == nil {
 		return fmt.Errorf("uws1: trigger dispatch requires a bound runtime")
@@ -91,22 +98,11 @@ var documentKnownFields = []string{
 
 func (d *Document) UnmarshalJSON(data []byte) error {
 	var alias documentAlias
-	if err := json.Unmarshal(data, &alias); err != nil {
-		return fmt.Errorf("unmarshaling document: %w", err)
-	}
-	*d = Document(alias)
-
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("unmarshaling document extensions: %w", err)
-	}
-	if err := rejectUnknownFields(raw, documentKnownFields, "document"); err != nil {
+	_, extensions, err := unmarshalCoreWithExtensions(data, "document", documentKnownFields, &alias)
+	if err != nil {
 		return err
 	}
-	extensions, err := extractExtensions(raw, documentKnownFields)
-	if err != nil {
-		return fmt.Errorf("unmarshaling document extensions: %w", err)
-	}
+	*d = Document(alias)
 	d.Extensions = extensions
 	return nil
 }
@@ -133,22 +129,11 @@ var infoKnownFields = []string{
 
 func (i *Info) UnmarshalJSON(data []byte) error {
 	var alias infoAlias
-	if err := json.Unmarshal(data, &alias); err != nil {
-		return fmt.Errorf("unmarshaling info: %w", err)
-	}
-	*i = Info(alias)
-
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("unmarshaling info extensions: %w", err)
-	}
-	if err := rejectUnknownFields(raw, infoKnownFields, "info"); err != nil {
+	_, extensions, err := unmarshalCoreWithExtensions(data, "info", infoKnownFields, &alias)
+	if err != nil {
 		return err
 	}
-	extensions, err := extractExtensions(raw, infoKnownFields)
-	if err != nil {
-		return fmt.Errorf("unmarshaling info extensions: %w", err)
-	}
+	*i = Info(alias)
 	i.Extensions = extensions
 	return nil
 }

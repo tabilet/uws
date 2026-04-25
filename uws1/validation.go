@@ -62,6 +62,7 @@ type validationIndex struct {
 	workflowTypes        map[string]string
 	workflowSteps        map[string]map[string]string
 	entryWorkflowID      string
+	hasEntryWorkflow     bool
 	entryWorkflowSteps   map[string]bool
 	steps                map[string]bool
 	triggers             map[string]bool
@@ -115,12 +116,32 @@ func (d *Document) ValidateResult() *ValidationResult {
 	if len(d.Operations) == 0 {
 		result.addError("operations", "at least one operation is required")
 	}
+	d.validateTopLevelSourceDescriptions(result)
 
 	idx := newValidationIndex()
 	d.collectDocumentIDs(idx, result)
 	d.validateDocumentReferences(idx, result)
 	detectDependencyCycles(idx, result)
 	return result
+}
+
+// validateTopLevelSourceDescriptions mirrors the schema's allOf rule that
+// requires sourceDescriptions whenever any operation declares
+// sourceDescription. Without this check the per-operation "references unknown
+// sourceDescription" diagnostic still fires but points at the wrong field.
+func (d *Document) validateTopLevelSourceDescriptions(result *ValidationResult) {
+	if len(d.SourceDescriptions) > 0 {
+		return
+	}
+	for i, op := range d.Operations {
+		if op == nil {
+			continue
+		}
+		if op.SourceDescription != "" {
+			result.addError("sourceDescriptions", fmt.Sprintf("is required when any operation declares sourceDescription; operations[%d].sourceDescription is %q", i, op.SourceDescription))
+			return
+		}
+	}
 }
 
 func newValidationIndex() *validationIndex {
@@ -140,8 +161,9 @@ func newValidationIndex() *validationIndex {
 }
 
 func (d *Document) collectDocumentIDs(idx *validationIndex, result *ValidationResult) {
-	if entry, err := executableEntryWorkflow(d); err == nil && entry != nil {
+	if entry := semanticEntryWorkflow(d); entry != nil {
 		idx.entryWorkflowID = entry.WorkflowID
+		idx.hasEntryWorkflow = true
 		for _, step := range entry.Steps {
 			if step != nil && step.StepID != "" {
 				idx.entryWorkflowSteps[step.StepID] = true
@@ -230,6 +252,28 @@ func (d *Document) collectDocumentIDs(idx *validationIndex, result *ValidationRe
 			idx.triggers[trigger.TriggerID] = true
 		}
 	}
+}
+
+func semanticEntryWorkflow(d *Document) *Workflow {
+	if d == nil {
+		return nil
+	}
+	for _, wf := range d.Workflows {
+		if wf != nil && wf.WorkflowID == "main" {
+			return wf
+		}
+	}
+	var only *Workflow
+	for _, wf := range d.Workflows {
+		if wf == nil {
+			continue
+		}
+		if only != nil {
+			return nil
+		}
+		only = wf
+	}
+	return only
 }
 
 // collectWorkflowStepTypes populates the workflow→stepID→structural-type index
@@ -390,6 +434,8 @@ func (op *Operation) validate(path string, idx *validationIndex, result *Validat
 }
 
 func validateRequest(request map[string]any, path string, result *ValidationResult) {
+	// Request sections path/query/header/cookie are binding maps. Body is
+	// intentionally unconstrained because payload shape is operation-specific.
 	for key, value := range request {
 		if strings.HasPrefix(key, "x-") {
 			continue
@@ -516,13 +562,11 @@ func (s *Step) validate(path string, idx *validationIndex, result *ValidationRes
 	if s.OperationRef != "" && !idx.operations[s.OperationRef] {
 		result.addError(path+".operationRef", fmt.Sprintf("references unknown operationId %q", s.OperationRef))
 	}
-	if s.Workflow != "" && !idx.workflows[s.Workflow] {
+	isWorkflowReference := s.Workflow != "" && s.OperationRef == "" && s.Type == ""
+	if isWorkflowReference && !idx.workflows[s.Workflow] {
 		result.addError(path+".workflow", fmt.Sprintf("references unknown workflowId %q", s.Workflow))
 	}
-	if s.OperationRef != "" && s.Workflow != "" {
-		result.addError(path, "cannot specify both operationRef and workflow")
-	}
-	if s.Workflow != "" && (s.Type != "" || len(s.Steps) > 0 || len(s.Cases) > 0 || len(s.Default) > 0) {
+	if isWorkflowReference && (len(s.Steps) > 0 || len(s.Cases) > 0 || len(s.Default) > 0) {
 		result.addError(path, "workflow-reference steps cannot also declare structural type or nested child blocks")
 	}
 	validateDependencyList(s.DependsOn, path+".dependsOn", idx, result)
@@ -591,7 +635,9 @@ func (r *TriggerRoute) validate(path string, outputList []string, outputs map[st
 	for i, target := range r.To {
 		if target == "" {
 			result.addError(fmt.Sprintf("%s.to[%d]", path, i), "is required")
-		} else if !idx.workflows[target] && !idx.entryWorkflowSteps[target] {
+		} else if idx.workflows[target] {
+			continue
+		} else if idx.hasEntryWorkflow && !idx.entryWorkflowSteps[target] {
 			result.addError(fmt.Sprintf("%s.to[%d]", path, i), fmt.Sprintf("references unknown top-level stepId or workflowId %q", target))
 		}
 	}
@@ -628,8 +674,8 @@ func (r *StructuralResult) validate(path string, idx *validationIndex, seenNames
 		result.addError(path+".from", "is required")
 		return
 	}
-	workflowID, stepID, _ := strings.Cut(r.From, ".")
-	if workflowID == "" {
+	workflowID, stepID, hasStep := strings.Cut(r.From, ".")
+	if workflowID == "" || !constructIDPattern.MatchString(workflowID) || (hasStep && (stepID == "" || !constructIDPattern.MatchString(stepID))) || strings.Contains(stepID, ".") {
 		result.addError(path+".from", fmt.Sprintf("%q is not a valid workflowId or workflowId.stepId", r.From))
 		return
 	}
@@ -638,7 +684,7 @@ func (r *StructuralResult) validate(path string, idx *validationIndex, seenNames
 		return
 	}
 	var resolvedType string
-	if stepID == "" {
+	if !hasStep {
 		resolvedType = idx.workflowTypes[workflowID]
 	} else {
 		stepTypes, ok := idx.workflowSteps[workflowID]
@@ -699,15 +745,7 @@ func validateFailureActions(actions []*FailureAction, path string, idx *validati
 			result.addError(actionPath, "is nil")
 			continue
 		}
-		if a.Name == "" {
-			result.addError(actionPath+".name", "is required")
-		}
-		if a.Type == "" {
-			result.addError(actionPath+".type", "is required")
-		} else if !validFailureActionTypes[a.Type] {
-			result.addError(actionPath+".type", fmt.Sprintf("%q is not valid (must be end, goto, or retry)", a.Type))
-		}
-		validateGotoTarget(a.Type, a.WorkflowID, a.StepID, actionPath, idx, result)
+		validateCommonAction(a.Name, a.Type, a.WorkflowID, a.StepID, actionPath, validFailureActionTypes, "end, goto, or retry", idx, result)
 		if a.Type == "retry" && a.RetryLimit <= 0 {
 			result.addError(actionPath, "retry requires retryLimit > 0")
 		}
@@ -729,21 +767,28 @@ func validateSuccessActions(actions []*SuccessAction, path string, idx *validati
 			result.addError(actionPath, "is nil")
 			continue
 		}
-		if a.Name == "" {
-			result.addError(actionPath+".name", "is required")
-		}
-		if a.Type == "" {
-			result.addError(actionPath+".type", "is required")
-		} else if !validSuccessActionTypes[a.Type] {
-			result.addError(actionPath+".type", fmt.Sprintf("%q is not valid (must be end or goto)", a.Type))
-		}
-		validateGotoTarget(a.Type, a.WorkflowID, a.StepID, actionPath, idx, result)
+		validateCommonAction(a.Name, a.Type, a.WorkflowID, a.StepID, actionPath, validSuccessActionTypes, "end or goto", idx, result)
 		validateCriteria(a.Criteria, actionPath+".criteria", result)
 	}
 }
 
+func validateCommonAction(name, actionType, workflowID, stepID, path string, validTypes map[string]bool, typeList string, idx *validationIndex, result *ValidationResult) {
+	if name == "" {
+		result.addError(path+".name", "is required")
+	}
+	if actionType == "" {
+		result.addError(path+".type", "is required")
+	} else if !validTypes[actionType] {
+		result.addError(path+".type", fmt.Sprintf("%q is not valid (must be %s)", actionType, typeList))
+	}
+	validateGotoTarget(actionType, workflowID, stepID, path, idx, result)
+}
+
 func validateGotoTarget(actionType, workflowID, stepID, path string, idx *validationIndex, result *ValidationResult) {
 	if actionType != "goto" {
+		if workflowID != "" || stepID != "" {
+			result.addError(path, "workflowId/stepId are only valid for goto actions")
+		}
 		return
 	}
 	if workflowID == "" && stepID == "" {
@@ -809,18 +854,41 @@ func detectDependencyCycles(idx *validationIndex, result *ValidationResult) {
 		return out
 	}
 
-	var stack []string
-	var visit func(node string)
-	visit = func(node string) {
-		color[node] = gray
-		stack = append(stack, node)
-		for _, nb := range neighbors(node) {
+	sources := make([]string, 0, len(idx.dependencies))
+	for k := range idx.dependencies {
+		sources = append(sources, k)
+	}
+	sort.Strings(sources)
+	for _, s := range sources {
+		if color[s] != white {
+			continue
+		}
+		type frame struct {
+			node      string
+			neighbors []string
+			next      int
+		}
+		stack := []frame{{node: s, neighbors: neighbors(s)}}
+		path := []string{s}
+		color[s] = gray
+		for len(stack) > 0 {
+			top := &stack[len(stack)-1]
+			if top.next >= len(top.neighbors) {
+				color[top.node] = black
+				stack = stack[:len(stack)-1]
+				path = path[:len(path)-1]
+				continue
+			}
+			nb := top.neighbors[top.next]
+			top.next++
 			switch color[nb] {
 			case white:
-				visit(nb)
+				color[nb] = gray
+				stack = append(stack, frame{node: nb, neighbors: neighbors(nb)})
+				path = append(path, nb)
 			case gray:
 				start := -1
-				for i, n := range stack {
+				for i, n := range path {
 					if n == nb {
 						start = i
 						break
@@ -829,7 +897,7 @@ func detectDependencyCycles(idx *validationIndex, result *ValidationResult) {
 				if start < 0 {
 					continue
 				}
-				cycle := append([]string(nil), stack[start:]...)
+				cycle := append([]string(nil), path[start:]...)
 				key := canonicalCycleKey(cycle)
 				if seen[key] {
 					continue
@@ -838,19 +906,6 @@ func detectDependencyCycles(idx *validationIndex, result *ValidationResult) {
 				cycle = append(cycle, nb)
 				result.addError("dependsOn", fmt.Sprintf("cycle detected: %s", strings.Join(cycle, " -> ")))
 			}
-		}
-		stack = stack[:len(stack)-1]
-		color[node] = black
-	}
-
-	sources := make([]string, 0, len(idx.dependencies))
-	for k := range idx.dependencies {
-		sources = append(sources, k)
-	}
-	sort.Strings(sources)
-	for _, s := range sources {
-		if color[s] == white {
-			visit(s)
 		}
 	}
 }

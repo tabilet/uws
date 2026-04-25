@@ -243,7 +243,7 @@ func TestRoundTripRichDocument(t *testing.T) {
 				OpenAPIOperationID: "getOp",
 				Request: map[string]any{
 					"query":  map[string]any{"limit": float64(10)},
-					"header": map[string]any{"x-trace": "abc"},
+					"header": map[string]any{"trace": "abc"},
 					"body":   map[string]any{"name": "Buddy"},
 				},
 				SuccessCriteria: []*uws1.Criterion{

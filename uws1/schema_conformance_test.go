@@ -2,6 +2,7 @@ package uws1
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"sort"
 	"testing"
@@ -199,6 +200,20 @@ func TestSchemaConformance_JSONSchemaValidator(t *testing.T) {
 	sample := decodeJSONValue(t, sampleData)
 	require.NoError(t, schema.Validate(sample))
 
+	duplicateOperationID := []byte(`{
+		"uws": "1.0.0",
+		"info": {"title": "Duplicate IDs", "version": "1.0.0"},
+		"sourceDescriptions": [{"name": "api", "url": "./openapi.yaml", "type": "openapi"}],
+		"operations": [
+			{"operationId": "fetch", "sourceDescription": "api", "openapiOperationId": "getData"},
+			{"operationId": "fetch", "sourceDescription": "api", "openapiOperationRef": "#/paths/~1data/get"}
+		]
+	}`)
+	require.NoError(t, schema.Validate(decodeJSONValue(t, duplicateOperationID)))
+	var duplicateDoc Document
+	require.NoError(t, json.Unmarshal(duplicateOperationID, &duplicateDoc))
+	require.ErrorContains(t, duplicateDoc.Validate(), `duplicate operationId "fetch"`)
+
 	extensionOnly := decodeJSONValue(t, []byte(`{
 		"uws": "1.0.0",
 		"info": {"title": "Extension", "version": "1.0.0"},
@@ -251,6 +266,18 @@ func TestSchemaConformance_JSONSchemaValidator(t *testing.T) {
 		]
 	}`))
 	require.Error(t, schema.Validate(legacyServiceType))
+
+	// Schema's top-level allOf requires sourceDescriptions whenever any
+	// operation declares sourceDescription. Mirror the rule the Go validator
+	// enforces in (*Document).validateTopLevelSourceDescriptions.
+	missingTopLevelSources := decodeJSONValue(t, []byte(`{
+		"uws": "1.0.0",
+		"info": {"title": "Missing Sources", "version": "1.0.0"},
+		"operations": [
+			{"operationId": "fetch", "sourceDescription": "api", "openapiOperationId": "getData"}
+		]
+	}`))
+	require.Error(t, schema.Validate(missingTopLevelSources))
 
 	badRequest := decodeJSONValue(t, []byte(`{
 		"uws": "1.0.0",

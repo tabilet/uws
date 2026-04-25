@@ -1,8 +1,6 @@
 package uws1
 
 import (
-	"encoding/json"
-	"fmt"
 	"regexp"
 )
 
@@ -31,22 +29,11 @@ var sourceDescriptionKnownFields = []string{
 
 func (s *SourceDescription) UnmarshalJSON(data []byte) error {
 	var alias sourceDescriptionAlias
-	if err := json.Unmarshal(data, &alias); err != nil {
-		return fmt.Errorf("unmarshaling sourceDescription: %w", err)
-	}
-	*s = SourceDescription(alias)
-
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("unmarshaling sourceDescription extensions: %w", err)
-	}
-	if err := rejectUnknownFields(raw, sourceDescriptionKnownFields, "sourceDescription"); err != nil {
+	_, extensions, err := unmarshalCoreWithExtensions(data, "sourceDescription", sourceDescriptionKnownFields, &alias)
+	if err != nil {
 		return err
 	}
-	extensions, err := extractExtensions(raw, sourceDescriptionKnownFields)
-	if err != nil {
-		return fmt.Errorf("unmarshaling sourceDescription extensions: %w", err)
-	}
+	*s = SourceDescription(alias)
 	s.Extensions = extensions
 	return nil
 }

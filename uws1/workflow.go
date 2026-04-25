@@ -2,7 +2,6 @@ package uws1
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 )
 
@@ -51,22 +50,11 @@ var workflowKnownFields = []string{
 
 func (w *Workflow) UnmarshalJSON(data []byte) error {
 	var alias workflowAlias
-	if err := json.Unmarshal(data, &alias); err != nil {
-		return fmt.Errorf("unmarshaling workflow: %w", err)
-	}
-	*w = Workflow(alias)
-
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("unmarshaling workflow extensions: %w", err)
-	}
-	if err := rejectUnknownFields(raw, workflowKnownFields, "workflow"); err != nil {
+	_, extensions, err := unmarshalCoreWithExtensions(data, "workflow", workflowKnownFields, &alias)
+	if err != nil {
 		return err
 	}
-	extensions, err := extractExtensions(raw, workflowKnownFields)
-	if err != nil {
-		return fmt.Errorf("unmarshaling workflow extensions: %w", err)
-	}
+	*w = Workflow(alias)
 	w.Extensions = extensions
 	return nil
 }
@@ -122,22 +110,11 @@ var stepKnownFields = []string{
 
 func (s *Step) UnmarshalJSON(data []byte) error {
 	var alias stepAlias
-	if err := json.Unmarshal(data, &alias); err != nil {
-		return fmt.Errorf("unmarshaling step: %w", err)
-	}
-	*s = Step(alias)
-
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("unmarshaling step extensions: %w", err)
-	}
-	if err := rejectUnknownFields(raw, stepKnownFields, "step"); err != nil {
+	_, extensions, err := unmarshalCoreWithExtensions(data, "step", stepKnownFields, &alias)
+	if err != nil {
 		return err
 	}
-	extensions, err := extractExtensions(raw, stepKnownFields)
-	if err != nil {
-		return fmt.Errorf("unmarshaling step extensions: %w", err)
-	}
+	*s = Step(alias)
 	s.Extensions = extensions
 	return nil
 }
@@ -163,22 +140,11 @@ var caseKnownFields = []string{
 
 func (c *Case) UnmarshalJSON(data []byte) error {
 	var alias caseAlias
-	if err := json.Unmarshal(data, &alias); err != nil {
-		return fmt.Errorf("unmarshaling case: %w", err)
-	}
-	*c = Case(alias)
-
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("unmarshaling case extensions: %w", err)
-	}
-	if err := rejectUnknownFields(raw, caseKnownFields, "case"); err != nil {
+	_, extensions, err := unmarshalCoreWithExtensions(data, "case", caseKnownFields, &alias)
+	if err != nil {
 		return err
 	}
-	extensions, err := extractExtensions(raw, caseKnownFields)
-	if err != nil {
-		return fmt.Errorf("unmarshaling case extensions: %w", err)
-	}
+	*c = Case(alias)
 	c.Extensions = extensions
 	return nil
 }

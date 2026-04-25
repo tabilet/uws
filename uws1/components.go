@@ -1,10 +1,5 @@
 package uws1
 
-import (
-	"encoding/json"
-	"fmt"
-)
-
 // Components holds reusable objects scoped to the UWS document.
 type Components struct {
 	// Variables is an intentionally open-shape map; any JSON-compatible value is
@@ -22,22 +17,11 @@ var componentsKnownFields = []string{
 
 func (c *Components) UnmarshalJSON(data []byte) error {
 	var alias componentsAlias
-	if err := json.Unmarshal(data, &alias); err != nil {
-		return fmt.Errorf("unmarshaling components: %w", err)
-	}
-	*c = Components(alias)
-
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("unmarshaling components extensions: %w", err)
-	}
-	if err := rejectUnknownFields(raw, componentsKnownFields, "components"); err != nil {
+	_, extensions, err := unmarshalCoreWithExtensions(data, "components", componentsKnownFields, &alias)
+	if err != nil {
 		return err
 	}
-	extensions, err := extractExtensions(raw, componentsKnownFields)
-	if err != nil {
-		return fmt.Errorf("unmarshaling components extensions: %w", err)
-	}
+	*c = Components(alias)
 	c.Extensions = extensions
 	return nil
 }

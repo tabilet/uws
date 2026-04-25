@@ -1,7 +1,6 @@
 package uws1
 
 import (
-	"encoding/json"
 	"fmt"
 )
 
@@ -28,22 +27,11 @@ var paramSchemaKnownFields = []string{
 
 func (p *ParamSchema) UnmarshalJSON(data []byte) error {
 	var alias paramSchemaAlias
-	if err := json.Unmarshal(data, &alias); err != nil {
-		return fmt.Errorf("unmarshaling paramSchema: %w", err)
-	}
-	*p = ParamSchema(alias)
-
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("unmarshaling paramSchema extensions: %w", err)
-	}
-	if err := rejectUnknownFields(raw, paramSchemaKnownFields, "paramSchema"); err != nil {
+	_, extensions, err := unmarshalCoreWithExtensions(data, "paramSchema", paramSchemaKnownFields, &alias)
+	if err != nil {
 		return err
 	}
-	extensions, err := extractExtensions(raw, paramSchemaKnownFields)
-	if err != nil {
-		return fmt.Errorf("unmarshaling paramSchema extensions: %w", err)
-	}
+	*p = ParamSchema(alias)
 	p.Extensions = extensions
 	return nil
 }

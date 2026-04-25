@@ -15,7 +15,6 @@
         "sourceDescriptions": {
             "description": "OpenAPI source documents that operations reference",
             "type": "array",
-            "uniqueItems": true,
             "minItems": 1,
             "items": {
                 "$ref": "#/$defs/source-description-object"
@@ -29,7 +28,6 @@
         "operations": {
             "description": "An ordered list of workflow operations",
             "type": "array",
-            "uniqueItems": true,
             "minItems": 1,
             "items": {
                 "$ref": "#/$defs/operation-object"
@@ -38,7 +36,6 @@
         "workflows": {
             "description": "Workflow control-flow constructs (sequence, parallel, switch, merge, loop, await)",
             "type": "array",
-            "uniqueItems": true,
             "items": {
                 "$ref": "#/$defs/workflow-object"
             }
@@ -46,7 +43,6 @@
         "triggers": {
             "description": "Workflow entry points, such as webhook-style triggers",
             "type": "array",
-            "uniqueItems": true,
             "items": {
                 "$ref": "#/$defs/trigger-object"
             }

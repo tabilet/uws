@@ -300,6 +300,38 @@ func TestValidate_SourceDescriptions(t *testing.T) {
 	})
 }
 
+func TestValidate_SourceDescriptionsRequiredWhenBound(t *testing.T) {
+	t.Run("missing top-level array with bound op", func(t *testing.T) {
+		doc := validDocument()
+		doc.SourceDescriptions = nil
+		err := doc.Validate()
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "sourceDescriptions is required when any operation declares sourceDescription")
+	})
+
+	t.Run("empty top-level array with bound op", func(t *testing.T) {
+		doc := validDocument()
+		doc.SourceDescriptions = []*SourceDescription{}
+		err := doc.Validate()
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "sourceDescriptions is required when any operation declares sourceDescription")
+	})
+
+	t.Run("extension-owned op needs no sourceDescriptions", func(t *testing.T) {
+		doc := &Document{
+			UWS:  "1.0.0",
+			Info: &Info{Title: "Ext", Version: "1.0.0"},
+			Operations: []*Operation{
+				{
+					OperationID: "do_thing",
+					Extensions:  map[string]any{ExtensionOperationProfile: "udon"},
+				},
+			},
+		}
+		assert.NoError(t, doc.Validate())
+	})
+}
+
 func TestValidate_CriteriaAndActions(t *testing.T) {
 	doc := validDocument()
 	doc.Workflows = []*Workflow{{WorkflowID: "next", Type: "parallel"}}
@@ -341,6 +373,40 @@ func TestValidate_CriteriaAndActionsErrors(t *testing.T) {
 	assert.ErrorContains(t, err, "retry requires retryLimit > 0")
 	assert.ErrorContains(t, err, "goto requires workflowId or stepId")
 	assert.ErrorContains(t, err, "must be end")
+}
+
+func TestCriterionUnmarshalRejectsExplicitEmptyType(t *testing.T) {
+	var criterion Criterion
+	require.ErrorContains(t, json.Unmarshal([]byte(`{"condition":"true","type":""}`), &criterion), "criterion.type must be omitted")
+
+	require.NoError(t, json.Unmarshal([]byte(`{"condition":"true"}`), &criterion))
+	assert.Empty(t, criterion.Type)
+}
+
+func TestValidate_ActionTargetsOnlyAllowedForGoto(t *testing.T) {
+	t.Run("failure end", func(t *testing.T) {
+		doc := validDocument()
+		doc.Operations[0].OnFailure = []*FailureAction{
+			{Name: "stop", Type: "end", WorkflowID: "main"},
+		}
+		assert.ErrorContains(t, doc.Validate(), "workflowId/stepId are only valid for goto actions")
+	})
+
+	t.Run("failure retry", func(t *testing.T) {
+		doc := validDocument()
+		doc.Operations[0].OnFailure = []*FailureAction{
+			{Name: "retry", Type: "retry", RetryLimit: 1, StepID: "step"},
+		}
+		assert.ErrorContains(t, doc.Validate(), "workflowId/stepId are only valid for goto actions")
+	})
+
+	t.Run("success end", func(t *testing.T) {
+		doc := validDocument()
+		doc.Operations[0].OnSuccess = []*SuccessAction{
+			{Name: "done", Type: "end", StepID: "step"},
+		}
+		assert.ErrorContains(t, doc.Validate(), "workflowId/stepId are only valid for goto actions")
+	})
 }
 
 func TestValidate_WorkflowAndStepReferences(t *testing.T) {
@@ -590,6 +656,33 @@ func TestValidate_TriggerRoutes(t *testing.T) {
 		}}
 		assert.ErrorContains(t, doc.Validate(), "references unknown top-level stepId or workflowId")
 	})
+
+	t.Run("ambiguous entry workflow defers step-target validation to executable layer", func(t *testing.T) {
+		doc := validDocument()
+		doc.Workflows = []*Workflow{
+			{
+				WorkflowID: "alpha",
+				Type:       WorkflowTypeSequence,
+				Steps:      []*Step{{StepID: "start", OperationRef: "get_data"}},
+			},
+			{
+				WorkflowID: "beta",
+				Type:       WorkflowTypeSequence,
+				Steps:      []*Step{{StepID: "other", OperationRef: "get_data"}},
+			},
+		}
+		doc.Triggers = []*Trigger{{
+			TriggerID: "webhook",
+			Outputs:   []string{"primary"},
+			Routes: []*TriggerRoute{
+				{TriggerRouteFields: TriggerRouteFields{Output: "primary", To: []string{"start"}}},
+			},
+		}}
+
+		err := doc.Validate()
+		require.NoError(t, err)
+		require.ErrorContains(t, doc.ValidateExecutable(), `multiple workflows require an explicit "main" entry workflow`)
+	})
 }
 
 func TestValidate_StructuralTypeConstraints(t *testing.T) {
@@ -779,6 +872,16 @@ func TestValidate_StructuralResult(t *testing.T) {
 			{Name: "out", Kind: "merge", From: "missing_wf"},
 		}
 		assert.ErrorContains(t, doc.Validate(), `references unknown workflowId "missing_wf"`)
+	})
+
+	t.Run("invalid from shape", func(t *testing.T) {
+		for _, from := range []string{"a..b", "a.b.c", ".step", "wf."} {
+			doc := baseDoc()
+			doc.Results = []*StructuralResult{
+				{Name: "out", Kind: "merge", From: from},
+			}
+			assert.ErrorContains(t, doc.Validate(), "is not a valid workflowId or workflowId.stepId")
+		}
 	})
 
 	t.Run("unknown step in workflow", func(t *testing.T) {

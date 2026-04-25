@@ -1,7 +1,9 @@
 package uws1
 
 // ExecutionRecords returns the last orchestrator execution snapshot captured
-// on the document. The returned map is a defensive copy.
+// on the document. The returned map is a defensive copy. It is not safe to call
+// concurrently with Execute, DispatchTrigger, or SetRuntime unless the caller
+// synchronizes access to the document.
 func (d *Document) ExecutionRecords() map[string]ExecutionRecord {
 	if d == nil || len(d.lastExecutionRecords) == 0 {
 		return nil

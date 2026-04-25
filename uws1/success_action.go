@@ -1,10 +1,5 @@
 package uws1
 
-import (
-	"encoding/json"
-	"fmt"
-)
-
 // SuccessAction describes what to do when an operation succeeds.
 // Type is one of: end, goto.
 type SuccessAction struct {
@@ -24,22 +19,11 @@ var successActionKnownFields = []string{
 
 func (s *SuccessAction) UnmarshalJSON(data []byte) error {
 	var alias successActionAlias
-	if err := json.Unmarshal(data, &alias); err != nil {
-		return fmt.Errorf("unmarshaling successAction: %w", err)
-	}
-	*s = SuccessAction(alias)
-
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("unmarshaling successAction extensions: %w", err)
-	}
-	if err := rejectUnknownFields(raw, successActionKnownFields, "successAction"); err != nil {
+	_, extensions, err := unmarshalCoreWithExtensions(data, "successAction", successActionKnownFields, &alias)
+	if err != nil {
 		return err
 	}
-	extensions, err := extractExtensions(raw, successActionKnownFields)
-	if err != nil {
-		return fmt.Errorf("unmarshaling successAction extensions: %w", err)
-	}
+	*s = SuccessAction(alias)
 	s.Extensions = extensions
 	return nil
 }

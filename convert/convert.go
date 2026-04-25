@@ -242,6 +242,9 @@ func cloneDocument(doc *uws1.Document) (*uws1.Document, error) {
 	if doc == nil {
 		return nil, fmt.Errorf("document is nil")
 	}
+	// This is a conversion-only deep copy. Runtime and execution-only state are
+	// intentionally omitted because the UWS JSON tags exclude them from the wire
+	// document.
 	data, err := json.Marshal(doc)
 	if err != nil {
 		return nil, err
@@ -258,6 +261,9 @@ func validateHCLSerializable(doc *uws1.Document) error {
 		return fmt.Errorf("document is nil")
 	}
 	if err := rejectExtensionsForHCL("document", doc.Extensions); err != nil {
+		return err
+	}
+	if err := rejectDynamicExtensionsForHCL("variables", doc.Variables); err != nil {
 		return err
 	}
 	if doc.Info != nil {
@@ -300,6 +306,9 @@ func validateHCLSerializable(doc *uws1.Document) error {
 		if err := rejectExtensionsForHCL("components", doc.Components.Extensions); err != nil {
 			return err
 		}
+		if err := rejectDynamicExtensionsForHCL("components.variables", doc.Components.Variables); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -309,6 +318,9 @@ func validateOperationHCLSerializable(path string, op *uws1.Operation) error {
 		return nil
 	}
 	if err := rejectExtensionsForHCL(path, op.Extensions); err != nil {
+		return err
+	}
+	if err := rejectDynamicExtensionsForHCL(path+".request", op.Request); err != nil {
 		return err
 	}
 	for i, criterion := range op.SuccessCriteria {
@@ -401,6 +413,9 @@ func validateStepHCLSerializable(path string, step *uws1.Step) error {
 	if err := rejectExtensionsForHCL(path, step.Extensions); err != nil {
 		return err
 	}
+	if err := rejectDynamicExtensionsForHCL(path+".body", step.Body); err != nil {
+		return err
+	}
 	for i, child := range step.Steps {
 		if err := validateStepHCLSerializable(fmt.Sprintf("%s.steps[%d]", path, i), child); err != nil {
 			return err
@@ -426,6 +441,9 @@ func validateCaseHCLSerializable(path string, c *uws1.Case) error {
 	if err := rejectExtensionsForHCL(path, c.Extensions); err != nil {
 		return err
 	}
+	if err := rejectDynamicExtensionsForHCL(path+".body", c.Body); err != nil {
+		return err
+	}
 	for i, step := range c.Steps {
 		if err := validateStepHCLSerializable(fmt.Sprintf("%s.steps[%d]", path, i), step); err != nil {
 			return err
@@ -439,6 +457,9 @@ func validateTriggerHCLSerializable(path string, trigger *uws1.Trigger) error {
 		return nil
 	}
 	if err := rejectExtensionsForHCL(path, trigger.Extensions); err != nil {
+		return err
+	}
+	if err := rejectDynamicExtensionsForHCL(path+".options", trigger.Options); err != nil {
 		return err
 	}
 	for i, route := range trigger.Routes {
@@ -460,6 +481,9 @@ func validateParamSchemaHCLSerializable(path string, schema *uws1.ParamSchema) e
 		return err
 	}
 	for name, child := range schema.Properties {
+		if strings.HasPrefix(name, "x-") {
+			return fmt.Errorf("%s.properties.%s contains x-* extensions; UWS HCL conversion is core-only and cannot preserve extension profiles, use JSON or YAML", path, name)
+		}
 		if err := validateParamSchemaHCLSerializable(path+".properties."+name, child); err != nil {
 			return err
 		}
@@ -490,6 +514,41 @@ func rejectExtensionsForHCL(path string, extensions map[string]any) error {
 		return nil
 	}
 	return fmt.Errorf("%s contains x-* extensions; UWS HCL conversion is core-only and cannot preserve extension profiles, use JSON or YAML", path)
+}
+
+func rejectDynamicExtensionsForHCL(path string, value any) error {
+	switch v := value.(type) {
+	case nil:
+		return nil
+	case map[string]any:
+		for key, item := range v {
+			childPath := path + "." + key
+			if strings.HasPrefix(key, "x-") {
+				return fmt.Errorf("%s contains x-* extensions; UWS HCL conversion is core-only and cannot preserve extension profiles, use JSON or YAML", childPath)
+			}
+			if err := rejectDynamicExtensionsForHCL(childPath, item); err != nil {
+				return err
+			}
+		}
+	case map[any]any:
+		for key, item := range v {
+			keyText := fmt.Sprint(key)
+			childPath := path + "." + keyText
+			if strings.HasPrefix(keyText, "x-") {
+				return fmt.Errorf("%s contains x-* extensions; UWS HCL conversion is core-only and cannot preserve extension profiles, use JSON or YAML", childPath)
+			}
+			if err := rejectDynamicExtensionsForHCL(childPath, item); err != nil {
+				return err
+			}
+		}
+	case []any:
+		for i, item := range v {
+			if err := rejectDynamicExtensionsForHCL(fmt.Sprintf("%s[%d]", path, i), item); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func toJSONCompatible(v any) any {

@@ -1,10 +1,5 @@
 package uws1
 
-import (
-	"encoding/json"
-	"fmt"
-)
-
 // Trigger defines an entry point that initiates workflow execution.
 type Trigger struct {
 	TriggerID string `json:"triggerId" yaml:"triggerId" hcl:"triggerId,label"`
@@ -26,22 +21,11 @@ var triggerKnownFields = []string{
 
 func (t *Trigger) UnmarshalJSON(data []byte) error {
 	var alias triggerAlias
-	if err := json.Unmarshal(data, &alias); err != nil {
-		return fmt.Errorf("unmarshaling trigger: %w", err)
-	}
-	*t = Trigger(alias)
-
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("unmarshaling trigger extensions: %w", err)
-	}
-	if err := rejectUnknownFields(raw, triggerKnownFields, "trigger"); err != nil {
+	_, extensions, err := unmarshalCoreWithExtensions(data, "trigger", triggerKnownFields, &alias)
+	if err != nil {
 		return err
 	}
-	extensions, err := extractExtensions(raw, triggerKnownFields)
-	if err != nil {
-		return fmt.Errorf("unmarshaling trigger extensions: %w", err)
-	}
+	*t = Trigger(alias)
 	t.Extensions = extensions
 	return nil
 }
@@ -65,22 +49,11 @@ var triggerRouteKnownFields = []string{
 
 func (t *TriggerRoute) UnmarshalJSON(data []byte) error {
 	var alias triggerRouteAlias
-	if err := json.Unmarshal(data, &alias); err != nil {
-		return fmt.Errorf("unmarshaling triggerRoute: %w", err)
-	}
-	*t = TriggerRoute(alias)
-
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("unmarshaling triggerRoute extensions: %w", err)
-	}
-	if err := rejectUnknownFields(raw, triggerRouteKnownFields, "triggerRoute"); err != nil {
+	_, extensions, err := unmarshalCoreWithExtensions(data, "triggerRoute", triggerRouteKnownFields, &alias)
+	if err != nil {
 		return err
 	}
-	extensions, err := extractExtensions(raw, triggerRouteKnownFields)
-	if err != nil {
-		return fmt.Errorf("unmarshaling triggerRoute extensions: %w", err)
-	}
+	*t = TriggerRoute(alias)
 	t.Extensions = extensions
 	return nil
 }

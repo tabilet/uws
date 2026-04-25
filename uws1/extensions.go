@@ -50,6 +50,25 @@ func rejectUnknownFields(raw map[string]json.RawMessage, knownFields []string, o
 	return nil
 }
 
+func unmarshalCoreWithExtensions(data []byte, object string, knownFields []string, dst any) (map[string]json.RawMessage, map[string]any, error) {
+	if err := json.Unmarshal(data, dst); err != nil {
+		return nil, nil, fmt.Errorf("unmarshaling %s: %w", object, err)
+	}
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil, nil, fmt.Errorf("unmarshaling %s extensions: %w", object, err)
+	}
+	if err := rejectUnknownFields(raw, knownFields, object); err != nil {
+		return nil, nil, err
+	}
+	extensions, err := extractExtensions(raw, knownFields)
+	if err != nil {
+		return nil, nil, fmt.Errorf("unmarshaling %s extensions: %w", object, err)
+	}
+	return raw, extensions, nil
+}
+
 // marshalWithExtensions marshals an object along with its x-* extensions.
 func marshalWithExtensions(v any, extensions map[string]any) ([]byte, error) {
 	data, err := json.Marshal(v)

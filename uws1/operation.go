@@ -2,7 +2,6 @@ package uws1
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -82,7 +81,9 @@ func (o *Operation) ExtensionProfile() string {
 }
 
 // IsExtensionOwned reports whether this operation is intentionally owned by an
-// extension profile rather than an OpenAPI operation binding.
+// extension profile rather than an OpenAPI operation binding. OpenAPI-bound
+// operations may still carry profile metadata, but this is true only for
+// extension-owned operations with no OpenAPI binding.
 func (o *Operation) IsExtensionOwned() bool {
 	return o != nil && !o.HasOpenAPIBinding() && o.ExtensionProfile() != ""
 }
@@ -99,22 +100,11 @@ var operationKnownFields = []string{
 
 func (o *Operation) UnmarshalJSON(data []byte) error {
 	var alias operationAlias
-	if err := json.Unmarshal(data, &alias); err != nil {
-		return fmt.Errorf("unmarshaling operation: %w", err)
-	}
-	*o = Operation(alias)
-
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("unmarshaling operation extensions: %w", err)
-	}
-	if err := rejectUnknownFields(raw, operationKnownFields, "operation"); err != nil {
+	_, extensions, err := unmarshalCoreWithExtensions(data, "operation", operationKnownFields, &alias)
+	if err != nil {
 		return err
 	}
-	extensions, err := extractExtensions(raw, operationKnownFields)
-	if err != nil {
-		return fmt.Errorf("unmarshaling operation extensions: %w", err)
-	}
+	*o = Operation(alias)
 	o.Extensions = extensions
 	return nil
 }

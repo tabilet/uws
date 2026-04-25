@@ -31,21 +31,16 @@ var criterionKnownFields = []string{
 
 func (c *Criterion) UnmarshalJSON(data []byte) error {
 	var alias criterionAlias
-	if err := json.Unmarshal(data, &alias); err != nil {
-		return fmt.Errorf("unmarshaling criterion: %w", err)
-	}
-	*c = Criterion(alias)
-
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("unmarshaling criterion extensions: %w", err)
-	}
-	if err := rejectUnknownFields(raw, criterionKnownFields, "criterion"); err != nil {
+	raw, extensions, err := unmarshalCoreWithExtensions(data, "criterion", criterionKnownFields, &alias)
+	if err != nil {
 		return err
 	}
-	extensions, err := extractExtensions(raw, criterionKnownFields)
-	if err != nil {
-		return fmt.Errorf("unmarshaling criterion extensions: %w", err)
+	*c = Criterion(alias)
+	if typeValue, ok := raw["type"]; ok {
+		var text string
+		if err := json.Unmarshal(typeValue, &text); err == nil && text == "" {
+			return fmt.Errorf("criterion.type must be omitted or one of simple, regex, jsonpath, or xpath")
+		}
 	}
 	c.Extensions = extensions
 	return nil

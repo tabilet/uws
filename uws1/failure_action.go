@@ -1,10 +1,5 @@
 package uws1
 
-import (
-	"encoding/json"
-	"fmt"
-)
-
 // FailureAction describes what to do when an operation fails.
 // Type is one of: end, goto, retry.
 type FailureAction struct {
@@ -27,22 +22,11 @@ var failureActionKnownFields = []string{
 
 func (f *FailureAction) UnmarshalJSON(data []byte) error {
 	var alias failureActionAlias
-	if err := json.Unmarshal(data, &alias); err != nil {
-		return fmt.Errorf("unmarshaling failureAction: %w", err)
-	}
-	*f = FailureAction(alias)
-
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("unmarshaling failureAction extensions: %w", err)
-	}
-	if err := rejectUnknownFields(raw, failureActionKnownFields, "failureAction"); err != nil {
+	_, extensions, err := unmarshalCoreWithExtensions(data, "failureAction", failureActionKnownFields, &alias)
+	if err != nil {
 		return err
 	}
-	extensions, err := extractExtensions(raw, failureActionKnownFields)
-	if err != nil {
-		return fmt.Errorf("unmarshaling failureAction extensions: %w", err)
-	}
+	*f = FailureAction(alias)
 	f.Extensions = extensions
 	return nil
 }
