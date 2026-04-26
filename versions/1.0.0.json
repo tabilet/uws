@@ -1,5 +1,5 @@
 {
-    "$id": "https://spec.udon-workflow.org/1.0/schema.json",
+    "$id": "https://github.com/tabilet/uws/versions/1.0.0.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "description": "The description of OpenAPI-backed Udon Workflow Specification (UWS) v1.0.x documents",
     "type": "object",

@@ -14,7 +14,7 @@ import (
 
 // schemaDefCoverage declares, per $def, which structural rules the Go
 // validator is expected to enforce (beyond what the JSON Schema pass does).
-// TestSchemaConformance_DrivenRulesAreDeclared reads uws.json, extracts every
+// TestSchemaConformance_DrivenRulesAreDeclared reads versions/1.0.0.json, extracts every
 // required/enum/pattern rule per $def, and fails if the schema's actual rule
 // set differs from this table in either direction:
 //
@@ -106,7 +106,7 @@ func schemaDefCoverage() map[string]schemaDefRules {
 }
 
 // TestSchemaConformance_DrivenRulesAreDeclared is the tripwire that fires when
-// a rule is added to or removed from uws.json without a matching update to
+// a rule is added to or removed from versions/1.0.0.json without a matching update to
 // schemaDefCoverage. That mismatch is exactly the drift S1 is meant to kill.
 func TestSchemaConformance_DrivenRulesAreDeclared(t *testing.T) {
 	schema := loadSchemaDoc(t)
@@ -352,13 +352,13 @@ func TestSchemaConformance_JSONSchemaValidator(t *testing.T) {
 
 func compileUWSSchema(t *testing.T) *jsonschema.Schema {
 	t.Helper()
-	data, err := os.ReadFile("../uws.json")
+	data, err := os.ReadFile("../versions/1.0.0.json")
 	require.NoError(t, err)
 	doc, err := jsonschema.UnmarshalJSON(bytes.NewReader(data))
 	require.NoError(t, err)
 	compiler := jsonschema.NewCompiler()
-	require.NoError(t, compiler.AddResource("uws.json", doc))
-	schema, err := compiler.Compile("uws.json")
+	require.NoError(t, compiler.AddResource("versions/1.0.0.json", doc))
+	schema, err := compiler.Compile("versions/1.0.0.json")
 	require.NoError(t, err)
 	return schema
 }
@@ -370,7 +370,7 @@ func decodeJSONValue(t *testing.T, data []byte) any {
 	return value
 }
 
-// collectSchemaRules walks uws.json and extracts, per $def plus the root,
+// collectSchemaRules walks versions/1.0.0.json and extracts, per $def plus the root,
 // every `required`, enum-bearing, pattern-bearing, and propertyNames-pattern
 // property. Meta defs (specification-extensions, structural-type-constraints)
 // are skipped.

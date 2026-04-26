@@ -75,7 +75,7 @@ type validationIndex struct {
 // Validate runs the semantic validation layer and returns the first error as a
 // single error, or nil if the document passes.
 //
-// Validate assumes the document has already been checked against uws.json via
+// Validate assumes the document has already been checked against versions/1.0.0.json via
 // a JSON Schema validator. The schema layer enforces structural shape (required
 // fields, enum values, patterns, uniqueness of array items). Validate layers
 // semantic rules on top: duplicate identifiers, reference integrity, binding
@@ -95,7 +95,7 @@ func (d *Document) Validate() error {
 
 // ValidateResult runs the semantic validation layer and returns every error it
 // finds, each tagged with a structured Path. See Validate for the layering
-// contract between this method and the uws.json JSON Schema pre-pass.
+// contract between this method and the versions/1.0.0.json JSON Schema pre-pass.
 func (d *Document) ValidateResult() *ValidationResult {
 	result := &ValidationResult{}
 	if d == nil {

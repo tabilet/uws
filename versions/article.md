@@ -325,7 +325,7 @@ Spec 1.0 reserves the `x-uws-` prefix for future core evolution — `x-uws-opera
 
 `github.com/tabilet/uws` layers two kinds of validation:
 
-- **Structural**, via the published JSON Schema (`uws.json`). This catches shape errors, type errors, and required-field violations.
+- **Structural**, via the published JSON Schema (`versions/1.0.0.json`). This catches shape errors, type errors, and required-field violations.
 - **Semantic**, via `(*uws1.Document).Validate()`. This catches duplicate identifiers, unknown references (an operation pointing at a missing `sourceDescription`, a step referencing an undeclared workflow), binding-rule violations, unresolved trigger-route outputs, structural-type mistakes, and `results[]` linkage errors.
 
 Parsing and validating a document is a few lines:
@@ -366,7 +366,7 @@ func main() {
 
 `ValidateResult` returns every error with a dotted path. That matters when a language model produces the workflow: you want to tell it exactly which field was wrong, not just that something was. Each `ValidationError` is a `{Path, Message}` pair — structured enough to show an end user, machine-readable enough to hand back to the model that produced the invalid document, keyed precisely enough that a diff tool can suggest a single-line fix.
 
-The three artifacts that define UWS — the JSON Schema (`uws.json`), the Go types (`uws1/`), and the spec prose (`versions/1.0.0.md`) — are kept in sync by a reflection-driven test suite. A parity test walks every Go struct with an `Extensions` field, checks its JSON tags against the `knownFields` list its unmarshaller uses, and compares both against the `$def` in the schema. A driven-conformance test reads `uws.json` and asserts that every `required`, `enum`, and `pattern` rule the schema declares is also declared in a Go-side coverage table. Adding a property to one place and forgetting another fails the build.
+The three artifacts that define UWS — the JSON Schema (`versions/1.0.0.json`), the Go types (`uws1/`), and the spec prose (`versions/1.0.0.md`) — are kept in sync by a reflection-driven test suite. A parity test walks every Go struct with an `Extensions` field, checks its JSON tags against the `knownFields` list its unmarshaller uses, and compares both against the `$def` in the schema. A driven-conformance test reads `versions/1.0.0.json` and asserts that every `required`, `enum`, and `pattern` rule the schema declares is also declared in a Go-side coverage table. Adding a property to one place and forgetting another fails the build.
 
 That is unusual for a spec of this size, and it is the mechanical reason a third-party implementer can trust that the schema and the prose will not quietly disagree.
 
