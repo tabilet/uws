@@ -1,0 +1,38 @@
+site_name: Udon Workflow Specification
+site_description: A compact, execution-oriented workflow specification for OpenAPI-backed HTTP operations
+site_url: https://tabilet.github.io/uws/
+repo_url: https://github.com/tabilet/uws
+repo_name: tabilet/uws
+docs_dir: docs
+copyright: "© 2026 tabilet/uws · Udon Workflow Specification v1.0.0 · Apache 2.0"
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+    - content.code.copy
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+
+nav:
+  - Home: index.md
+  - Features:
+    - 1. OpenAPI Operation Binding: 01-OpenAPI-Operation-Binding.md
+    - 2. Six Structural Constructs: 02-Six-Structural-Constructs.md
+    - 3. Runtime Expression Grammar: 03-Runtime-Expression-Grammar.md
+    - 4. Triggers and Route Dispatch: 04-Triggers-and-Route-Dispatch.md
+    - 5. Structural Results: 05-Structural-Results.md
+    - 6. Success Criteria and Actions: 06-Success-Criteria-and-Actions.md
+    - 7. Execution Model: 07-Execution-Model.md
+    - 8. Extension Profiles: 08-Extension-Profiles.md
+    - 9. Validation: 09-Validation.md
+    - 10. Interchange Formats: 10-Interchange-Formats.md
+  - Reference:
+    - Specification: https://github.com/tabilet/uws/blob/main/versions/1.0.0.md
+    - JSON Schema: https://github.com/tabilet/uws/blob/main/versions/1.0.0.json
+    - Repository: https://github.com/tabilet/uws
