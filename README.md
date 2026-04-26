@@ -10,8 +10,9 @@ Non-OpenAPI runtimes such as command execution, function calls, file I/O, SSH, S
 [![GoDoc](https://godoc.org/github.com/tabilet/uws?status.svg)](https://godoc.org/github.com/tabilet/uws)
 
 
-## Protocol
+## Documentation
 
+- **Docs site**: [tabilet.github.io/uws](https://tabilet.github.io/uws/)
 - Human-readable specification: [versions/1.0.0.md](versions/1.0.0.md)
 - JSON Schema: [versions/1.0.0.json](versions/1.0.0.json)
 
