@@ -70,6 +70,7 @@ type WorkflowExecutionFields struct {
 	When      string   `json:"when,omitempty" yaml:"when,omitempty" hcl:"when,optional"`
 	ForEach   string   `json:"forEach,omitempty" yaml:"forEach,omitempty" hcl:"forEach,optional"`
 	Wait      string   `json:"wait,omitempty" yaml:"wait,omitempty" hcl:"wait,optional"`
+	Timeout   *float64 `json:"timeout,omitempty" yaml:"timeout,omitempty" hcl:"timeout,optional"`
 }
 
 // OperationExecutionFields captures execution controls on leaf operations.
@@ -78,6 +79,7 @@ type OperationExecutionFields struct {
 	When          string   `json:"when,omitempty" yaml:"when,omitempty" hcl:"when,optional"`
 	ForEach       string   `json:"forEach,omitempty" yaml:"forEach,omitempty" hcl:"forEach,optional"`
 	Wait          string   `json:"wait,omitempty" yaml:"wait,omitempty" hcl:"wait,optional"`
+	Timeout       *float64 `json:"timeout,omitempty" yaml:"timeout,omitempty" hcl:"timeout,optional"`
 	ParallelGroup string   `json:"parallelGroup,omitempty" yaml:"parallelGroup,omitempty" hcl:"parallelGroup,optional"`
 }
 
@@ -87,6 +89,7 @@ type StepExecutionFields struct {
 	When          string   `json:"when,omitempty" yaml:"when,omitempty" hcl:"when,optional"`
 	ForEach       string   `json:"forEach,omitempty" yaml:"forEach,omitempty" hcl:"forEach,optional"`
 	Wait          string   `json:"wait,omitempty" yaml:"wait,omitempty" hcl:"wait,optional"`
+	Timeout       *float64 `json:"timeout,omitempty" yaml:"timeout,omitempty" hcl:"timeout,optional"`
 	Workflow      string   `json:"workflow,omitempty" yaml:"workflow,omitempty" hcl:"workflow,optional"`
 	ParallelGroup string   `json:"parallelGroup,omitempty" yaml:"parallelGroup,omitempty" hcl:"parallelGroup,optional"`
 }

@@ -1,0 +1,1134 @@
+{
+    "$id": "https://github.com/tabilet/uws/versions/1.1.0.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "The description of OpenAPI-backed Udon Workflow Specification (UWS) v1.1.x documents",
+    "type": "object",
+    "properties": {
+        "uws": {
+            "description": "The version number of the UWS Specification",
+            "type": "string",
+            "pattern": "^1\\.\\d+\\.\\d+(-.+)?$"
+        },
+        "info": {
+            "$ref": "#/$defs/info"
+        },
+        "sourceDescriptions": {
+            "description": "OpenAPI source documents that operations reference",
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "$ref": "#/$defs/source-description-object"
+            }
+        },
+        "variables": {
+            "description": "Global variables available to all operations",
+            "type": "object",
+            "additionalProperties": true
+        },
+        "operations": {
+            "description": "An ordered list of workflow operations",
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "$ref": "#/$defs/operation-object"
+            }
+        },
+        "workflows": {
+            "description": "Workflow control-flow constructs (sequence, parallel, switch, merge, loop, await)",
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/workflow-object"
+            }
+        },
+        "triggers": {
+            "description": "Workflow entry points, such as webhook-style triggers",
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/trigger-object"
+            }
+        },
+        "results": {
+            "description": "Output declarations from structural constructs",
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/structural-result-object"
+            }
+        },
+        "components": {
+            "$ref": "#/$defs/components-object"
+        }
+    },
+    "required": [
+        "uws",
+        "info",
+        "operations"
+    ],
+    "allOf": [
+        {
+            "description": "sourceDescriptions is REQUIRED whenever any operation is OpenAPI-bound. An OpenAPI-bound operation sets sourceDescription; extension-owned operations MUST NOT set it (see operation-object.oneOf).",
+            "if": {
+                "required": [
+                    "operations"
+                ],
+                "properties": {
+                    "operations": {
+                        "contains": {
+                            "required": [
+                                "sourceDescription"
+                            ]
+                        }
+                    }
+                }
+            },
+            "then": {
+                "required": [
+                    "sourceDescriptions"
+                ]
+            }
+        }
+    ],
+    "$ref": "#/$defs/specification-extensions",
+    "unevaluatedProperties": false,
+    "$defs": {
+        "source-description-object": {
+            "description": "Identifies an OpenAPI source document that operations reference",
+            "type": "object",
+            "properties": {
+                "name": {
+                    "description": "A unique name for the source description",
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_\\-]+$"
+                },
+                "url": {
+                    "description": "A URL or relative path to the source document",
+                    "type": "string",
+                    "format": "uri-reference"
+                },
+                "type": {
+                    "description": "The type of source description",
+                    "enum": [
+                        "openapi"
+                    ]
+                }
+            },
+            "required": [
+                "name",
+                "url"
+            ],
+            "$ref": "#/$defs/specification-extensions",
+            "unevaluatedProperties": false
+        },
+        "info": {
+            "description": "Metadata about the UWS document",
+            "type": "object",
+            "properties": {
+                "title": {
+                    "description": "A human-readable title",
+                    "type": "string"
+                },
+                "summary": {
+                    "description": "A short summary",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "A longer description (CommonMark syntax supported)",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "The document version identifier",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "title",
+                "version"
+            ],
+            "$ref": "#/$defs/specification-extensions",
+            "unevaluatedProperties": false
+        },
+        "operation-object": {
+            "description": "A UWS-local operation bound to an OpenAPI operation",
+            "type": "object",
+            "properties": {
+                "operationId": {
+                    "description": "Unique UWS-local operation identifier",
+                    "type": "string"
+                },
+                "sourceDescription": {
+                    "description": "Name of the OpenAPI source description whose operation this operation is bound to",
+                    "type": "string"
+                },
+                "openapiOperationId": {
+                    "description": "OpenAPI operationId to execute",
+                    "type": "string"
+                },
+                "openapiOperationRef": {
+                    "description": "JSON Pointer fragment to an OpenAPI operation",
+                    "type": "string",
+                    "pattern": "^#/"
+                },
+                "description": {
+                    "description": "Operation description",
+                    "type": "string"
+                },
+                "request": {
+                    "$ref": "#/$defs/request-binding-object"
+                },
+                "dependsOn": {
+                    "description": "Operations or groups that must complete first",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "when": {
+                    "description": "Conditional execution expression",
+                    "type": "string"
+                },
+                "forEach": {
+                    "description": "Iteration expression",
+                    "type": "string"
+                },
+                "wait": {
+                    "description": "Delay or await expression",
+                    "type": "string"
+                },
+                "parallelGroup": {
+                    "description": "Dependency barrier group name; dependsOn may reference this group to wait for all members",
+                    "type": "string"
+                },
+                "successCriteria": {
+                    "description": "Conditions that determine whether the operation succeeded",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/criterion-object"
+                    }
+                },
+                "onFailure": {
+                    "description": "Actions to take when the operation fails",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/failure-action-object"
+                    }
+                },
+                "onSuccess": {
+                    "description": "Actions to take when the operation succeeds",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/success-action-object"
+                    }
+                },
+                "outputs": {
+                    "description": "Named output values via runtime expressions",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "x-uws-operation-profile": {
+                    "description": "Implementation profile name for extension-owned operations",
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "\\S"
+                },
+                "timeout": {
+                    "description": "Maximum execution duration in seconds for one operation attempt after it is eligible to start",
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                }
+            },
+            "required": [
+                "operationId"
+            ],
+            "oneOf": [
+                {
+                    "description": "OpenAPI-bound operation selected by operationId",
+                    "required": [
+                        "sourceDescription",
+                        "openapiOperationId"
+                    ],
+                    "not": {
+                        "required": [
+                            "openapiOperationRef"
+                        ]
+                    }
+                },
+                {
+                    "description": "OpenAPI-bound operation selected by JSON Pointer",
+                    "required": [
+                        "sourceDescription",
+                        "openapiOperationRef"
+                    ],
+                    "not": {
+                        "required": [
+                            "openapiOperationId"
+                        ]
+                    }
+                },
+                {
+                    "description": "Extension-owned operation selected by an implementation profile",
+                    "required": [
+                        "x-uws-operation-profile"
+                    ],
+                    "not": {
+                        "anyOf": [
+                            {
+                                "required": [
+                                    "sourceDescription"
+                                ]
+                            },
+                            {
+                                "required": [
+                                    "openapiOperationId"
+                                ]
+                            },
+                            {
+                                "required": [
+                                    "openapiOperationRef"
+                                ]
+                            }
+                        ]
+                    }
+                }
+            ],
+            "$ref": "#/$defs/specification-extensions",
+            "unevaluatedProperties": false
+        },
+        "request-binding-object": {
+            "description": "Request values grouped by OpenAPI parameter location and body",
+            "type": "object",
+            "properties": {
+                "path": {
+                    "description": "Values for OpenAPI path parameters",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "query": {
+                    "description": "Values for OpenAPI query parameters",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "header": {
+                    "description": "Values for OpenAPI header parameters",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "cookie": {
+                    "description": "Values for OpenAPI cookie parameters",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "body": {
+                    "description": "Request body value"
+                }
+            },
+            "patternProperties": {
+                "^x-": true
+            },
+            "additionalProperties": false
+        },
+        "workflow-object": {
+            "description": "A workflow control-flow construct (sequence, parallel, switch, merge, loop, await)",
+            "type": "object",
+            "properties": {
+                "workflowId": {
+                    "description": "Unique workflow identifier",
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]+$"
+                },
+                "type": {
+                    "description": "Workflow construct type",
+                    "enum": [
+                        "sequence",
+                        "parallel",
+                        "switch",
+                        "merge",
+                        "loop",
+                        "await"
+                    ]
+                },
+                "description": {
+                    "description": "A description of the workflow's purpose",
+                    "type": "string"
+                },
+                "inputs": {
+                    "description": "JSON Schema defining the workflow's input parameters",
+                    "$ref": "#/$defs/param-schema-object"
+                },
+                "dependsOn": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "when": {
+                    "type": "string"
+                },
+                "forEach": {
+                    "type": "string"
+                },
+                "wait": {
+                    "type": "string"
+                },
+                "items": {
+                    "description": "Item source expression (loop/switch)",
+                    "type": "string"
+                },
+                "mode": {
+                    "description": "Execution mode (switch/merge)",
+                    "type": "string"
+                },
+                "batchSize": {
+                    "description": "Loop batch size",
+                    "type": "string"
+                },
+                "steps": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/step-object"
+                    }
+                },
+                "cases": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/case-object"
+                    }
+                },
+                "default": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/step-object"
+                    }
+                },
+                "outputs": {
+                    "description": "Named output values via runtime expressions",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "timeout": {
+                    "description": "Maximum execution duration in seconds for the workflow after it is eligible to start",
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                },
+                "idempotency": {
+                    "$ref": "#/$defs/idempotency-object"
+                }
+            },
+            "required": [
+                "workflowId",
+                "type"
+            ],
+            "allOf": [
+                {
+                    "$ref": "#/$defs/structural-type-constraints"
+                }
+            ],
+            "$ref": "#/$defs/specification-extensions",
+            "unevaluatedProperties": false
+        },
+        "step-object": {
+            "description": "A nested step within a structural workflow",
+            "type": "object",
+            "properties": {
+                "stepId": {
+                    "description": "Step identifier",
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]+$"
+                },
+                "type": {
+                    "description": "Structural step type. Operation calls use operationRef instead.",
+                    "enum": [
+                        "sequence",
+                        "parallel",
+                        "switch",
+                        "merge",
+                        "loop",
+                        "await"
+                    ]
+                },
+                "description": {
+                    "description": "A description of the step's purpose",
+                    "type": "string"
+                },
+                "operationRef": {
+                    "description": "Reference to an operation by operationId",
+                    "type": "string"
+                },
+                "body": {
+                    "description": "Inline step body",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "dependsOn": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "when": {
+                    "type": "string"
+                },
+                "forEach": {
+                    "type": "string"
+                },
+                "wait": {
+                    "type": "string"
+                },
+                "workflow": {
+                    "type": "string"
+                },
+                "parallelGroup": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "string"
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "batchSize": {
+                    "type": "string"
+                },
+                "steps": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/step-object"
+                    }
+                },
+                "cases": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/case-object"
+                    }
+                },
+                "default": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/step-object"
+                    }
+                },
+                "outputs": {
+                    "description": "Named output values via runtime expressions",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "timeout": {
+                    "description": "Maximum execution duration in seconds for the step after it is eligible to start",
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                }
+            },
+            "required": [
+                "stepId"
+            ],
+            "allOf": [
+                {
+                    "if": {
+                        "required": [
+                            "type"
+                        ]
+                    },
+                    "then": {
+                        "$ref": "#/$defs/structural-type-constraints"
+                    }
+                }
+            ],
+            "$ref": "#/$defs/specification-extensions",
+            "unevaluatedProperties": false
+        },
+        "case-object": {
+            "description": "A single branch within a switch construct",
+            "type": "object",
+            "properties": {
+                "name": {
+                    "description": "Case name",
+                    "type": "string"
+                },
+                "when": {
+                    "description": "Matching condition",
+                    "type": "string"
+                },
+                "body": {
+                    "description": "Case body",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "steps": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/step-object"
+                    }
+                }
+            },
+            "required": [
+                "name"
+            ],
+            "$ref": "#/$defs/specification-extensions",
+            "unevaluatedProperties": false
+        },
+        "trigger-object": {
+            "description": "A workflow entry point",
+            "type": "object",
+            "properties": {
+                "triggerId": {
+                    "description": "Unique trigger identifier",
+                    "type": "string"
+                },
+                "path": {
+                    "description": "HTTP path for webhook triggers",
+                    "type": "string"
+                },
+                "methods": {
+                    "description": "Allowed HTTP methods",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "authentication": {
+                    "description": "Authentication scheme",
+                    "type": "string"
+                },
+                "options": {
+                    "description": "Additional trigger options",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "outputs": {
+                    "description": "Ordered list of unique output labels the trigger may emit",
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                        "type": "string",
+                        "pattern": "^[a-zA-Z0-9._-]+$"
+                    }
+                },
+                "routes": {
+                    "description": "Output-to-execution-target routing",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/trigger-route-object"
+                    }
+                }
+            },
+            "required": [
+                "triggerId"
+            ],
+            "allOf": [
+                {
+                    "if": {
+                        "required": [
+                            "routes"
+                        ]
+                    },
+                    "then": {
+                        "required": [
+                            "outputs"
+                        ]
+                    }
+                }
+            ],
+            "$ref": "#/$defs/specification-extensions",
+            "unevaluatedProperties": false
+        },
+        "trigger-route-object": {
+            "description": "Maps a trigger output to top-level stepId or workflowId targets",
+            "type": "object",
+            "properties": {
+                "output": {
+                    "description": "Trigger output index or label",
+                    "type": "string"
+                },
+                "to": {
+                    "description": "Downstream top-level stepId or workflowId targets",
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            },
+            "required": [
+                "output",
+                "to"
+            ],
+            "$ref": "#/$defs/specification-extensions",
+            "unevaluatedProperties": false
+        },
+        "param-schema-object": {
+            "description": "An HTTP parameter or payload schema (recursive)",
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string"
+                },
+                "format": {
+                    "type": "string"
+                },
+                "$ref": {
+                    "type": "string"
+                },
+                "properties": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/$defs/param-schema-object"
+                    }
+                },
+                "required": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "items": {
+                    "$ref": "#/$defs/param-schema-object"
+                },
+                "allOf": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/param-schema-object"
+                    }
+                },
+                "oneOf": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/param-schema-object"
+                    }
+                },
+                "anyOf": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/param-schema-object"
+                    }
+                }
+            },
+            "$ref": "#/$defs/specification-extensions",
+            "unevaluatedProperties": false
+        },
+        "structural-result-object": {
+            "description": "Output from a structural construct (switch, merge, loop)",
+            "type": "object",
+            "properties": {
+                "name": {
+                    "description": "Result name, unique within results[]",
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9._-]+$"
+                },
+                "kind": {
+                    "description": "Structural construct kind",
+                    "type": "string",
+                    "enum": [
+                        "switch",
+                        "merge",
+                        "loop"
+                    ]
+                },
+                "from": {
+                    "description": "workflowId or workflowId.stepId of the emitting construct",
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)?$"
+                },
+                "value": {
+                    "description": "Runtime expression selecting the exposed value",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "name",
+                "kind",
+                "from"
+            ],
+            "$ref": "#/$defs/specification-extensions",
+            "unevaluatedProperties": false
+        },
+        "components-object": {
+            "description": "Reusable objects scoped to the UWS document",
+            "type": "object",
+            "properties": {
+                "variables": {
+                    "type": "object",
+                    "propertyNames": {
+                        "pattern": "^[a-zA-Z0-9._-]+$"
+                    },
+                    "additionalProperties": true
+                }
+            },
+            "$ref": "#/$defs/specification-extensions",
+            "unevaluatedProperties": false
+        },
+        "criterion-object": {
+            "description": "A condition that determines success or failure of an operation",
+            "type": "object",
+            "properties": {
+                "condition": {
+                    "description": "A runtime expression or literal value to evaluate",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "How to evaluate the condition",
+                    "enum": [
+                        "simple",
+                        "regex",
+                        "jsonpath",
+                        "xpath"
+                    ],
+                    "default": "simple"
+                },
+                "context": {
+                    "description": "The value to apply the condition against (required for regex, jsonpath, xpath)",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "condition"
+            ],
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "type": {
+                                "enum": [
+                                    "regex",
+                                    "jsonpath",
+                                    "xpath"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "type"
+                        ]
+                    },
+                    "then": {
+                        "required": [
+                            "context"
+                        ]
+                    }
+                }
+            ],
+            "$ref": "#/$defs/specification-extensions",
+            "unevaluatedProperties": false
+        },
+        "failure-action-object": {
+            "description": "An action to take when an operation fails",
+            "type": "object",
+            "properties": {
+                "name": {
+                    "description": "A unique name for the action",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "The action type",
+                    "enum": [
+                        "end",
+                        "goto",
+                        "retry"
+                    ]
+                },
+                "workflowId": {
+                    "description": "Target workflow for goto actions",
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]+$"
+                },
+                "stepId": {
+                    "description": "Target step for goto actions",
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]+$"
+                },
+                "retryAfter": {
+                    "description": "Seconds to wait before retrying",
+                    "type": "number",
+                    "minimum": 0
+                },
+                "retryLimit": {
+                    "description": "Maximum number of retry attempts",
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "criteria": {
+                    "description": "Conditions that must match for this action to apply",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/criterion-object"
+                    }
+                }
+            },
+            "required": [
+                "name",
+                "type"
+            ],
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "type": {
+                                "const": "goto"
+                            }
+                        },
+                        "required": [
+                            "type"
+                        ]
+                    },
+                    "then": {
+                        "oneOf": [
+                            {
+                                "required": [
+                                    "workflowId"
+                                ]
+                            },
+                            {
+                                "required": [
+                                    "stepId"
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "type": {
+                                "const": "retry"
+                            }
+                        },
+                        "required": [
+                            "type"
+                        ]
+                    },
+                    "then": {
+                        "required": [
+                            "retryLimit"
+                        ]
+                    }
+                }
+            ],
+            "$ref": "#/$defs/specification-extensions",
+            "unevaluatedProperties": false
+        },
+        "success-action-object": {
+            "description": "An action to take when an operation succeeds",
+            "type": "object",
+            "properties": {
+                "name": {
+                    "description": "A unique name for the action",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "The action type",
+                    "enum": [
+                        "end",
+                        "goto"
+                    ]
+                },
+                "workflowId": {
+                    "description": "Target workflow for goto actions",
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]+$"
+                },
+                "stepId": {
+                    "description": "Target step for goto actions",
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]+$"
+                },
+                "criteria": {
+                    "description": "Conditions that must match for this action to apply",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/criterion-object"
+                    }
+                }
+            },
+            "required": [
+                "name",
+                "type"
+            ],
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "type": {
+                                "const": "goto"
+                            }
+                        },
+                        "required": [
+                            "type"
+                        ]
+                    },
+                    "then": {
+                        "oneOf": [
+                            {
+                                "required": [
+                                    "workflowId"
+                                ]
+                            },
+                            {
+                                "required": [
+                                    "stepId"
+                                ]
+                            }
+                        ]
+                    }
+                }
+            ],
+            "$ref": "#/$defs/specification-extensions",
+            "unevaluatedProperties": false
+        },
+        "specification-extensions": {
+            "description": "Custom fields prefixed with x-",
+            "patternProperties": {
+                "^x-": true
+            }
+        },
+        "structural-type-constraints": {
+            "description": "Per-type field constraints for structural workflows and steps (see spec \u00a74.5.6.3)",
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "type": {
+                                "const": "loop"
+                            }
+                        },
+                        "required": [
+                            "type"
+                        ]
+                    },
+                    "then": {
+                        "required": [
+                            "items"
+                        ],
+                        "not": {
+                            "anyOf": [
+                                {
+                                    "required": [
+                                        "cases"
+                                    ]
+                                },
+                                {
+                                    "required": [
+                                        "default"
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "type": {
+                                "const": "await"
+                            }
+                        },
+                        "required": [
+                            "type"
+                        ]
+                    },
+                    "then": {
+                        "required": [
+                            "wait"
+                        ],
+                        "not": {
+                            "anyOf": [
+                                {
+                                    "required": [
+                                        "cases"
+                                    ]
+                                },
+                                {
+                                    "required": [
+                                        "default"
+                                    ]
+                                },
+                                {
+                                    "required": [
+                                        "items"
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "type": {
+                                "enum": [
+                                    "sequence",
+                                    "parallel",
+                                    "switch",
+                                    "merge"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "type"
+                        ]
+                    },
+                    "then": {
+                        "not": {
+                            "required": [
+                                "items"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "type": {
+                                "const": "merge"
+                            }
+                        },
+                        "required": [
+                            "type"
+                        ]
+                    },
+                    "then": {
+                        "required": [
+                            "dependsOn"
+                        ],
+                        "properties": {
+                            "dependsOn": {
+                                "type": "array",
+                                "minItems": 1
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "idempotency-object": {
+            "description": "Workflow-run de-duplication metadata",
+            "type": "object",
+            "properties": {
+                "key": {
+                    "description": "Runtime expression or literal string for the logical workflow-run key",
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "\\S"
+                },
+                "onConflict": {
+                    "description": "Behavior when the idempotency identity already exists",
+                    "enum": [
+                        "reject",
+                        "returnPrevious"
+                    ]
+                },
+                "ttl": {
+                    "description": "Optional retention window in seconds",
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                }
+            },
+            "required": [
+                "key"
+            ],
+            "$ref": "#/$defs/specification-extensions",
+            "unevaluatedProperties": false
+        }
+    }
+}

@@ -14,7 +14,7 @@ import (
 
 // schemaDefCoverage declares, per $def, which structural rules the Go
 // validator is expected to enforce (beyond what the JSON Schema pass does).
-// TestSchemaConformance_DrivenRulesAreDeclared reads versions/1.0.0.json, extracts every
+// TestSchemaConformance_DrivenRulesAreDeclared reads the latest versions/1.x schema, extracts every
 // required/enum/pattern rule per $def, and fails if the schema's actual rule
 // set differs from this table in either direction:
 //
@@ -64,6 +64,11 @@ func schemaDefCoverage() map[string]schemaDefRules {
 			enumProps:    []string{"type"},
 			patternProps: []string{"workflowId"},
 		},
+		"idempotency-object": {
+			required:     []string{"key"},
+			enumProps:    []string{"onConflict"},
+			patternProps: []string{"key"},
+		},
 		"step-object": {
 			required:     []string{"stepId"},
 			enumProps:    []string{"type"},
@@ -106,7 +111,7 @@ func schemaDefCoverage() map[string]schemaDefRules {
 }
 
 // TestSchemaConformance_DrivenRulesAreDeclared is the tripwire that fires when
-// a rule is added to or removed from versions/1.0.0.json without a matching update to
+// a rule is added to or removed from the latest schema without a matching update to
 // schemaDefCoverage. That mismatch is exactly the drift S1 is meant to kill.
 func TestSchemaConformance_DrivenRulesAreDeclared(t *testing.T) {
 	schema := loadSchemaDoc(t)
@@ -190,6 +195,16 @@ func TestSchemaConformance_ValidatorMatchesSelectedRules(t *testing.T) {
 	doc = validDocument()
 	doc.SourceDescriptions[0].Type = "swagger"
 	require.ErrorContains(t, doc.Validate(), "swagger")
+
+	// idempotency-object: enum on `onConflict`
+	doc = validDocument()
+	doc.UWS = "1.1.0"
+	doc.Workflows = []*Workflow{{
+		WorkflowID:  "main",
+		Type:        WorkflowTypeSequence,
+		Idempotency: &Idempotency{Key: "$variables.requestId", OnConflict: "replace"},
+	}}
+	require.ErrorContains(t, doc.Validate(), "replace")
 }
 
 func TestSchemaConformance_JSONSchemaValidator(t *testing.T) {
@@ -348,17 +363,47 @@ func TestSchemaConformance_JSONSchemaValidator(t *testing.T) {
 		]
 	}`))
 	require.NoError(t, schema.Validate(paramSchemaRef))
+
+	uws11TimeoutAndIdempotency := decodeJSONValue(t, []byte(`{
+		"uws": "1.1.0",
+		"info": {"title": "Timeouts", "version": "1.0.0"},
+		"operations": [
+			{"operationId": "build_email", "x-uws-operation-profile": "udon", "timeout": 5}
+		],
+		"workflows": [
+			{
+				"workflowId": "main",
+				"type": "sequence",
+				"timeout": 30,
+				"idempotency": {"key": "$variables.requestId", "onConflict": "returnPrevious", "ttl": 86400},
+				"steps": [{"stepId": "build", "operationRef": "build_email", "timeout": 10}]
+			}
+		]
+	}`))
+	require.NoError(t, schema.Validate(uws11TimeoutAndIdempotency))
+
+	invalidUWS11TimeoutAndIdempotency := decodeJSONValue(t, []byte(`{
+		"uws": "1.1.0",
+		"info": {"title": "Timeouts", "version": "1.0.0"},
+		"operations": [
+			{"operationId": "build_email", "x-uws-operation-profile": "udon", "timeout": 0}
+		],
+		"workflows": [
+			{"workflowId": "main", "type": "sequence", "idempotency": {"key": "   ", "onConflict": "replace", "ttl": 0}}
+		]
+	}`))
+	require.Error(t, schema.Validate(invalidUWS11TimeoutAndIdempotency))
 }
 
 func compileUWSSchema(t *testing.T) *jsonschema.Schema {
 	t.Helper()
-	data, err := os.ReadFile("../versions/1.0.0.json")
+	data, err := os.ReadFile("../versions/1.1.0.json")
 	require.NoError(t, err)
 	doc, err := jsonschema.UnmarshalJSON(bytes.NewReader(data))
 	require.NoError(t, err)
 	compiler := jsonschema.NewCompiler()
-	require.NoError(t, compiler.AddResource("versions/1.0.0.json", doc))
-	schema, err := compiler.Compile("versions/1.0.0.json")
+	require.NoError(t, compiler.AddResource("versions/1.1.0.json", doc))
+	schema, err := compiler.Compile("versions/1.1.0.json")
 	require.NoError(t, err)
 	return schema
 }
@@ -370,7 +415,7 @@ func decodeJSONValue(t *testing.T, data []byte) any {
 	return value
 }
 
-// collectSchemaRules walks versions/1.0.0.json and extracts, per $def plus the root,
+// collectSchemaRules walks the latest schema and extracts, per $def plus the root,
 // every `required`, enum-bearing, pattern-bearing, and propertyNames-pattern
 // property. Meta defs (specification-extensions, structural-type-constraints)
 // are skipped.

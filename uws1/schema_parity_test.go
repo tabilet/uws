@@ -14,7 +14,7 @@ import (
 )
 
 // schemaParityEntry binds a Go type that carries x-* extensions to the $def
-// that describes it in versions/1.0.0.json, and to the package-level knownFields list its
+// that describes it in the latest versions/1.x JSON Schema, and to the package-level knownFields list its
 // UnmarshalJSON uses to reject unknown properties. Adding a new such type is
 // the one place that must be kept in sync by hand; the test below catches
 // every other drift direction automatically.
@@ -36,6 +36,7 @@ func schemaParityEntries() []schemaParityEntry {
 		{label: "Workflow", defName: "workflow-object", goType: reflect.TypeOf(Workflow{}), knownFields: workflowKnownFields},
 		{label: "Step", defName: "step-object", goType: reflect.TypeOf(Step{}), knownFields: stepKnownFields},
 		{label: "Case", defName: "case-object", goType: reflect.TypeOf(Case{}), knownFields: caseKnownFields},
+		{label: "Idempotency", defName: "idempotency-object", goType: reflect.TypeOf(Idempotency{}), knownFields: idempotencyKnownFields},
 		{label: "Trigger", defName: "trigger-object", goType: reflect.TypeOf(Trigger{}), knownFields: triggerKnownFields},
 		{label: "TriggerRoute", defName: "trigger-route-object", goType: reflect.TypeOf(TriggerRoute{}), knownFields: triggerRouteKnownFields},
 		{label: "ParamSchema", defName: "param-schema-object", goType: reflect.TypeOf(ParamSchema{}), knownFields: paramSchemaKnownFields},
@@ -66,7 +67,7 @@ func TestSchemaParity_StructTagsMatchKnownFields(t *testing.T) {
 
 // TestSchemaParity_KnownFieldsMatchSchema ensures every parity-tracked type's
 // knownFields list is exactly the set of non-extension properties declared by
-// its $def in versions/1.0.0.json. A drift in either direction fails this test: a new
+// its $def in the latest schema. A drift in either direction fails this test: a new
 // schema property without a Go equivalent, or a Go known field without a
 // schema property.
 func TestSchemaParity_KnownFieldsMatchSchema(t *testing.T) {
@@ -83,7 +84,7 @@ func TestSchemaParity_KnownFieldsMatchSchema(t *testing.T) {
 	}
 }
 
-// TestSchemaParity_DefCoverageIsExhaustive fails when versions/1.0.0.json grows a $def
+// TestSchemaParity_DefCoverageIsExhaustive fails when the latest schema grows a $def
 // that no parity entry tracks. This is the tripwire for adding a new type
 // without wiring it through the extension machinery.
 func TestSchemaParity_DefCoverageIsExhaustive(t *testing.T) {
@@ -112,7 +113,7 @@ func TestSchemaParity_DefCoverageIsExhaustive(t *testing.T) {
 	}
 	sort.Strings(untracked)
 	assert.Empty(t, untracked,
-		"versions/1.0.0.json declares $defs that no schemaParityEntries covers: %v", untracked)
+		"latest schema declares $defs that no schemaParityEntries covers: %v", untracked)
 }
 
 func jsonFieldTags(t *testing.T, typ reflect.Type) []string {
@@ -154,7 +155,7 @@ func namedFields(typ reflect.Type) []string {
 
 func loadSchemaDoc(t *testing.T) map[string]any {
 	t.Helper()
-	data, err := os.ReadFile("../versions/1.0.0.json")
+	data, err := os.ReadFile("../versions/1.1.0.json")
 	require.NoError(t, err)
 	var schema map[string]any
 	require.NoError(t, json.Unmarshal(data, &schema))

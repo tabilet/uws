@@ -11,6 +11,7 @@ type Workflow struct {
 	Type        string       `json:"type" yaml:"type" hcl:"type"`
 	Description string       `json:"description,omitempty" yaml:"description,omitempty" hcl:"description,optional"`
 	Inputs      *ParamSchema `json:"inputs,omitempty" yaml:"inputs,omitempty" hcl:"inputs,block"`
+	Idempotency *Idempotency `json:"idempotency,omitempty" yaml:"idempotency,omitempty" hcl:"idempotency,block"`
 	WorkflowExecutionFields
 	StructuralFields
 	Steps      []*Step           `json:"steps,omitempty" yaml:"steps,omitempty" hcl:"step,block"`
@@ -43,7 +44,8 @@ type workflowAlias Workflow
 
 var workflowKnownFields = []string{
 	"workflowId", "type", "description", "inputs",
-	"dependsOn", "when", "forEach", "wait",
+	"idempotency",
+	"dependsOn", "when", "forEach", "wait", "timeout",
 	"items", "mode", "batchSize", "steps", "cases", "default",
 	"outputs",
 }
@@ -103,7 +105,7 @@ type stepAlias Step
 
 var stepKnownFields = []string{
 	"stepId", "type", "description", "operationRef", "body",
-	"dependsOn", "when", "forEach", "wait", "workflow", "parallelGroup",
+	"dependsOn", "when", "forEach", "wait", "timeout", "workflow", "parallelGroup",
 	"items", "mode", "batchSize", "steps", "cases", "default",
 	"outputs",
 }

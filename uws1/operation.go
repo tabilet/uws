@@ -93,7 +93,7 @@ type operationAlias Operation
 var operationKnownFields = []string{
 	"operationId", "sourceDescription", "openapiOperationId", "openapiOperationRef",
 	"description", "request",
-	"dependsOn", "when", "forEach", "wait", "parallelGroup",
+	"dependsOn", "when", "forEach", "wait", "timeout", "parallelGroup",
 	"successCriteria", "onFailure", "onSuccess",
 	"outputs",
 }

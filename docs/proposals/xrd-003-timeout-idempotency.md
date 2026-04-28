@@ -1,6 +1,6 @@
 # XRD-003: Portable Timeout And Workflow Idempotency
 
-Status: proposed
+Status: accepted and implemented in UWS 1.1.0
 
 Target version: UWS 1.1.0
 
@@ -20,8 +20,8 @@ UWS 1.0.0 deliberately does not provide either contract. `await` timeout is exec
 configured out of band, and idempotency keys can only be ordinary OpenAPI request values when an API
 declares an idempotency header or body field.
 
-Until UWS defines these semantics, Ramen must keep portable timeout and workflow-level idempotency
-prompt/schema support disabled.
+UWS 1.1.0 now defines these semantics. Ramen still needs its own prompt/schema/eval follow-up
+before generated artifacts emit the new fields by default.
 
 ## Non-Goals
 
@@ -139,8 +139,7 @@ workflows:
 
 ## Schema And Model Changes
 
-If accepted, the UWS implementation should add a UWS 1.1.0 contract instead of mutating the
-published 1.0.0 contract:
+The UWS implementation adds a UWS 1.1.0 contract instead of mutating the published 1.0.0 contract:
 
 1. Add `versions/1.1.0.json`.
 2. Add `versions/1.1.0.md`.
@@ -153,18 +152,17 @@ published 1.0.0 contract:
 5. Add validation for positive timeout, idempotency required fields, `onConflict` enum values, and
    positive `ttl`.
 6. Add schema conformance and round-trip tests.
-7. Update execution tests after the orchestrator/runtime contract grows timeout and idempotency
-   support.
+7. Update execution tests after the orchestrator/runtime contract grows concrete timeout and
+   idempotency enforcement support.
 
 ## Ramen Handoff
 
-Ramen may enable prompt/schema support only after UWS accepts and implements this public contract.
-Before then:
+Ramen may enable prompt/schema support in a separate follow-up now that UWS has accepted and
+implemented this public contract. Until that Ramen follow-up lands:
 
 - Ramen may document desired timeout and idempotency policy in project review evidence.
 - Ramen may bind API-specific idempotency keys only through explicit OpenAPI request fields.
-- Ramen must not emit a portable `timeout` field.
-- Ramen must not emit workflow-level `idempotency` metadata.
+- Ramen generation behavior should remain unchanged.
 
 ## Open Questions
 

@@ -13,15 +13,15 @@ Non-OpenAPI runtimes such as command execution, function calls, file I/O, SSH, S
 ## Documentation
 
 - **Docs site**: [tabilet.github.io/uws](https://tabilet.github.io/uws/)
-- Human-readable specification: [versions/1.0.0.md](versions/1.0.0.md)
-- JSON Schema: [versions/1.0.0.json](versions/1.0.0.json)
+- Human-readable specification: [versions/1.1.0.md](versions/1.1.0.md)
+- JSON Schema: [versions/1.1.0.json](versions/1.1.0.json)
 
 ## Packages
 
 - `uws1` contains the UWS 1.x Go model, structural vocabulary, and structural validation.
 - `convert` converts UWS documents between JSON, YAML, and the HCL authoring form.
-- `versions/1.0.0.md` is the human-readable UWS 1.0 specification.
-- `versions/1.0.0.json` is the JSON Schema for UWS 1.0 documents.
+- `versions/1.1.0.md` is the human-readable UWS 1.1 specification.
+- `versions/1.1.0.json` is the JSON Schema for UWS 1.1 documents.
 
 ## Validation
 
@@ -36,11 +36,11 @@ if !result.Valid() {
 
 Validation checks required root fields, OpenAPI operation bindings, extension-owned operation profiles, duplicate identifiers, standard request-binding keys, known structural types, selected reference integrity, action/criterion rules, and trigger routes.
 
-`versions/1.0.0.json` provides structural JSON Schema validation. Use the Go validator for semantic checks such as duplicate identifiers and reference integrity.
+`versions/1.1.0.json` provides structural JSON Schema validation. Use the Go validator for semantic checks such as duplicate identifiers and reference integrity.
 
 ## Execution
 
-UWS 1.0 defines a bound-runtime execution model. UWS core owns orchestration and structural execution semantics; the bound runtime owns leaf execution plus the evaluation services needed for expressions and iterative constructs.
+UWS 1.x defines a bound-runtime execution model. UWS core owns orchestration and structural execution semantics; the bound runtime owns leaf execution plus the evaluation services needed for expressions and iterative constructs.
 
 At a high level:
 

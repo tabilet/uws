@@ -23,8 +23,8 @@ Beyond document shape, UWS also defines a normative **execution model**: a clean
 
 ```json
 {
-  "uws": "1.0.0",
-  "info": { "title": "Weather Report", "version": "1.0.0" },
+  "uws": "1.1.0",
+  "info": { "title": "Weather Report", "version": "1.1.0" },
   "sourceDescriptions": [
     { "name": "weather_api", "url": "./weather.openapi.yaml", "type": "openapi" },
     { "name": "gmail_api",   "url": "./gmail.openapi.yaml",   "type": "openapi" }
@@ -76,8 +76,8 @@ The orchestrator owns all structural concerns: dependency resolution, parallel s
 
 ## Reference
 
-- **Specification**: [`versions/1.0.0.md`](https://github.com/tabilet/uws/blob/main/versions/1.0.0.md)
-- **JSON Schema**: [`versions/1.0.0.json`](https://github.com/tabilet/uws/blob/main/versions/1.0.0.json)
+- **Specification**: [`versions/1.1.0.md`](https://github.com/tabilet/uws/blob/main/versions/1.1.0.md)
+- **JSON Schema**: [`versions/1.1.0.json`](https://github.com/tabilet/uws/blob/main/versions/1.1.0.json)
 - **Go package**: `github.com/tabilet/uws`
 - **License**: Apache 2.0
 

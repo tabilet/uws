@@ -42,6 +42,64 @@ func TestValidate_OpenAPIOperationRefValid(t *testing.T) {
 	assert.NoError(t, doc.Validate())
 }
 
+func TestValidate_UWS11TimeoutAndIdempotency(t *testing.T) {
+	timeout := 30.5
+	ttl := 86400.0
+	doc := validDocument()
+	doc.UWS = "1.1.0"
+	doc.Operations[0].Timeout = &timeout
+	doc.Workflows = []*Workflow{{
+		WorkflowID:  "main",
+		Type:        WorkflowTypeSequence,
+		Idempotency: &Idempotency{Key: "$variables.requestId", OnConflict: "returnPrevious", TTL: &ttl},
+		WorkflowExecutionFields: WorkflowExecutionFields{
+			Timeout: &timeout,
+		},
+		Steps: []*Step{{
+			StepID:       "fetch",
+			OperationRef: "get_data",
+			StepExecutionFields: StepExecutionFields{
+				Timeout: &timeout,
+			},
+		}},
+	}}
+	assert.NoError(t, doc.Validate())
+}
+
+func TestValidate_UWS11FieldsRequireVersionAndPositiveValues(t *testing.T) {
+	timeout := 0.0
+	ttl := -1.0
+	doc := validDocument()
+	doc.Operations[0].Timeout = &timeout
+	doc.Workflows = []*Workflow{{
+		WorkflowID:  "main",
+		Type:        WorkflowTypeSequence,
+		Idempotency: &Idempotency{Key: "$variables.requestId"},
+		Steps: []*Step{{
+			StepID:       "fetch",
+			OperationRef: "get_data",
+			StepExecutionFields: StepExecutionFields{
+				Timeout: &timeout,
+			},
+		}},
+	}}
+	err := doc.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "operations[0].timeout requires UWS 1.1.0 or later")
+	assert.Contains(t, err.Error(), "workflows[0].idempotency requires UWS 1.1.0 or later")
+	assert.Contains(t, err.Error(), "workflows[0].steps[0].timeout requires UWS 1.1.0 or later")
+
+	doc.UWS = "1.1.0"
+	doc.Workflows[0].Idempotency = &Idempotency{OnConflict: "replace", TTL: &ttl}
+	err = doc.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "operations[0].timeout must be greater than 0")
+	assert.Contains(t, err.Error(), "workflows[0].idempotency.key is required")
+	assert.Contains(t, err.Error(), `workflows[0].idempotency.onConflict "replace" is not valid`)
+	assert.Contains(t, err.Error(), "workflows[0].idempotency.ttl must be greater than 0")
+	assert.Contains(t, err.Error(), "workflows[0].steps[0].timeout must be greater than 0")
+}
+
 func TestOperationBindingHelpers(t *testing.T) {
 	var nilOp *Operation
 	assert.False(t, nilOp.HasOpenAPIBinding())
