@@ -35,4 +35,6 @@ nav:
   - Reference:
     - Specification: https://github.com/tabilet/uws/blob/main/versions/1.0.0.md
     - JSON Schema: https://github.com/tabilet/uws/blob/main/versions/1.0.0.json
+    - Proposals:
+      - XRD-003 Timeout and Idempotency: proposals/xrd-003-timeout-idempotency.md
     - Repository: https://github.com/tabilet/uws
