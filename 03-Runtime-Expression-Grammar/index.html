@@ -1,0 +1,1592 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A compact, execution-oriented workflow specification for OpenAPI-backed HTTP operations">
+      
+      
+      
+        <link rel="canonical" href="https://tabilet.github.io/uws/03-Runtime-Expression-Grammar/">
+      
+      
+        <link rel="prev" href="../02-Six-Structural-Constructs/">
+      
+      
+        <link rel="next" href="../04-Triggers-and-Route-Dispatch/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>3. Runtime Expression Grammar - Udon Workflow Specification</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#feature-3-runtime-expression-grammar" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Udon Workflow Specification" class="md-header__button md-logo" aria-label="Udon Workflow Specification" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Udon Workflow Specification
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              3. Runtime Expression Grammar
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/tabilet/uws" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    tabilet/uws
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../workflow-authoring/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Quick Start
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../01-OpenAPI-Operation-Binding/" class="md-tabs__link">
+          
+  
+  
+  Features
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="https://github.com/tabilet/uws/blob/main/versions/1.1.0.md" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Udon Workflow Specification" class="md-nav__button md-logo" aria-label="Udon Workflow Specification" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Udon Workflow Specification
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/tabilet/uws" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    tabilet/uws
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflow-authoring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../01-OpenAPI-Operation-Binding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. OpenAPI Operation Binding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../02-Six-Structural-Constructs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Six Structural Constructs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Runtime Expression Grammar
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Runtime Expression Grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#expression-sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Expression Sources
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#accessing-response-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessing Response Data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cross-step-references-with-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-Step References with $steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#document-scope-variables-with-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Document-Scope Variables with $variables
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trigger-payload-access-with-trigger" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trigger Payload Access with $trigger
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comparison-operators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison Operators
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#json-pointer-fragments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JSON Pointer Fragments
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output-dot-walk-and-null-semantics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output Dot-Walk and null Semantics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#normative-abnf-grammar-56" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Normative ABNF Grammar (§5.6)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementation-extensions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation Extensions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../04-Triggers-and-Route-Dispatch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Triggers and Route Dispatch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../05-Structural-Results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. Structural Results
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../06-Success-Criteria-and-Actions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6. Success Criteria and Actions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../07-Execution-Model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    7. Execution Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../08-Extension-Profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    8. Extension Profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../09-Validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    9. Validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../10-Interchange-Formats/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    10. Interchange Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/tabilet/uws/blob/main/versions/1.1.0.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/tabilet/uws/blob/main/versions/1.1.0.json" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JSON Schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Proposals
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Proposals
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../proposals/xrd-003-timeout-idempotency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    XRD-003 Timeout and Idempotency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/tabilet/uws" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Repository
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#expression-sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Expression Sources
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#accessing-response-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessing Response Data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cross-step-references-with-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-Step References with $steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#document-scope-variables-with-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Document-Scope Variables with $variables
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trigger-payload-access-with-trigger" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trigger Payload Access with $trigger
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comparison-operators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison Operators
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#json-pointer-fragments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JSON Pointer Fragments
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output-dot-walk-and-null-semantics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output Dot-Walk and null Semantics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#normative-abnf-grammar-56" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Normative ABNF Grammar (§5.6)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementation-extensions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation Extensions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="feature-3-runtime-expression-grammar">Feature 3: Runtime Expression Grammar</h1>
+<p>← <a href="../02-Six-Structural-Constructs/">Six Structural Constructs</a> | <a href="../04-Triggers-and-Route-Dispatch/">Next: Triggers and Route Dispatch →</a></p>
+<hr />
+<p>UWS uses runtime expression strings in control-flow fields (<code>when</code>, <code>forEach</code>, <code>wait</code>, <code>items</code>, <code>batchSize</code>), in criterion conditions, and in the string values of <code>outputs</code> maps. The expression language is deliberately small and normative — a runtime that implements it verbatim is portable by construction.</p>
+<h2 id="expression-sources">Expression Sources</h2>
+<p>Every expression references data through a leading <code>$</code> sigil. A dotted suffix <code>.&lt;segment&gt;</code> walks into the resolved value.</p>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>$response.statusCode</code></td>
+<td>HTTP response status code of the current operation</td>
+</tr>
+<tr>
+<td><code>$response.body</code></td>
+<td>HTTP response body of the current operation</td>
+</tr>
+<tr>
+<td><code>$response.body#/json/pointer</code></td>
+<td>RFC 6901 JSON Pointer into the response body</td>
+</tr>
+<tr>
+<td><code>$response.headers.&lt;name&gt;</code></td>
+<td>HTTP response header value by name</td>
+</tr>
+<tr>
+<td><code>$outputs.&lt;name&gt;</code></td>
+<td>Same-scope output declared by the enclosing operation, workflow, or step</td>
+</tr>
+<tr>
+<td><code>$outputs.&lt;name&gt;.&lt;path&gt;</code></td>
+<td>Dot-walk into a structured output value</td>
+</tr>
+<tr>
+<td><code>$steps.&lt;stepId&gt;.outputs.&lt;name&gt;</code></td>
+<td>Output of a named sibling step</td>
+</tr>
+<tr>
+<td><code>$steps.&lt;stepId&gt;.outputs.&lt;name&gt;.&lt;path&gt;</code></td>
+<td>Dot-walk into a sibling step output</td>
+</tr>
+<tr>
+<td><code>$variables.&lt;name&gt;</code></td>
+<td>Document-scope variable from <code>variables</code> or <code>components.variables</code></td>
+</tr>
+<tr>
+<td><code>$variables.&lt;name&gt;.&lt;path&gt;</code></td>
+<td>Dot-walk into a structured variable value</td>
+</tr>
+<tr>
+<td><code>$trigger</code></td>
+<td>The payload delivered by the enclosing trigger</td>
+</tr>
+<tr>
+<td><code>$trigger.&lt;path&gt;</code></td>
+<td>Dot-walk into the trigger payload</td>
+</tr>
+</tbody>
+</table>
+<p>A resolved value may be any JSON type: string, number, boolean, null, object, or array.</p>
+<h2 id="accessing-response-data">Accessing Response Data</h2>
+<p>The most common expression source — reading data out of an HTTP response:</p>
+<pre><code class="language-yaml">operationId: search_products
+sourceDescription: catalog_api
+openapiOperationId: searchProducts
+outputs:
+  # Whole body
+  raw_response: $response.body
+
+  # Top-level field
+  total_count: $response.body.total
+
+  # JSON Pointer — first item's id field
+  first_id: $response.body#/items/0/id
+
+  # Nested field via dot-walk
+  first_name: $response.body.items.0.name
+
+  # HTTP status code
+  status: $response.statusCode
+
+  # Response header
+  next_page: $response.headers.X-Next-Page
+</code></pre>
+<p><strong>Using a response value to conditionally skip the next step:</strong></p>
+<pre><code class="language-yaml">- stepId: fetch_user
+  operationRef: get_user
+  outputs:
+    active: $response.body.active
+
+- stepId: send_email
+  operationRef: send_welcome
+  when: $steps.fetch_user.outputs.active == true
+</code></pre>
+<h2 id="cross-step-references-with-steps">Cross-Step References with <code>$steps</code></h2>
+<p><code>$steps.&lt;stepId&gt;.outputs.&lt;name&gt;</code> reads the named output of a sibling step within the same workflow:</p>
+<pre><code class="language-yaml">workflowId: enrich_order
+type: sequence
+steps:
+  - stepId: load_order
+    operationRef: get_order
+    outputs:
+      order_id:   $response.body.id
+      user_id:    $response.body.userId
+      total:      $response.body.total
+
+  - stepId: load_user
+    operationRef: get_user
+    request:
+      path:
+        userId: $steps.load_order.outputs.user_id
+
+  - stepId: apply_discount
+    operationRef: compute_discount
+    request:
+      body:
+        orderId:     $steps.load_order.outputs.order_id
+        userTier:    $steps.load_user.outputs.tier
+        baseTotal:   $steps.load_order.outputs.total
+</code></pre>
+<p><strong>Dot-walking into a structured output:</strong></p>
+<pre><code class="language-yaml">outputs:
+  street: $steps.load_user.outputs.address.street
+  city:   $steps.load_user.outputs.address.city
+</code></pre>
+<p>Dot-walk segments MUST match <code>[A-Za-z0-9_-]+</code>. A property name containing <code>.</code> cannot be accessed this way — use a JSON Pointer on <code>$response.body</code> or a dedicated output instead.</p>
+<h2 id="document-scope-variables-with-variables">Document-Scope Variables with <code>$variables</code></h2>
+<p>Variables declared at the top level or in <code>components.variables</code> are available everywhere:</p>
+<pre><code class="language-yaml">variables:
+  api_env: production
+  page_size: 20
+  config:
+    region: us-west-2
+    timeout: 30
+
+operations:
+  - operationId: list_items
+    sourceDescription: catalog_api
+    openapiOperationId: listItems
+    request:
+      query:
+        env:      $variables.api_env
+        pageSize: $variables.page_size
+        region:   $variables.config.region
+</code></pre>
+<h2 id="trigger-payload-access-with-trigger">Trigger Payload Access with <code>$trigger</code></h2>
+<p>Inside workflows started by a trigger dispatch, <code>$trigger</code> holds the inbound payload:</p>
+<pre><code class="language-yaml">triggers:
+  - triggerId: order_webhook
+    outputs: [created, updated]
+    routes:
+      - output: created
+        to: [handle_new_order]
+
+workflows:
+  - workflowId: handle_new_order
+    type: sequence
+    steps:
+      - stepId: save_order
+        operationRef: create_order
+        request:
+          body:
+            externalId: $trigger.orderId
+            amount:     $trigger.total
+            currency:   $trigger.currency
+
+      - stepId: notify
+        operationRef: send_confirmation
+        when: $trigger.notify == true
+        request:
+          body:
+            email: $trigger.customer.email
+</code></pre>
+<h2 id="comparison-operators">Comparison Operators</h2>
+<p>Inside <code>when</code>, <code>Criterion.condition</code> (when <code>type</code> is <code>simple</code>), and other boolean expression fields, UWS defines six comparison operators:</p>
+<pre><code>== != &lt; &lt;= &gt; &gt;=
+</code></pre>
+<p>Rules:
+- Operands MUST be of the same JSON type — no implicit coercion.
+- <code>==</code> and <code>!=</code> apply to strings, numbers, booleans, and null.
+- <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code> apply to strings (lexicographic) and numbers only.
+- A single space surrounds the operator; <code>==</code> / <code>!=</code> / <code>&lt;=</code> / <code>&gt;=</code> are always two-character tokens.</p>
+<pre><code class="language-yaml"># Number comparison
+when: $response.body.count &gt; 0
+when: $response.statusCode == 200
+when: $variables.retries &lt;= 3
+
+# String comparison
+when: $response.body.status == &quot;active&quot;
+when: $trigger.event != &quot;ping&quot;
+
+# Null check
+when: $steps.load.outputs.result != null
+</code></pre>
+<h2 id="json-pointer-fragments">JSON Pointer Fragments</h2>
+<p>A <code>#</code>-prefixed RFC 6901 JSON Pointer can be appended to <code>$response.body</code> to address deeply nested values:</p>
+<pre><code class="language-yaml">outputs:
+  # First item in an array
+  first_item: $response.body#/items/0
+
+  # Nested object field
+  street: $response.body#/address/street
+
+  # Key with a slash in its name (slash escaped as ~1)
+  value: $response.body#/metrics~1rate
+</code></pre>
+<p>Inside a <code>Criterion</code> with <code>type: jsonpath</code>, the <code>context</code> field uses the same pointer form to select the value to test.</p>
+<h2 id="output-dot-walk-and-null-semantics">Output Dot-Walk and <code>null</code> Semantics</h2>
+<p>If a segment in a dot-walk path does not resolve — the property is absent, the index is out of bounds, or the segment is applied to a scalar — the expression evaluates to <code>null</code>:</p>
+<pre><code class="language-yaml"># If body.items is absent or empty, first_id resolves to null
+outputs:
+  first_id: $response.body.items.0.id
+
+# Guard against null with a criterion
+successCriteria:
+  - condition: $outputs.first_id != null
+</code></pre>
+<h2 id="normative-abnf-grammar-56">Normative ABNF Grammar (§5.6)</h2>
+<p>The full grammar is defined in §5.6 of the spec. Key productions:</p>
+<pre><code class="language-abnf">expression     = condition / source-expr
+condition      = source-expr SP op SP operand
+op             = &quot;==&quot; / &quot;!=&quot; / &quot;&lt;=&quot; / &quot;&gt;=&quot; / &quot;&lt;&quot; / &quot;&gt;&quot;
+operand        = source-expr / literal
+
+source-expr    = response-expr / outputs-expr / steps-expr / variables-expr / trigger-expr
+response-expr  = &quot;$response.statusCode&quot;
+               / &quot;$response.body&quot; [ json-pointer ]
+               / &quot;$response.headers.&quot; header-name
+outputs-expr   = &quot;$outputs.&quot; name [ &quot;.&quot; path ]
+steps-expr     = &quot;$steps.&quot; identifier &quot;.outputs.&quot; name [ &quot;.&quot; path ]
+variables-expr = &quot;$variables.&quot; name [ &quot;.&quot; path ]
+trigger-expr   = &quot;$trigger&quot; [ &quot;.&quot; path ]
+
+path           = segment *( &quot;.&quot; segment )
+segment        = 1*id-char
+id-char        = ALPHA / DIGIT / &quot;_&quot; / &quot;-&quot;
+literal        = json-string / json-number / json-bool / json-null
+</code></pre>
+<h2 id="implementation-extensions">Implementation Extensions</h2>
+<p>Richer features — boolean connectives (<code>&amp;&amp;</code>, <code>||</code>, <code>!</code>), arithmetic, function calls — are implementation-defined. A conforming UWS core MUST NOT require them for documents using only the normative grammar. Documents that depend on extended syntax SHOULD declare the dependency via <code>x-uws-operation-profile</code>.</p>
+<pre><code class="language-yaml"># This is UWS-core expression (normative — all runtimes support it):
+when: $response.statusCode == 200
+
+# This requires an implementation extension (non-portable):
+when: $response.statusCode == 200 &amp;&amp; $response.body.count &gt; 0
+</code></pre>
+<hr />
+<p>← <a href="../02-Six-Structural-Constructs/">Six Structural Constructs</a> | <a href="../04-Triggers-and-Route-Dispatch/">Next: Triggers and Route Dispatch →</a></p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      © 2026 tabilet/uws · Udon Workflow Specification v1.1.0 · Apache 2.0
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
