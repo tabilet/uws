@@ -21,6 +21,7 @@ theme:
 
 nav:
   - Home: index.md
+  - Quick Start: workflow-authoring.md
   - Features:
     - 1. OpenAPI Operation Binding: 01-OpenAPI-Operation-Binding.md
     - 2. Six Structural Constructs: 02-Six-Structural-Constructs.md

@@ -81,6 +81,10 @@ The orchestrator owns all structural concerns: dependency resolution, parallel s
 - **Go package**: `github.com/tabilet/uws`
 - **License**: Apache 2.0
 
+## Start Authoring
+
+If you need to hand-write a workflow, start with the practical [workflow authoring guide](workflow-authoring.md). It shows the minimal YAML shape, operation binding, request values, output flow, workflow steps, triggers, extensions, and a validation checklist before the full specification.
+
 ## The 10 Major Features
 
 | # | Feature | Summary |
