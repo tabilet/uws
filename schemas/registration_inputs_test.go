@@ -39,6 +39,40 @@ func registrationJSON(t *testing.T, value any) []byte {
 	return data
 }
 
+func TestRegistrationRecipesDoNotRequireDiscoveryAndPreserveLegacyMetadata(t *testing.T) {
+	for _, coverage := range []string{"", "partial", "owner_reviewed"} {
+		include := coverage != ""
+		object := registrationObject(t, registrationForm(t))
+		if !include {
+			delete(object, "discovery")
+		} else {
+			object["discovery"].(map[string]any)["coverage"] = coverage
+		}
+		data := registrationJSON(t, object)
+		if err := schemas.ValidateBrowserRegistrationProfile(data); err != nil {
+			t.Fatal(err)
+		}
+		if err := schemas.ValidateBrowserRegistrationCallBinding(data, readBrowserRegistrationFixture(t, "private-form-call.json")); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := schemas.BrowserRegistrationInputTemplate(data, "advertiser"); err != nil {
+			t.Fatal(err)
+		}
+		var profile browserregistration.Profile
+		if err := json.Unmarshal(data, &profile); err != nil {
+			t.Fatal(err)
+		}
+		roundtrip := registrationObject(t, registrationJSON(t, profile))
+		_, retained := roundtrip["discovery"]
+		if retained != include {
+			t.Fatal("round trip added or stripped optional discovery")
+		}
+		if include && string(registrationJSON(t, roundtrip["discovery"])) != string(registrationJSON(t, object["discovery"])) {
+			t.Fatal("legacy discovery changed")
+		}
+	}
+}
+
 func TestRegistrationPrivateFormVersionAndWireRoundtrip(t *testing.T) {
 	data := registrationForm(t)
 	if err := schemas.ValidateBrowserRegistrationProfile(data); err != nil {

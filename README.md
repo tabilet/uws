@@ -99,8 +99,12 @@ creation mutation and its fixed duplicate, ambiguity, and cleanup controls.
 They do not establish a session, carry credential values, automate human
 verification, retry an ambiguous outcome, or perform cleanup.
 
-Registration 1.1 adds typed private fields, explicit input checkpoints and
-bounded discovery metadata. A local form or editable JSON draft can collect all
+Registration 1.1 adds typed private fields and explicit input checkpoints. Its
+optional discovery metadata remains accepted for compatibility. Discovery
+inventory, coverage limitations and owner review belong in authoring tools
+such as OpenUdon's iCoT; new portable recipes should omit that metadata. See
+[registration authoring boundaries](docs/registration-authoring.md).
+A local form or editable JSON draft can collect all
 inputs for one registration type, including optional and conditional fields.
 The filled input envelope remains owner-private outside the package. Use
 `schemas.BrowserRegistrationInputTemplate` and
