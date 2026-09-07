@@ -1,0 +1,699 @@
+{
+  "$id": "https://github.com/OpenUdon/uws/versions/browser-registration.1.1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "UWS Browser Registration Profile 1.1",
+  "description": "Portable, inert, secret-free browser account-registration recipes consumed by a trusted private browser driver.",
+  "type": "object",
+  "required": [
+    "profile",
+    "info",
+    "observationKind",
+    "evidence",
+    "confidence",
+    "expiresAfter",
+    "verification",
+    "credentialSlots",
+    "flows",
+    "inputSlots"
+  ],
+  "properties": {
+    "profile": {
+      "const": "uws.browser-registration.1.1"
+    },
+    "info": {
+      "$ref": "#/$defs/profile-info"
+    },
+    "observationKind": {
+      "type": "string",
+      "enum": [
+        "accessibility_snapshot",
+        "dom_text",
+        "screenshot_ocr",
+        "other"
+      ]
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "confidence": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "expiresAfter": {
+      "type": "string",
+      "allOf": [
+        {
+          "pattern": "^P(?:\\d+Y)?(?:\\d+M)?(?:\\d+W)?(?:\\d+D)?(?:T(?:\\d+H)?(?:\\d+M)?(?:\\d+S)?)?$"
+        },
+        {
+          "pattern": "\\d+(?:Y|M|W|D|H|S)"
+        }
+      ]
+    },
+    "verification": {
+      "$ref": "#/$defs/verification"
+    },
+    "credentialSlots": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 64,
+      "propertyNames": {
+        "$ref": "#/$defs/identifier"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/credential-slot"
+      }
+    },
+    "flows": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 32,
+      "propertyNames": {
+        "$ref": "#/$defs/identifier"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/flow"
+      }
+    },
+    "inputSlots": {
+      "type": "object",
+      "maxProperties": 64,
+      "propertyNames": {
+        "$ref": "#/$defs/identifier"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/input-slot"
+      },
+      "minProperties": 1
+    },
+    "discovery": {
+      "type": "object",
+      "properties": {
+        "coverage": {
+          "enum": [
+            "partial",
+            "owner_reviewed"
+          ]
+        },
+        "entryPoints": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 2048
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "authentication_required",
+              "invitation_required",
+              "conditional_flow",
+              "unreachable_page",
+              "unknown_routes"
+            ]
+          }
+        }
+      },
+      "required": [
+        "coverage",
+        "entryPoints",
+        "limitations"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
+    },
+    "clean-path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "pattern": "^/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*$"
+    },
+    "profile-info": {
+      "type": "object",
+      "required": [
+        "title",
+        "applicationOrigins",
+        "registrationOrigins"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "applicationOrigins": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 2048
+          }
+        },
+        "registrationOrigins": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 2048
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "evidence": {
+      "type": "object",
+      "required": [
+        "learnedAt"
+      ],
+      "properties": {
+        "learnedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      },
+      "additionalProperties": false
+    },
+    "verification": {
+      "type": "object",
+      "required": [
+        "lastVerifiedAt"
+      ],
+      "properties": {
+        "lastVerifiedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "uiStabilityScore": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "credential-slot": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "identifier",
+            "password"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "locator": {
+      "type": "object",
+      "required": [
+        "role"
+      ],
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": [
+            "button",
+            "link",
+            "textbox",
+            "checkbox",
+            "radio",
+            "dialog",
+            "status",
+            "alert",
+            "heading",
+            "img",
+            "list",
+            "listitem",
+            "combobox",
+            "option",
+            "menu",
+            "menuitem",
+            "tab",
+            "tabpanel",
+            "table",
+            "row",
+            "cell",
+            "region",
+            "navigation",
+            "article",
+            "form",
+            "search",
+            "switch",
+            "group"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "value": {
+          "type": "string",
+          "maxLength": 512
+        }
+      },
+      "additionalProperties": false
+    },
+    "type-credential": {
+      "type": "object",
+      "required": [
+        "locator",
+        "slot"
+      ],
+      "properties": {
+        "locator": {
+          "$ref": "#/$defs/locator"
+        },
+        "slot": {
+          "$ref": "#/$defs/identifier"
+        }
+      },
+      "additionalProperties": false
+    },
+    "click": {
+      "type": "object",
+      "required": [
+        "locator"
+      ],
+      "properties": {
+        "locator": {
+          "$ref": "#/$defs/locator"
+        }
+      },
+      "additionalProperties": false
+    },
+    "submit": {
+      "type": "object",
+      "required": [
+        "locator"
+      ],
+      "properties": {
+        "locator": {
+          "$ref": "#/$defs/locator"
+        }
+      },
+      "additionalProperties": false
+    },
+    "human-checkpoint": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "captcha",
+            "email_verification",
+            "mfa",
+            "consent",
+            "other_control"
+          ]
+        },
+        "locator": {
+          "$ref": "#/$defs/locator"
+        }
+      },
+      "additionalProperties": false
+    },
+    "wait-for": {
+      "type": "object",
+      "required": [
+        "locator"
+      ],
+      "properties": {
+        "locator": {
+          "$ref": "#/$defs/locator"
+        }
+      },
+      "additionalProperties": false
+    },
+    "step": {
+      "type": "object",
+      "oneOf": [
+        {
+          "required": [
+            "navigate"
+          ],
+          "properties": {
+            "navigate": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "required": [
+            "type_credential"
+          ],
+          "properties": {
+            "type_credential": {
+              "$ref": "#/$defs/type-credential"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "required": [
+            "click"
+          ],
+          "properties": {
+            "click": {
+              "$ref": "#/$defs/click"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "required": [
+            "submit"
+          ],
+          "properties": {
+            "submit": {
+              "$ref": "#/$defs/submit"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "required": [
+            "human_checkpoint"
+          ],
+          "properties": {
+            "human_checkpoint": {
+              "$ref": "#/$defs/human-checkpoint"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "required": [
+            "wait_for"
+          ],
+          "properties": {
+            "wait_for": {
+              "$ref": "#/$defs/wait-for"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "input_checkpoint": {
+              "$ref": "#/$defs/input-checkpoint"
+            }
+          },
+          "required": [
+            "input_checkpoint"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "fill_input": {
+              "$ref": "#/$defs/fill-input"
+            }
+          },
+          "required": [
+            "fill_input"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "confirmation-policy": {
+      "type": "object",
+      "required": [
+        "required"
+      ],
+      "properties": {
+        "required": {
+          "const": true
+        },
+        "prompt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        }
+      },
+      "additionalProperties": false
+    },
+    "success": {
+      "type": "object",
+      "required": [
+        "origin",
+        "locator"
+      ],
+      "properties": {
+        "origin": {
+          "type": "string",
+          "format": "uri",
+          "maxLength": 2048
+        },
+        "locator": {
+          "$ref": "#/$defs/locator"
+        },
+        "path": {
+          "$ref": "#/$defs/clean-path"
+        }
+      },
+      "additionalProperties": false
+    },
+    "flow": {
+      "type": "object",
+      "required": [
+        "sequence",
+        "effects",
+        "confirmationPolicy",
+        "success"
+      ],
+      "properties": {
+        "description": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "sequence": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/step"
+          }
+        },
+        "effects": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "contains": {
+            "const": "creates_account"
+          },
+          "items": {
+            "type": "string",
+            "enum": [
+              "creates_account",
+              "sends_verification",
+              "requires_human_verification"
+            ]
+          }
+        },
+        "confirmationPolicy": {
+          "$ref": "#/$defs/confirmation-policy"
+        },
+        "success": {
+          "$ref": "#/$defs/success"
+        }
+      },
+      "additionalProperties": false
+    },
+    "input-slot": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "enum": [
+            "string",
+            "boolean",
+            "integer",
+            "number"
+          ]
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "requiredWhen": {
+          "type": "object",
+          "properties": {
+            "slot": {
+              "$ref": "#/$defs/identifier"
+            },
+            "equals": {
+              "type": [
+                "string",
+                "boolean",
+                "number"
+              ]
+            }
+          },
+          "required": [
+            "slot",
+            "equals"
+          ],
+          "additionalProperties": false
+        },
+        "enum": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {
+            "type": [
+              "string",
+              "boolean",
+              "number"
+            ]
+          }
+        },
+        "minLength": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4096
+        },
+        "maxLength": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4096
+        },
+        "minimum": {
+          "type": "number"
+        },
+        "maximum": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "label"
+      ],
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": [
+            "required"
+          ],
+          "not": {
+            "required": [
+              "requiredWhen"
+            ]
+          }
+        },
+        {
+          "required": [
+            "requiredWhen"
+          ],
+          "not": {
+            "required": [
+              "required"
+            ]
+          }
+        }
+      ]
+    },
+    "input-checkpoint": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "slots": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "slots"
+      ],
+      "additionalProperties": false
+    },
+    "fill-input": {
+      "type": "object",
+      "properties": {
+        "slot": {
+          "$ref": "#/$defs/identifier"
+        },
+        "locator": {
+          "$ref": "#/$defs/locator"
+        },
+        "control": {
+          "enum": [
+            "fill",
+            "check",
+            "select"
+          ]
+        }
+      },
+      "required": [
+        "slot",
+        "locator",
+        "control"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

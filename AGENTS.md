@@ -22,6 +22,14 @@ The coordinated artifacts must stay in sync:
 3. `versions/1.9.1.md` — the latest human-readable spec. Earlier numbered specifications, `versions/arazzo.md`, `versions/article.md`, and `ideas/terraform.md` are historical or comparison documents. `versions/browser.1.7.md` is the latest browser capability profile and `versions/ansible.1.0.md` is retained only for historical UWS 1.6 documents.
 4. `schemas/` — Go lookup and profile-validation helpers plus the generated embedded document archive. `versions/` is document-only; regenerate the archive with `go generate ./schemas` after changing a JSON document.
 
+Browser registration is a separate extension: `versions/browser-registration.1.1.*`
+and its 1.1 call supplement add typed private inputs and input checkpoints.
+`versions/browser-registration-input.1.0.*` describes the private data envelope;
+filled instances never belong in packages or Git. Keep `browserregistration/`,
+the profile/input validators in `schemas/`, fixtures and the embedded archive in
+sync. Registration 1.0 documents and existing default lookup/call APIs remain
+unchanged; newer callers select 1.1 explicitly.
+
 ## Execution Model
 
 This repo uses a bound-runtime execution model. Structural orchestration lives in `uws1`; concrete engines bind a runtime implementation at execution time.

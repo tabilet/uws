@@ -46,8 +46,9 @@ Non-source runtimes such as command execution, function calls, file I/O, SSH, SQ
 - Browser profile supplement: [versions/browser.1.7.md](versions/browser.1.7.md) / [versions/browser.1.7.json](versions/browser.1.7.json)
 - Browser authentication profile: [versions/browser-authentication.1.1.md](versions/browser-authentication.1.1.md) / [versions/browser-authentication.1.1.json](versions/browser-authentication.1.1.json)
 - Browser authentication call supplement: [versions/browser-authentication-call.1.1.md](versions/browser-authentication-call.1.1.md) / [versions/browser-authentication-call.1.1.json](versions/browser-authentication-call.1.1.json)
-- Browser registration profile: [versions/browser-registration.1.0.md](versions/browser-registration.1.0.md) / [versions/browser-registration.1.0.json](versions/browser-registration.1.0.json)
-- Browser registration call supplement: [versions/browser-registration-call.1.0.md](versions/browser-registration-call.1.0.md) / [versions/browser-registration-call.1.0.json](versions/browser-registration-call.1.0.json)
+- Browser registration profile: [versions/browser-registration.1.1.md](versions/browser-registration.1.1.md) / [versions/browser-registration.1.1.json](versions/browser-registration.1.1.json)
+- Browser registration call supplement: [versions/browser-registration-call.1.1.md](versions/browser-registration-call.1.1.md) / [versions/browser-registration-call.1.1.json](versions/browser-registration-call.1.1.json)
+- Private registration input envelope: [versions/browser-registration-input.1.0.md](versions/browser-registration-input.1.0.md) / [versions/browser-registration-input.1.0.json](versions/browser-registration-input.1.0.json)
 - Browser capability distribution milestone: [docs/browser-capability-goal.md](docs/browser-capability-goal.md)
 - UWS 1.6 Ansible argspec (historical): [versions/ansible.1.0.md](versions/ansible.1.0.md) / [versions/ansible.1.0.json](versions/ansible.1.0.json)
 - UWS 1.6 Ansible design note (historical): [docs/uws_1_6_ansible.md](docs/uws_1_6_ansible.md)
@@ -97,6 +98,17 @@ and browser authentication. They describe an explicitly approved account-
 creation mutation and its fixed duplicate, ambiguity, and cleanup controls.
 They do not establish a session, carry credential values, automate human
 verification, retry an ambiguous outcome, or perform cleanup.
+
+Registration 1.1 adds typed private fields, explicit input checkpoints and
+bounded discovery metadata. A local form or editable JSON draft can collect all
+inputs for one registration type, including optional and conditional fields.
+The filled input envelope remains owner-private outside the package. Use
+`schemas.BrowserRegistrationInputTemplate` and
+`schemas.ValidateBrowserRegistrationInputUpdate` for browser-free preparation
+and validation. Profile/call 1.0, the unversioned call validator and schema
+lookup defaults retain their original meanings; select 1.1 explicitly.
+The extension defines runtime obligations but does not itself discover pages,
+provide a form UI or add execution support to a downstream browser driver.
 
 ## Validation
 

@@ -13,6 +13,9 @@ import (
 // document requires adding its digest; changing or removing an existing
 // document fails this test.
 var publishedVersionSHA256 = map[string]string{
+	"browser-registration.1.1.json":        "ee14fbb9ddde9bdd63ce31016cbc6f210a435694936e2d01403ba514fcd137ee",
+	"browser-registration-call.1.1.json":   "a8ca1819faed5689caccac42fd35b2113c9a305e9fc93ea916e36827d4315a75",
+	"browser-registration-input.1.0.json":  "9512ea3430997add675ac9c675143ad177d2d2d74fbe385f682cf29ce0e4e2c9",
 	"1.0.0.json":                           "31e4b67462763807571bdd496e7d11e1e614eea43299297c7ca5301c7fa01076",
 	"1.1.0.json":                           "f1652bbf473adea57bc3cc01ec2a5caf5389d39c2a4950d51857063adbd40e64",
 	"1.1.1.json":                           "ffbabb57b7c6334140c18b209017a826cef5b9e607d18d263e1603e43ee323b2",

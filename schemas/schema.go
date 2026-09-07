@@ -63,6 +63,15 @@ var (
 	registrationCall10SchemaOnce sync.Once
 	registrationCall10Schema     *jsonschema.Schema
 	registrationCall10SchemaErr  error
+	registration11SchemaOnce     sync.Once
+	registration11Schema         *jsonschema.Schema
+	registration11SchemaErr      error
+	registrationCall11SchemaOnce sync.Once
+	registrationCall11Schema     *jsonschema.Schema
+	registrationCall11SchemaErr  error
+	registrationInputSchemaOnce  sync.Once
+	registrationInputSchema      *jsonschema.Schema
+	registrationInputSchemaErr   error
 )
 
 const maxBrowserAuthenticationProfileBytes = 1 << 20
@@ -420,6 +429,9 @@ func ValidateBrowserRegistrationProfile(data []byte) error {
 			if _, ok := step["human_checkpoint"]; ok {
 				hasHumanCheckpoint = true
 			}
+			if _, ok := step["input_checkpoint"]; ok {
+				hasHumanCheckpoint = true
+			}
 		}
 		if submitCount != 1 {
 			return fmt.Errorf("flows.%s.sequence: registration flow must contain exactly one submit step", name)
@@ -439,17 +451,29 @@ func ValidateBrowserRegistrationProfile(data []byte) error {
 			return fmt.Errorf("flows.%s.success.path: must be an exact clean path", name)
 		}
 	}
+	if profile == "uws.browser-registration.1.1" {
+		return validateRegistrationInputsProfile(root, declaredOrigins)
+	}
 	return nil
 }
 
 // ValidateBrowserRegistrationCallSupplement validates the extension envelope
 // used by one explicitly approved registration mutation.
 func ValidateBrowserRegistrationCallSupplement(data []byte) error {
+	return ValidateBrowserRegistrationCallSupplementForProfile(data, "uws.browser-registration-call.1.0")
+}
+
+// ValidateBrowserRegistrationCallSupplementForProfile validates an explicitly
+// selected supplement. The unversioned API retains its original 1.0 meaning.
+func ValidateBrowserRegistrationCallSupplementForProfile(data []byte, profile string) error {
+	if len(data) > maxBrowserRegistrationProfileBytes {
+		return fmt.Errorf("browser registration call is too large")
+	}
 	value, document, err := decodeSchemaDocument(data, "browser registration call")
 	if err != nil {
 		return err
 	}
-	schema, err := compiledBrowserRegistrationCallSupplementSchema("uws.browser-registration-call.1.0")
+	schema, err := compiledBrowserRegistrationCallSupplementSchema(profile)
 	if err != nil {
 		return err
 	}
@@ -859,6 +883,11 @@ func compiledBrowserRegistrationProfileSchema(profile string) (*jsonschema.Schem
 			registration10Schema, registration10SchemaErr = compileEmbeddedSchema("browser-registration.1.0.json")
 		})
 		return registration10Schema, registration10SchemaErr
+	case "uws.browser-registration.1.1":
+		registration11SchemaOnce.Do(func() {
+			registration11Schema, registration11SchemaErr = compileEmbeddedSchema("browser-registration.1.1.json")
+		})
+		return registration11Schema, registration11SchemaErr
 	default:
 		return nil, fmt.Errorf("unsupported browser registration profile discriminator %q", profile)
 	}
@@ -872,6 +901,11 @@ func compiledBrowserRegistrationCallSupplementSchema(profile string) (*jsonschem
 			registrationCall10Schema, registrationCall10SchemaErr = compileEmbeddedSchema(name)
 		})
 		return registrationCall10Schema, registrationCall10SchemaErr
+	case "browser-registration-call.1.1.json":
+		registrationCall11SchemaOnce.Do(func() {
+			registrationCall11Schema, registrationCall11SchemaErr = compileEmbeddedSchema(name)
+		})
+		return registrationCall11Schema, registrationCall11SchemaErr
 	default:
 		return nil, fmt.Errorf("unsupported browser registration call profile %q", profile)
 	}

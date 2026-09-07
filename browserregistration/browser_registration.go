@@ -20,6 +20,10 @@ const (
 	ProfileName = "uws.browser-registration.1.0"
 	// CallProfileName identifies extension-owned UWS registration operations.
 	CallProfileName = "uws.browser-registration-call.1.0"
+	// ProfileNameV11 adds typed private inputs and explicit input checkpoints.
+	ProfileNameV11 = "uws.browser-registration.1.1"
+	// CallProfileNameV11 selects the private input binding supplement.
+	CallProfileNameV11 = "uws.browser-registration-call.1.1"
 	// ExtensionRegistration is the operation-level registration-call key.
 	ExtensionRegistration = "x-uws-browser-registration"
 )
@@ -35,6 +39,8 @@ type Profile struct {
 	Verification    Verification              `json:"verification" yaml:"verification"`
 	CredentialSlots map[string]CredentialSlot `json:"credentialSlots" yaml:"credentialSlots"`
 	Flows           map[string]Flow           `json:"flows" yaml:"flows"`
+	InputSlots      map[string]InputSlot      `json:"inputSlots,omitempty" yaml:"inputSlots,omitempty"`
+	Discovery       *Discovery                `json:"discovery,omitempty" yaml:"discovery,omitempty"`
 }
 
 // Info identifies the exact application and registration origins covered by
@@ -100,6 +106,8 @@ type Step struct {
 	Submit          *SubmitStep          `json:"submit,omitempty" yaml:"submit,omitempty"`
 	HumanCheckpoint *HumanCheckpointStep `json:"human_checkpoint,omitempty" yaml:"human_checkpoint,omitempty"`
 	WaitFor         *WaitForCondition    `json:"wait_for,omitempty" yaml:"wait_for,omitempty"`
+	InputCheckpoint *InputCheckpointStep `json:"input_checkpoint,omitempty" yaml:"input_checkpoint,omitempty"`
+	FillInput       *FillInputStep       `json:"fill_input,omitempty" yaml:"fill_input,omitempty"`
 }
 
 // TypeCredentialStep fills a reviewed locator from a symbolic slot.
@@ -143,6 +151,7 @@ func (s Step) validateUnion() error {
 	for _, present := range []bool{
 		s.Navigate != "", s.TypeCredential != nil, s.Click != nil,
 		s.Submit != nil, s.HumanCheckpoint != nil, s.WaitFor != nil,
+		s.InputCheckpoint != nil, s.FillInput != nil,
 	} {
 		if present {
 			count++
@@ -212,6 +221,7 @@ type OperationRegistration struct {
 	OnDuplicate         string            `json:"onDuplicate" hcl:"onDuplicate"`
 	AmbiguousOutcome    string            `json:"ambiguousOutcome" hcl:"ambiguousOutcome"`
 	CleanupDisposition  string            `json:"cleanupDisposition" hcl:"cleanupDisposition"`
+	InputBinding        string            `json:"inputBinding,omitempty" hcl:"inputBinding"`
 }
 
 // ReadRegistrationExtension decodes x-uws-browser-registration.

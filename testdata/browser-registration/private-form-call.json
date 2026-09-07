@@ -1,0 +1,16 @@
+{
+  "x-uws-browser-registration": {
+    "profile": "browser-registration/private-form.json",
+    "flow": "advertiser",
+    "credentialBindings": {
+      "identifier": "dedicated_test_identifier",
+      "password": "dedicated_test_password"
+    },
+    "approval": "register_dedicated_test_user",
+    "duplicatePrevention": "operator_attestation",
+    "onDuplicate": "fail",
+    "ambiguousOutcome": "stop_without_retry",
+    "cleanupDisposition": "delete_separately",
+    "inputBinding": "dedicated_registration_input"
+  }
+}

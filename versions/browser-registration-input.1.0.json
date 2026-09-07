@@ -1,0 +1,51 @@
+{
+  "type": "object",
+  "properties": {
+    "version": {
+      "const": "uws.browser-registration-input.1.0"
+    },
+    "profileSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "registrationType": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
+      "maxLength": 128
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "values": {
+      "type": "object",
+      "maxProperties": 64,
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
+        "maxLength": 128
+      },
+      "additionalProperties": {
+        "type": [
+          "string",
+          "boolean",
+          "number",
+          "null"
+        ]
+      }
+    }
+  },
+  "required": [
+    "version",
+    "profileSha256",
+    "registrationType",
+    "revision",
+    "values"
+  ],
+  "additionalProperties": false,
+  "$id": "https://github.com/OpenUdon/uws/versions/browser-registration-input.1.0.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Private UWS Registration Input Document 1.0",
+  "description": "Private runtime input only. Filled documents never belong in packages, prompts, logs, reports or Git. This schema is portable; instances are not."
+}

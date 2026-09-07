@@ -1,0 +1,376 @@
+{
+  "profile": "uws.browser-registration.1.1",
+  "info": {
+    "title": "Example registration choices",
+    "applicationOrigins": [
+      "https://app.example.test"
+    ],
+    "registrationOrigins": [
+      "https://app.example.test"
+    ]
+  },
+  "observationKind": "accessibility_snapshot",
+  "evidence": {
+    "learnedAt": "2026-09-07T00:00:00Z",
+    "source": "synthetic_fixture"
+  },
+  "confidence": "high",
+  "expiresAfter": "P30D",
+  "verification": {
+    "lastVerifiedAt": "2026-09-07T00:00:00Z"
+  },
+  "credentialSlots": {
+    "identifier": {
+      "kind": "identifier"
+    },
+    "password": {
+      "kind": "password"
+    }
+  },
+  "discovery": {
+    "coverage": "partial",
+    "entryPoints": [
+      "https://app.example.test/register"
+    ],
+    "limitations": [
+      "unknown_routes"
+    ]
+  },
+  "inputSlots": {
+    "first_name": {
+      "type": "string",
+      "label": "First name",
+      "required": true,
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "account_kind": {
+      "type": "string",
+      "label": "Account kind",
+      "required": true,
+      "enum": [
+        "individual",
+        "business"
+      ]
+    },
+    "company": {
+      "type": "string",
+      "label": "Company name",
+      "requiredWhen": {
+        "slot": "account_kind",
+        "equals": "business"
+      },
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "phone": {
+      "type": "string",
+      "label": "Phone",
+      "required": false,
+      "maxLength": 32
+    },
+    "newsletter": {
+      "type": "boolean",
+      "label": "Product updates",
+      "required": false
+    },
+    "website": {
+      "type": "string",
+      "label": "Website",
+      "required": true,
+      "minLength": 1,
+      "maxLength": 2048
+    }
+  },
+  "flows": {
+    "advertiser": {
+      "description": "Synthetic advertiser wizard; Next changes the visible client-side step only.",
+      "sequence": [
+        {
+          "input_checkpoint": {
+            "id": "identity",
+            "slots": [
+              "identifier",
+              "password",
+              "first_name",
+              "account_kind"
+            ]
+          }
+        },
+        {
+          "navigate": "https://app.example.test/advertiser/register"
+        },
+        {
+          "type_credential": {
+            "slot": "identifier",
+            "locator": {
+              "role": "textbox",
+              "name": "Email"
+            }
+          }
+        },
+        {
+          "type_credential": {
+            "slot": "password",
+            "locator": {
+              "role": "textbox",
+              "name": "Password"
+            }
+          }
+        },
+        {
+          "fill_input": {
+            "slot": "first_name",
+            "control": "fill",
+            "locator": {
+              "role": "textbox",
+              "name": "First name"
+            }
+          }
+        },
+        {
+          "fill_input": {
+            "slot": "account_kind",
+            "control": "select",
+            "locator": {
+              "role": "combobox",
+              "name": "Account kind"
+            }
+          }
+        },
+        {
+          "click": {
+            "locator": {
+              "role": "button",
+              "name": "Next"
+            }
+          }
+        },
+        {
+          "input_checkpoint": {
+            "id": "contact",
+            "slots": [
+              "company",
+              "phone",
+              "newsletter"
+            ]
+          }
+        },
+        {
+          "fill_input": {
+            "slot": "company",
+            "control": "fill",
+            "locator": {
+              "role": "textbox",
+              "name": "Company name"
+            }
+          }
+        },
+        {
+          "fill_input": {
+            "slot": "phone",
+            "control": "fill",
+            "locator": {
+              "role": "textbox",
+              "name": "Phone"
+            }
+          }
+        },
+        {
+          "fill_input": {
+            "slot": "newsletter",
+            "control": "check",
+            "locator": {
+              "role": "checkbox",
+              "name": "Product updates"
+            }
+          }
+        },
+        {
+          "human_checkpoint": {
+            "kind": "consent"
+          }
+        },
+        {
+          "submit": {
+            "locator": {
+              "role": "button",
+              "name": "Register"
+            }
+          }
+        },
+        {
+          "human_checkpoint": {
+            "kind": "email_verification"
+          }
+        }
+      ],
+      "effects": [
+        "creates_account",
+        "sends_verification",
+        "requires_human_verification"
+      ],
+      "confirmationPolicy": {
+        "required": true
+      },
+      "success": {
+        "origin": "https://app.example.test",
+        "path": "/registration-complete",
+        "locator": {
+          "role": "status",
+          "name": "Verification sent"
+        }
+      }
+    },
+    "publisher": {
+      "description": "Synthetic publisher wizard with an additional website field.",
+      "sequence": [
+        {
+          "input_checkpoint": {
+            "id": "identity",
+            "slots": [
+              "identifier",
+              "password",
+              "first_name",
+              "account_kind"
+            ]
+          }
+        },
+        {
+          "navigate": "https://app.example.test/publisher/register"
+        },
+        {
+          "type_credential": {
+            "slot": "identifier",
+            "locator": {
+              "role": "textbox",
+              "name": "Email"
+            }
+          }
+        },
+        {
+          "type_credential": {
+            "slot": "password",
+            "locator": {
+              "role": "textbox",
+              "name": "Password"
+            }
+          }
+        },
+        {
+          "fill_input": {
+            "slot": "first_name",
+            "control": "fill",
+            "locator": {
+              "role": "textbox",
+              "name": "First name"
+            }
+          }
+        },
+        {
+          "fill_input": {
+            "slot": "account_kind",
+            "control": "select",
+            "locator": {
+              "role": "combobox",
+              "name": "Account kind"
+            }
+          }
+        },
+        {
+          "click": {
+            "locator": {
+              "role": "button",
+              "name": "Next"
+            }
+          }
+        },
+        {
+          "input_checkpoint": {
+            "id": "contact",
+            "slots": [
+              "company",
+              "phone",
+              "newsletter",
+              "website"
+            ]
+          }
+        },
+        {
+          "fill_input": {
+            "slot": "company",
+            "control": "fill",
+            "locator": {
+              "role": "textbox",
+              "name": "Company name"
+            }
+          }
+        },
+        {
+          "fill_input": {
+            "slot": "phone",
+            "control": "fill",
+            "locator": {
+              "role": "textbox",
+              "name": "Phone"
+            }
+          }
+        },
+        {
+          "fill_input": {
+            "slot": "newsletter",
+            "control": "check",
+            "locator": {
+              "role": "checkbox",
+              "name": "Product updates"
+            }
+          }
+        },
+        {
+          "fill_input": {
+            "slot": "website",
+            "control": "fill",
+            "locator": {
+              "role": "textbox",
+              "name": "Website"
+            }
+          }
+        },
+        {
+          "human_checkpoint": {
+            "kind": "consent"
+          }
+        },
+        {
+          "submit": {
+            "locator": {
+              "role": "button",
+              "name": "Register"
+            }
+          }
+        },
+        {
+          "human_checkpoint": {
+            "kind": "email_verification"
+          }
+        }
+      ],
+      "effects": [
+        "creates_account",
+        "sends_verification",
+        "requires_human_verification"
+      ],
+      "confirmationPolicy": {
+        "required": true
+      },
+      "success": {
+        "origin": "https://app.example.test",
+        "path": "/registration-complete",
+        "locator": {
+          "role": "status",
+          "name": "Verification sent"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "$id": "https://github.com/OpenUdon/uws/versions/browser-registration-call.1.1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "UWS Browser Registration Call Supplement 1.1",
+  "description": "Operation extension payload for one explicitly approved browser account-registration mutation.",
+  "type": "object",
+  "required": [
+    "x-uws-browser-registration"
+  ],
+  "properties": {
+    "x-uws-browser-registration": {
+      "$ref": "#/$defs/registration-call"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
+    },
+    "registration-call": {
+      "type": "object",
+      "required": [
+        "profile",
+        "flow",
+        "credentialBindings",
+        "approval",
+        "duplicatePrevention",
+        "onDuplicate",
+        "ambiguousOutcome",
+        "cleanupDisposition",
+        "inputBinding"
+      ],
+      "properties": {
+        "profile": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "pattern": "^[A-Za-z0-9._/-]+$"
+        },
+        "flow": {
+          "$ref": "#/$defs/identifier"
+        },
+        "credentialBindings": {
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 64,
+          "propertyNames": {
+            "$ref": "#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "approval": {
+          "$ref": "#/$defs/identifier"
+        },
+        "duplicatePrevention": {
+          "const": "operator_attestation"
+        },
+        "onDuplicate": {
+          "const": "fail"
+        },
+        "ambiguousOutcome": {
+          "const": "stop_without_retry"
+        },
+        "cleanupDisposition": {
+          "type": "string",
+          "enum": [
+            "delete_separately",
+            "retain_dedicated_test_identity"
+          ]
+        },
+        "inputBinding": {
+          "$ref": "#/$defs/identifier"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
