@@ -1,0 +1,2129 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A compact, execution-oriented workflow specification for API- and event-source-backed operations">
+      
+      
+      
+        <link rel="canonical" href="https://openudon.github.io/uws/mcp-tool-calls/">
+      
+      
+        <link rel="prev" href="../content-trust/">
+      
+      
+        <link rel="next" href="../uws_1_6_ansible/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>MCP Tool Calls - Udon Workflow Specification</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#proposal-mcp-tool-calls-as-an-openudon-experiment" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Udon Workflow Specification" class="md-header__button md-logo" aria-label="Udon Workflow Specification" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Udon Workflow Specification
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              MCP Tool Calls
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/OpenUdon/uws" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    OpenUdon/uws
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../workflow-authoring/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Quick Start
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../01-OpenAPI-Operation-Binding/" class="md-tabs__link">
+          
+  
+  
+  Features
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../runtimes/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Runtimes
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../browser-capability-goal/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Browser Capability Profiles
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../future-source-profiles/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Future Source Profiles
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../content-trust/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Content Trust
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  MCP Tool Calls
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../uws_1_6_ansible/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Historical UWS 1.6 Ansible Design
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="https://github.com/OpenUdon/uws/blob/main/versions/1.9.1.md" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Udon Workflow Specification" class="md-nav__button md-logo" aria-label="Udon Workflow Specification" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Udon Workflow Specification
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/OpenUdon/uws" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    OpenUdon/uws
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflow-authoring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../01-OpenAPI-Operation-Binding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. Source Operation Binding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../02-Six-Structural-Constructs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Six Structural Constructs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../03-Runtime-Expression-Grammar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Runtime Expression Grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../04-Triggers-and-Route-Dispatch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Triggers and Route Dispatch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../05-Structural-Results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. Structural Results
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../06-Success-Criteria-and-Actions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6. Success Criteria and Actions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../07-Execution-Model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    7. Execution Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../08-Extension-Profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    8. Extension Profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../09-Validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    9. Validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../10-Interchange-Formats/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    10. Interchange Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../runtimes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Runtimes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../browser-capability-goal/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Browser Capability Profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../future-source-profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Future Source Profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../content-trust/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Trust
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Tool Calls
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Tool Calls
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-actual-mcp-gap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The actual MCP gap
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-this-is-neither-a-source-type-nor-the-runtime-floor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why this is neither a source type nor the runtime floor
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#provisional-stage-1-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Provisional Stage 1 interface
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reviewed-tool-manifest-snapshot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reviewed tool-manifest snapshot
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Reviewed tool-manifest snapshot">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#capture-and-hashing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Capture and hashing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#freshness-and-drift" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Freshness and drift
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reviewer-assertions-define-the-qualifying-subset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reviewer assertions define the qualifying subset
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#invocation-and-output-semantics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Invocation and output semantics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#excluded-mcp-capabilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Excluded MCP capabilities
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#uws-191-content-trust" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UWS 1.9.1 content trust
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#model-backed-tools-and-determinism" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model-backed tools and determinism
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#staged-adoption" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Staged adoption
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../uws_1_6_ansible/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Historical UWS 1.6 Ansible Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/OpenUdon/uws/blob/main/versions/1.9.1.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/OpenUdon/uws/blob/main/versions/1.9.1.json" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JSON Schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/OpenUdon/uws/blob/main/versions/browser.1.7.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Browser Profile Supplement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/OpenUdon/uws/blob/main/versions/browser-authentication.1.1.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Browser Authentication Profile
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/OpenUdon/uws/blob/main/versions/browser-authentication-call.1.1.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Browser Authentication Call Supplement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/OpenUdon/uws/blob/main/versions/ansible.1.0.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Historical UWS 1.6 Ansible Argspec
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/OpenUdon/uws/blob/main/versions/runtime.1.0.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Runtime Supplement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/OpenUdon/uws/blob/main/versions/runtime.1.0.json" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Runtime Supplement Schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../big-fixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Big Fixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/OpenUdon/uws" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Repository
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-actual-mcp-gap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The actual MCP gap
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-this-is-neither-a-source-type-nor-the-runtime-floor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why this is neither a source type nor the runtime floor
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#provisional-stage-1-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Provisional Stage 1 interface
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reviewed-tool-manifest-snapshot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reviewed tool-manifest snapshot
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Reviewed tool-manifest snapshot">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#capture-and-hashing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Capture and hashing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#freshness-and-drift" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Freshness and drift
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reviewer-assertions-define-the-qualifying-subset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reviewer assertions define the qualifying subset
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#invocation-and-output-semantics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Invocation and output semantics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#excluded-mcp-capabilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Excluded MCP capabilities
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#uws-191-content-trust" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UWS 1.9.1 content trust
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#model-backed-tools-and-determinism" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model-backed tools and determinism
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#staged-adoption" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Staged adoption
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="proposal-mcp-tool-calls-as-an-openudon-experiment">Proposal: MCP Tool Calls as an OpenUdon Experiment</h1>
+<p><strong>Status: non-normative proposal. Not adopted or implemented.</strong> This note does
+not allocate a UWS version, add a source type, define a schema or Go API, or
+reserve a new <code>x-uws-*</code> field. The <code>openudon.*</code> and <code>x-openudon-*</code> names below
+describe a possible product-owned experiment; they do not commit OpenUdon to
+implementing it.</p>
+<p>The experiment asks a narrow question: can a reviewed snapshot of an MCP tool
+definition support the same fail-closed workflow binding expected of other UWS
+operation contracts? It deliberately keeps MCP out of UWS core while producing
+evidence that could justify later standardization.</p>
+<h2 id="the-actual-mcp-gap">The actual MCP gap</h2>
+<p>The stable MCP 2025-11-25 protocol already exposes a machine-readable operation
+catalog. A client can exhaust the paginated <code>tools/list</code> method and capture each
+complete Tool object, including its name, description, <code>inputSchema</code>, optional
+<code>outputSchema</code>, annotations, and other metadata. Once captured in a deterministic
+document, that catalog is reviewable, hashable, and diffable. MCP is therefore
+not inherently non-diffable.</p>
+<p>The missing piece is a standardized, fetchable, freshness-bound tool manifest.
+The <a href="https://modelcontextprotocol.io/specification/2025-11-25/server/tools">stable tools protocol</a>
+discovers tools from a live initialized server. It does not define a portable
+artifact that identifies the executable server capability, pins the reviewed
+Tool object, sets an expiry, and specifies the comparison that must pass before
+<code>tools/call</code>. The optional <code>notifications/tools/list_changed</code> signal helps an
+active client invalidate a cache, but it is not a durable freshness contract and
+its absence does not prove that a catalog is unchanged.</p>
+<p>The MCP Registry does not fill that gap. Registry <code>server.json</code> describes server
+identity, packages or remote endpoints, installation, and configuration; it does
+not publish the server's Tool objects. The
+<a href="https://modelcontextprotocol.io/registry/quickstart">Registry publishing example</a>
+therefore complements tool discovery rather than replacing it.</p>
+<p>This distinction changes the adoption question. Stage 1 does not need to invent
+an operation catalog. It needs to test whether a product-owned reviewed snapshot
+can bind a captured catalog to a live capability and detect staleness or drift.</p>
+<h2 id="why-this-is-neither-a-source-type-nor-the-runtime-floor">Why this is neither a source type nor the runtime floor</h2>
+<p>MCP tools name invocable operations that the MCP server implements. This differs
+from client-shipped code such as an Ansible module: the MCP client does not copy
+the tool implementation to a substrate that lacked it. A local stdio server uses
+a process boundary rather than a network boundary, but the server still exposes
+and implements the named operation.</p>
+<p>The live catalog can also be materialized into a reviewable artifact without
+discarding its schemas. Flattening a tool into <code>uws.runtime.1.0</code> as a generic
+function or command selector would lose that contract. The runtime supplement is
+the floor for work whose only reviewable artifact is a selector or command; an
+MCP Tool object is richer.</p>
+<p>MCP is nevertheless not ready for <code>sourceDescriptions[].type</code>. A source type
+needs portable binding and freshness semantics, not merely a locally invented
+snapshot. The provisional snapshot below is the experiment that would test
+those semantics before any public UWS contract is proposed.</p>
+<h2 id="provisional-stage-1-interface">Provisional Stage 1 interface</h2>
+<p>Stage 1 uses the product-owned operation profile
+<code>openudon.mcp-tool-call.0.1</code>. An extension-owned UWS operation has no source
+binding and uses the existing <code>x-uws-operation-profile</code> hook with exactly one
+new product field, <code>x-openudon-mcp</code>:</p>
+<pre><code class="language-yaml">- operationId: render_angles
+  x-uws-operation-profile: openudon.mcp-tool-call.0.1
+  x-openudon-mcp:
+    manifest: ./mcp/blender-farm.tools.json
+    manifestSha256: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    server: blender_farm
+    tool: render_turntable
+  request:
+    body:
+      source: $inputs.source_uri
+      angles: 6
+      resolution: 2048
+  outputs:
+    images: $response.body#/renderedUris
+</code></pre>
+<p>The four binding fields are:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Provisional meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>manifest</code></td>
+<td>URI reference to a separately reviewed <code>openudon.mcp-tool-manifest.0.1</code> JSON snapshot.</td>
+</tr>
+<tr>
+<td><code>manifestSha256</code></td>
+<td>Lowercase 64-character SHA-256 digest of the snapshot's deterministic canonical JSON. A mismatch fails before server connection.</td>
+</tr>
+<tr>
+<td><code>server</code></td>
+<td>Product-owned symbolic server key in the snapshot and runtime configuration. Connection details and credentials remain runtime-private.</td>
+</tr>
+<tr>
+<td><code>tool</code></td>
+<td>Exact, case-sensitive MCP Tool name selected within that server's captured catalog.</td>
+</tr>
+</tbody>
+</table>
+<p>The profile does not define server discovery, transport, subprocess spawning,
+authorization, credential storage, retries, or connection lifecycle. Those
+remain runtime-owned. The observed <code>serverInfo</code> is review evidence and a useful
+drift signal; it is not assumed to be a globally unique server identity.</p>
+<h2 id="reviewed-tool-manifest-snapshot">Reviewed tool-manifest snapshot</h2>
+<p>Stage 1 pairs the call profile with the separate product-owned snapshot profile
+<code>openudon.mcp-tool-manifest.0.1</code>. This is a reviewed artifact, not a new UWS
+source document and not an MCP standard.</p>
+<p>An illustrative shape is:</p>
+<pre><code class="language-yaml">profile: openudon.mcp-tool-manifest.0.1
+protocolVersion: &quot;2025-11-25&quot;
+capturedAt: &quot;2026-08-30T12:00:00Z&quot;
+expiresAt: &quot;2026-09-06T12:00:00Z&quot;
+servers:
+  blender_farm:
+    serverInfo:
+      name: example-blender-server
+      version: 0.8.2
+    toolPages:
+      - tools:
+          - name: render_turntable
+            description: Render reviewed views from an addressable Blender asset.
+            inputSchema:
+              type: object
+              properties:
+                source: {type: string, format: uri}
+                angles: {type: integer, minimum: 1, maximum: 36}
+                resolution: {type: integer, enum: [1024, 2048, 4096]}
+              required: [source, angles, resolution]
+            outputSchema:
+              type: object
+              properties:
+                renderedUris:
+                  type: array
+                  items: {type: string, format: uri}
+              required: [renderedUris]
+    reviews:
+      render_turntable:
+        reviewer: release-review@example.test
+        reviewedAt: &quot;2026-08-30T13:00:00Z&quot;
+        assertions:
+          headless: true
+          independentCalls: true
+          modelBacked: false
+          sideEffects: [creates_render_artifacts]
+          concurrency: safe
+          referenceBasedIO: true
+        inputChannels:
+          /source: data
+          /angles: data
+          /resolution: data
+</code></pre>
+<p>This is illustrative rather than a schema commitment. A real Stage 1
+implementation should settle the exact spelling only in its owning repository.
+The behavioral requirements are more important than the provisional
+serialization.</p>
+<h3 id="capture-and-hashing">Capture and hashing</h3>
+<p>A conforming experiment would apply these rules:</p>
+<ol>
+<li>Initialize one MCP connection, record the negotiated <code>protocolVersion</code> and
+   complete observed <code>serverInfo</code>, and exhaust every <code>tools/list</code> page by
+   following <code>nextCursor</code> until it is absent. A first-page-only capture is
+   invalid.</li>
+<li>Retain every captured page result without JSON-RPC request IDs or framing.
+   At minimum, every reviewed Tool object must be retained complete and
+   unprojected. A selected tool name must occur exactly once across the pages.</li>
+<li>Record UTC capture and expiry instants. Expiry is a reviewer decision with a
+   product policy maximum; neither an MCP version nor an annotation silently
+   extends it.</li>
+<li>Store the reviewer identity, review time, required assertions, and reviewed
+   input-channel classifications alongside each selected tool.</li>
+<li>Serialize the complete snapshot as JSON, reject duplicate object member
+   names, canonicalize it with
+   <a href="https://www.rfc-editor.org/rfc/rfc8785">RFC 8785 JSON Canonicalization Scheme</a>,
+   and compute SHA-256 over those canonical UTF-8 bytes. <code>manifestSha256</code> pins
+   that digest.</li>
+</ol>
+<p>Canonicalization makes the captured artifact deterministic; it does not make
+the underlying operation deterministic. Array order and any complete Tool
+metadata remain part of the reviewed value, so unexplained changes fail closed
+rather than being normalized away.</p>
+<h3 id="freshness-and-drift">Freshness and drift</h3>
+<p>Before every <code>tools/call</code>, the runtime must:</p>
+<ol>
+<li>resolve and hash the manifest, then reject a digest mismatch;</li>
+<li>reject a snapshot whose <code>expiresAt</code> has passed or whose capture/review data
+   is incomplete;</li>
+<li>initialize the configured server using the recorded protocol version,
+   compare the complete observed <code>serverInfo</code> with the snapshot, and reject a
+   negotiated-version or <code>serverInfo</code> mismatch;</li>
+<li>exhaust the live <code>tools/list</code> pagination and locate the selected name exactly
+   once;</li>
+<li>canonicalize and compare the complete live Tool object with the complete
+   reviewed Tool object; and</li>
+<li>invoke the tool only if the comparison is exact and all reviewer assertions
+   are acceptable to local policy.</li>
+</ol>
+<p>A missing tool, duplicate name, changed schema, changed description, changed
+annotation, changed execution metadata, or other Tool-object drift fails the
+operation before invocation. This exact comparison is intentionally
+conservative for an experiment; evidence may later show which metadata can be
+separated from the executable contract.</p>
+<p>If the server advertises <code>tools.listChanged</code> and sends
+<code>notifications/tools/list_changed</code>, the runtime must invalidate the reviewed
+snapshot immediately. Re-listing to the same value does not revive that review:
+a new capture and review are required. A notification received after the
+pre-call comparison but before dispatch prevents dispatch; one received during
+a call invalidates the binding and prevents its result from being exposed as
+reviewed output. Because an in-flight side effect may already have occurred,
+that outcome is indeterminate and must not be retried automatically.</p>
+<p>These checks close the Stage 1 time-of-review gap as far as the protocol permits,
+but they do not claim an atomic transaction between <code>tools/list</code> and
+<code>tools/call</code>. That residual race is evidence relevant to any later proposal.</p>
+<h2 id="reviewer-assertions-define-the-qualifying-subset">Reviewer assertions define the qualifying subset</h2>
+<p>MCP annotations are retained as part of the Tool object, but the stable
+specification describes them as hints rather than faithful guarantees. Stage 1
+therefore never converts <code>readOnlyHint</code>, <code>destructiveHint</code>, <code>idempotentHint</code>, or
+<code>openWorldHint</code> directly into trusted policy. A reviewer must make independent
+assertions for each selected tool:</p>
+<table>
+<thead>
+<tr>
+<th>Assertion</th>
+<th>Stage 1 requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>headless</code></td>
+<td>Must be <code>true</code>: the call needs no GUI or contemporaneous human interaction.</td>
+</tr>
+<tr>
+<td><code>independentCalls</code></td>
+<td>Must be <code>true</code>: semantics do not depend on a prior call, ambient conversation, current document, session, or server-minted handle.</td>
+</tr>
+<tr>
+<td><code>modelBacked</code></td>
+<td>Must state <code>true</code> or <code>false</code>; omission or <code>unknown</code> fails review.</td>
+</tr>
+<tr>
+<td><code>sideEffects</code></td>
+<td>Must enumerate reviewed side-effect classes, including an explicit empty list when none are expected.</td>
+</tr>
+<tr>
+<td><code>concurrency</code></td>
+<td>Must be <code>safe</code> or <code>serialize</code>; <code>serialize</code> requires the runtime to serialize calls in the asserted scope. Unknown behavior fails review.</td>
+</tr>
+<tr>
+<td><code>referenceBasedIO</code></td>
+<td>Must be <code>true</code>: inputs and structured outputs use JSON values or addressable references, not local paths, live handles, or process-local objects.</td>
+</tr>
+</tbody>
+</table>
+<p>These assertions describe suitability, not truth guaranteed by MCP. Runtime
+policy may reject a reviewed tool even when all assertions are present.</p>
+<p>Session- or handle-dependent tools are outside Stage 1 even if a server happens
+to make them work in one connection. The workflow must own ordering and data
+flow; an undeclared ambient server state must not become a second orchestration
+graph.</p>
+<h2 id="invocation-and-output-semantics">Invocation and output semantics</h2>
+<p>For a call that passes the freshness gate:</p>
+<ul>
+<li>The evaluated UWS <code>request.body</code> object becomes MCP <code>tools/call</code>
+  <code>arguments</code>. An absent body becomes an empty object. The runtime validates it
+  against the reviewed <code>inputSchema</code> before dispatch.</li>
+<li>The <code>tool</code> binding supplies the MCP <code>name</code>. Other UWS request locations are
+  not mapped by Stage 1.</li>
+<li>A JSON-RPC or other protocol-level error fails the UWS operation. A successful
+  MCP response with <code>isError: true</code> also fails it; error content is diagnostic
+  only and never becomes <code>$response.body</code>.</li>
+<li>A UWS operation that declares outputs requires the reviewed Tool object to
+  contain <code>outputSchema</code>, requires the call result to contain
+  <code>structuredContent</code>, and validates that object against <code>outputSchema</code>.
+  Missing or non-conforming structured content fails the operation.</li>
+<li>Validated <code>structuredContent</code> becomes <code>$response.body</code>, so ordinary UWS output
+  expressions select from it.</li>
+<li>MCP <code>content</code> blocks remain runtime diagnostics. Text, image, audio,
+  embedded-resource, and resource-link blocks are never projected into
+  structured UWS outputs. <code>_meta</code> is likewise not exposed as <code>$response.body</code>.</li>
+</ul>
+<p>This intentionally rejects the tempting fallback of parsing JSON-looking text.
+Only the server-declared output contract and conforming structured result cross
+the reviewed boundary.</p>
+<h2 id="excluded-mcp-capabilities">Excluded MCP capabilities</h2>
+<p>Stage 1 is one synchronous, independent <code>tools/call</code>. It excludes:</p>
+<ul>
+<li>task-augmented calls, including a Tool whose <code>execution.taskSupport</code> requires
+  tasks;</li>
+<li>server requests for sampling or elicitation during discovery or invocation;</li>
+<li>prompts and resources as invocation or output surfaces;</li>
+<li>resource reads, subscriptions, embedded resources, and resource links as a
+  substitute for structured output; and</li>
+<li>any tool whose meaning depends on an MCP session, previous call, current
+  server state, or minted handle.</li>
+</ul>
+<p>The <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/tasks">2025-11-25 task facility</a>
+is experimental and is not evidence for Stage 1 support. Later MCP draft work
+may change sessions, list stability, or tool execution, but draft behavior is
+not treated here as stable protocol fact.</p>
+<h2 id="uws-191-content-trust">UWS 1.9.1 content trust</h2>
+<p>The Stage 1 resolver must integrate with the existing advisory
+<a href="../content-trust/">UWS 1.9.1 content-trust model</a>; it must not invent a parallel
+trust system.</p>
+<p>Each selected tool review classifies every argument channel that can receive a
+UWS-bound value as <code>data</code>, <code>instruction</code>, or <code>authority</code>. Keys are RFC 6901
+pointers relative to MCP <code>arguments</code>; a dynamic or otherwise unclassified bound
+path makes the resolver fail closed. <code>data</code> is content to process,
+<code>instruction</code> changes interpreter or model behavior, and <code>authority</code> selects or
+authorizes a side effect, destination, account, command, or equivalent
+capability.</p>
+<p>The resolver supplies these conservative contracts to <code>contenttrust.Analyze</code>:</p>
+<ul>
+<li>MCP-derived operation outputs default to <code>untrusted</code> provenance.</li>
+<li>Derived outputs inherit input provenance. Explicit UWS <code>contentTrust</code>
+  declarations retain their normal precedence, but an untrusted input is not
+  laundered by derivation.</li>
+<li>Output value capability is derived from the selected location in
+  <code>outputSchema</code>: unconstrained strings are <code>free_text</code>; Boolean, numeric,
+  <code>null</code>, and closed-enum scalars are <code>constrained_scalar</code>; objects and arrays
+  are <code>composite</code>; missing or ambiguous schema information is <code>unknown</code>.</li>
+<li>The resolver reports the reviewed input-channel map and per-output value
+  contracts; it does not inspect runtime arguments or results.</li>
+</ul>
+<p>Analysis remains deterministic, advisory, and value-free. Findings contain
+stable paths, labels, codes, and fixed messages—not MCP result values, excerpts,
+credentials, or server error details. Stage 1 runtime policy may choose to block
+on findings, but ordinary UWS validation and execution semantics do not change.</p>
+<h2 id="model-backed-tools-and-determinism">Model-backed tools and determinism</h2>
+<p>UWS does not prohibit model-backed operations. <code>uws.runtime.1.0</code> already permits
+a disclosed <code>llm</code> execution surface. The MCP concern is hidden nondeterminism:
+without review metadata, a model-backed tool can look identical to a stable
+deterministic operation even though it makes a fresh decision on every call.</p>
+<p>Stage 1 therefore requires the <code>modelBacked</code> assertion rather than requiring it
+to be false. A declared model-backed tool remains eligible when local policy
+accepts its reviewability, side effects, and output contract. The experiment
+should record whether retries, concurrency, and repeated identical arguments
+produce materially different results; that evidence can inform later policy
+without pretending nondeterminism is forbidden by UWS.</p>
+<h2 id="staged-adoption">Staged adoption</h2>
+<p><strong>Stage 1 — OpenUdon-owned experiment.</strong> Test
+<code>openudon.mcp-tool-call.0.1</code>, <code>x-openudon-mcp</code>, and the separate
+<code>openudon.mcp-tool-manifest.0.1</code> snapshot in a consuming product repository. No
+UWS schema, version, reserved extension, Go API, or public interoperability
+commitment follows from this note.</p>
+<p><strong>Stage 2 — public operation supplement.</strong> Consider a UWS-family supplement
+only after Stage 1 produces real workflow evidence and a second independent
+consumer needs interoperable exchange. That proposal would need to settle the
+manifest schema, server identity, freshness window, canonical comparison,
+notification race, result mapping, and resolver behavior from implementation
+experience.</p>
+<p><strong>Stage 3 — possible source type.</strong> Consider MCP as a source family only after
+portable manifest and freshness semantics exist and multiple runtimes
+demonstrate demand. An upstream MCP tool manifest is preferred because the
+implementer can publish it. A proven UWS-defined reviewed snapshot could also
+be evaluated in theory, but only after it has portable binding and drift
+semantics rather than one product's conventions.</p>
+<p>At every stage, source documents continue to own operations when a stronger
+provider contract already exists. An MCP wrapper around an OpenAPI, GraphQL,
+SQL, object-storage, mail, or other already modeled interface is not a reason to
+replace that contract with MCP.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      © 2026 OpenUdon/uws · Udon Workflow Specification v1.9.1 · Apache 2.0
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

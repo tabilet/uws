@@ -1,0 +1,2229 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A compact, execution-oriented workflow specification for API- and event-source-backed operations">
+      
+      
+      
+        <link rel="canonical" href="https://openudon.github.io/uws/uws_1_6_ansible/">
+      
+      
+        <link rel="prev" href="../mcp-tool-calls/">
+      
+      
+        <link rel="next" href="../big-fixture/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Historical UWS 1.6 Ansible Design - Udon Workflow Specification</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#uws-16-ansible-module-source-design-historical" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Udon Workflow Specification" class="md-header__button md-logo" aria-label="Udon Workflow Specification" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Udon Workflow Specification
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Historical UWS 1.6 Ansible Design
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/OpenUdon/uws" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    OpenUdon/uws
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../workflow-authoring/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Quick Start
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../01-OpenAPI-Operation-Binding/" class="md-tabs__link">
+          
+  
+  
+  Features
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../runtimes/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Runtimes
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../browser-capability-goal/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Browser Capability Profiles
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../future-source-profiles/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Future Source Profiles
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../content-trust/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Content Trust
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../mcp-tool-calls/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  MCP Tool Calls
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Historical UWS 1.6 Ansible Design
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="https://github.com/OpenUdon/uws/blob/main/versions/1.9.1.md" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Udon Workflow Specification" class="md-nav__button md-logo" aria-label="Udon Workflow Specification" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Udon Workflow Specification
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/OpenUdon/uws" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    OpenUdon/uws
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflow-authoring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../01-OpenAPI-Operation-Binding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. Source Operation Binding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../02-Six-Structural-Constructs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Six Structural Constructs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../03-Runtime-Expression-Grammar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Runtime Expression Grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../04-Triggers-and-Route-Dispatch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Triggers and Route Dispatch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../05-Structural-Results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. Structural Results
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../06-Success-Criteria-and-Actions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6. Success Criteria and Actions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../07-Execution-Model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    7. Execution Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../08-Extension-Profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    8. Extension Profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../09-Validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    9. Validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../10-Interchange-Formats/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    10. Interchange Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../runtimes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Runtimes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../browser-capability-goal/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Browser Capability Profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../future-source-profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Future Source Profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../content-trust/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Trust
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp-tool-calls/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Tool Calls
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Historical UWS 1.6 Ansible Design
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Historical UWS 1.6 Ansible Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-core-philosophy-module-argspecs-are-published-operation-contracts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Core Philosophy: Module Argspecs Are Published Operation Contracts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-document-structure-ansible-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Document Structure: ansible-module
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-worked-example-a-playbook-three-ways" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Worked Example: A Playbook Three Ways
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Worked Example: A Playbook Three Ways">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-the-original-playbook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 The original playbook
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-valid-today-uws-15-degenerate-lowering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 Valid today (UWS 1.5, degenerate lowering)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#321-retired-uws-15-compatibility-experiment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2.1 Retired UWS 1.5 compatibility experiment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-uws-16-form" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 UWS 1.6 form
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-inventory-and-execution-targets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Inventory and Execution Targets
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-convergence-results-and-handlers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Convergence Results and Handlers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#51-converter-owned-playbook-lowering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Converter-Owned Playbook Lowering
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-safety-integrity-controls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Safety &amp; Integrity Controls
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-non-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Non-Goals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-graduation-criteria-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Graduation Criteria Check
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/OpenUdon/uws/blob/main/versions/1.9.1.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/OpenUdon/uws/blob/main/versions/1.9.1.json" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JSON Schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/OpenUdon/uws/blob/main/versions/browser.1.7.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Browser Profile Supplement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/OpenUdon/uws/blob/main/versions/browser-authentication.1.1.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Browser Authentication Profile
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/OpenUdon/uws/blob/main/versions/browser-authentication-call.1.1.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Browser Authentication Call Supplement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/OpenUdon/uws/blob/main/versions/ansible.1.0.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Historical UWS 1.6 Ansible Argspec
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/OpenUdon/uws/blob/main/versions/runtime.1.0.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Runtime Supplement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/OpenUdon/uws/blob/main/versions/runtime.1.0.json" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Runtime Supplement Schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../big-fixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Big Fixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/OpenUdon/uws" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Repository
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-core-philosophy-module-argspecs-are-published-operation-contracts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Core Philosophy: Module Argspecs Are Published Operation Contracts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-document-structure-ansible-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Document Structure: ansible-module
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-worked-example-a-playbook-three-ways" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Worked Example: A Playbook Three Ways
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Worked Example: A Playbook Three Ways">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-the-original-playbook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 The original playbook
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-valid-today-uws-15-degenerate-lowering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 Valid today (UWS 1.5, degenerate lowering)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#321-retired-uws-15-compatibility-experiment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2.1 Retired UWS 1.5 compatibility experiment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-uws-16-form" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 UWS 1.6 form
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-inventory-and-execution-targets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Inventory and Execution Targets
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-convergence-results-and-handlers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Convergence Results and Handlers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#51-converter-owned-playbook-lowering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Converter-Owned Playbook Lowering
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-safety-integrity-controls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Safety &amp; Integrity Controls
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-non-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Non-Goals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-graduation-criteria-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Graduation Criteria Check
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="uws-16-ansible-module-source-design-historical">UWS 1.6 Ansible Module Source Design (historical)</h1>
+<blockquote>
+<p><strong>Superseded.</strong> This records the UWS 1.6 design. UWS 1.7 removed the
+<code>ansible-module</code> source type: the managed host does not expose a collection
+module as a pre-existing named operation; the control node supplies and runs
+that implementation, so the argspec is a client-side library manifest.
+UWS 1.7 defines no replacement Ansible operation profile.
+<code>versions/ansible.1.0.{json,md}</code> remains only as historical UWS 1.6 material;
+the retired supplement and Go helpers are available from repository history
+as described in the project README. The document below is kept as the design
+record of the 1.6 decision; see the withdrawal record in
+<a href="../future-source-profiles/"><code>future-source-profiles.md</code></a> for what the
+admission criteria missed.</p>
+<p>Design record for the UWS 1.6 adoption of <code>ansible-module</code> as a first-class
+<code>sourceDescriptions[].type</code>, with the heavier sub-spec published separately as
+<code>versions/ansible.1.0.{json,md}</code> — the same two-layer packaging used by
+<code>runtime.1.0</code> and <code>browser.1.5</code>. The companion roadmap entry lives in
+<a href="../future-source-profiles/"><code>future-source-profiles.md</code></a>
+("Adopted in UWS 1.6: Ansible Module Source Profiles"). Sub-spec versions are
+numbered by their own streams.</p>
+</blockquote>
+<h2 id="1-core-philosophy-module-argspecs-are-published-operation-contracts">1. Core Philosophy: Module Argspecs Are Published Operation Contracts</h2>
+<p>Ansible collections publish machine-readable contracts for every module:
+<code>ansible-doc --json</code> emits the documented parameter specification (name, type,
+required, choices, defaults) and return-value documentation for each module.
+That is a provider-published operation contract — exactly the artifact class
+UWS already binds to for OpenAPI, Google Discovery, AWS Smithy, AsyncAPI,
+GraphQL, OpenRPC, gRPC/protobuf, and OData.</p>
+<p>UWS 1.6 therefore enforces the same boundary as every earlier source family:</p>
+<ul>
+<li><strong>The collection owns the module contract</strong> — parameter schemas, return
+  shapes, module semantics, idempotent convergence behavior.</li>
+<li><strong>UWS owns the workflow overlay</strong> — which modules run, in what order, with
+  which argument values, gated by which conditions, feeding which outputs.</li>
+<li><strong>Converters own playbook lowering</strong> — Ansible directives such as <code>when</code>,
+  <code>loop</code>, <code>register</code>, <code>notify</code>, <code>changed_when</code>, <code>failed_when</code>, and
+  <code>until</code>/<code>retries</code> are represented only when source-aware tooling can lower
+  them into existing UWS objects (<code>sequence</code>, <code>switch</code>, <code>forEach</code>, <code>outputs</code>,
+  <code>successCriteria</code>, and <code>onFailure: retry</code>).</li>
+<li><strong>Execution is out of scope for UWS 1.6</strong> — connection plugins, <code>become</code>
+  privilege escalation, forks/serial strategy, check mode, vault decryption,
+  module invocation, inventory connections, and the Python execution
+  environment are not standardized by this source profile.</li>
+</ul>
+<p>A UWS document never restates a module's parameter schema, just as it never
+restates an OpenAPI operation's request schema. It names the module and binds
+values.</p>
+<p>Two properties make Ansible modules an unusually good fit for UWS:</p>
+<ol>
+<li><strong>Module invocations are JSON-shaped on both sides.</strong> Arguments are a JSON
+   object; results are a JSON object (with conventional keys such as <code>changed</code>,
+   <code>failed</code>, <code>msg</code>, <code>rc</code>). They map directly onto <code>request.body</code> and
+   <code>$response.body.*</code> with no impedance mismatch.</li>
+<li><strong>Playbooks are ordered task lists with convergent leaves.</strong> That is
+   imperative control flow over idempotent operations — structurally closer to
+   the UWS execution model than any prior source family. <code>when</code>, <code>loop</code>,
+   <code>dependsOn</code>, and <code>register</code>→<code>outputs</code> map one-to-one.</li>
+</ol>
+<p>The <code>ansible-module</code> source type does not standardize those playbook lowering
+rules. It gives tooling a portable module leaf binding. A converter may emit
+the same orchestration shape for UWS 1.5 using extension-owned module calls or
+for UWS 1.6 using first-class <code>ansible-module</code> source bindings.</p>
+<h2 id="2-document-structure-ansible-module">2. Document Structure: <code>ansible-module</code></h2>
+<p>UWS 1.6 introduces <code>ansible-module</code> as a first-class <code>sourceDescriptions[].type</code>.
+The referenced source document is a collection argspec document (the
+<code>ansible-doc --json</code> output shape, or the sub-spec's normalized equivalent).</p>
+<pre><code class="language-yaml">sourceDescriptions:
+  - name: builtin
+    type: ansible-module
+    url: ./ansible/ansible-builtin.argspec.json
+
+operations:
+  - operationId: install_nginx
+    sourceDescription: builtin
+    sourceOperationId: ansible.builtin.apt     # FQCN selects the module
+    request:
+      body:
+        name: nginx
+        state: present
+    outputs:
+      changed: $response.body.changed
+</code></pre>
+<p>Selector rules follow the generic pattern introduced in UWS 1.2 and reused by
+every family since:</p>
+<ul>
+<li><code>sourceOperationId</code> is the module's fully qualified collection name (FQCN),
+  e.g. <code>ansible.builtin.apt</code>, <code>community.postgresql.postgresql_db</code>.</li>
+<li><code>sourceOperationRef</code>, when used, MUST be a JSON Pointer fragment; the
+  preferred target is <code>#/modules/&lt;fqcn&gt;</code>.</li>
+<li>Legacy <code>openapiOperationId</code> / <code>openapiOperationRef</code> selectors are forbidden on
+  <code>ansible-module</code> sources (consistent with all non-openapi types since 1.2).</li>
+<li>UWS core validates only the type name and selector shape. Whether an FQCN
+  resolves to a real module, and whether <code>request.body</code> satisfies the module's
+  argspec, is the job of source-aware conversion and review tooling — the same
+  deferral that kept GraphQL/OData/protobuf support thin in 1.4.</li>
+</ul>
+<h2 id="3-worked-example-a-playbook-three-ways">3. Worked Example: A Playbook Three Ways</h2>
+<h3 id="31-the-original-playbook">3.1 The original playbook</h3>
+<pre><code class="language-yaml">- hosts: webservers
+  tasks:
+    - name: Install nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+
+    - name: Deploy nginx config
+      ansible.builtin.template:
+        src: nginx.conf.j2
+        dest: /etc/nginx/nginx.conf
+      notify: restart nginx
+
+  handlers:
+    - name: restart nginx
+      ansible.builtin.service:
+        name: nginx
+        state: restarted
+</code></pre>
+<h3 id="32-valid-today-uws-15-degenerate-lowering">3.2 Valid today (UWS 1.5, degenerate lowering)</h3>
+<p>A single-target playbook lowers to valid UWS 1.5 right now through the
+<code>uws.runtime.1.0</code> extension profile, whose type identifiers (<code>ssh</code>, <code>cmd</code>,
+<code>fileio</code>, <code>scp</code>, <code>sftp</code>) already cover Ansible's transport verbs:</p>
+<pre><code class="language-yaml">uws: &quot;1.5.0&quot;
+info:
+  title: Nginx Setup (degenerate lowering)
+  version: 1.0.0
+
+operations:
+  - operationId: install_nginx
+    x-uws-operation-profile: uws.runtime.1.0
+    x-uws-runtime:
+      type: ssh
+      command: &quot;apt-get install -y nginx&quot;
+    successCriteria:
+      - condition: $response.statusCode == 0
+
+  - operationId: deploy_config
+    x-uws-operation-profile: uws.runtime.1.0
+    x-uws-runtime:
+      type: scp
+      command: &quot;nginx.conf /etc/nginx/nginx.conf&quot;
+    dependsOn: [install_nginx]
+
+  - operationId: restart_nginx
+    x-uws-operation-profile: uws.runtime.1.0
+    x-uws-runtime:
+      type: ssh
+      command: &quot;systemctl restart nginx&quot;
+    dependsOn: [deploy_config]
+
+workflows:
+  - workflowId: main
+    type: sequence
+    steps:
+      - stepId: install
+        operationRef: install_nginx
+      - stepId: deploy
+        operationRef: deploy_config
+      - stepId: restart
+        operationRef: restart_nginx
+</code></pre>
+<p>This works, but it is a <em>degenerate</em> lowering: it shells out to <code>apt-get</code>
+instead of calling the convergent <code>ansible.builtin.apt</code> module, it always
+restarts instead of restarting only on change, and the template is pre-rendered
+out of band. It demonstrates the floor, not the target.</p>
+<h3 id="321-retired-uws-15-compatibility-experiment">3.2.1 Retired UWS 1.5 compatibility experiment</h3>
+<p>For historical context, tooling briefly used an extension-owned leaf operation
+to preserve Ansible module identity without the UWS 1.6 source type. That
+supplement is retired and the example below is not supported by UWS 1.7:</p>
+<pre><code class="language-yaml">uws: &quot;1.5.0&quot;
+info:
+  title: Nginx Setup (compatibility lowering)
+  version: 1.0.0
+
+operations:
+  - operationId: install_nginx
+    x-uws-operation-profile: uws.ansible-module-call.1.0
+    x-uws-ansible-module:
+      module: ansible.builtin.apt
+      argspec:
+        sourceId: builtin
+        url: ./ansible/ansible-builtin.argspec.json
+        collection: ansible.builtin
+    request:
+      body:
+        name: nginx
+        state: present
+    outputs:
+      changed: $response.body.changed
+    successCriteria:
+      - condition: $response.body.failed != true
+</code></pre>
+<p>This keeps Ansible module execution runtime-owned while preserving the same UWS
+orchestration shape used by the 1.6 source-bound form.</p>
+<h3 id="33-uws-16-form">3.3 UWS 1.6 form</h3>
+<pre><code class="language-yaml">uws: &quot;1.6.0&quot;
+info:
+  title: Nginx Setup
+  version: 1.0.0
+
+sourceDescriptions:
+  - name: builtin
+    type: ansible-module
+    url: ./ansible/ansible-builtin.argspec.json
+
+operations:
+  - operationId: install_nginx
+    sourceDescription: builtin
+    sourceOperationId: ansible.builtin.apt
+    request:
+      body:
+        name: nginx
+        state: present
+    outputs:
+      changed: $response.body.changed
+
+  - operationId: deploy_config
+    sourceDescription: builtin
+    sourceOperationId: ansible.builtin.template
+    dependsOn: [install_nginx]
+    request:
+      body:
+        src: nginx.conf.j2
+        dest: /etc/nginx/nginx.conf
+    outputs:
+      changed: $response.body.changed
+
+  - operationId: restart_nginx
+    sourceDescription: builtin
+    sourceOperationId: ansible.builtin.service
+    dependsOn: [deploy_config]
+    request:
+      body:
+        name: nginx
+        state: restarted
+
+workflows:
+  - workflowId: main
+    type: sequence
+    steps:
+      - stepId: install
+        operationRef: install_nginx
+      - stepId: deploy
+        operationRef: deploy_config
+      - stepId: restart
+        operationRef: restart_nginx
+        when: $steps.deploy.outputs.changed == true
+</code></pre>
+<p>The handler becomes an ordinary step gated on the notifying task's <code>changed</code>
+output. Where several tasks notify the same handler, the <code>ansible.1.0</code> sub-spec
+defines the lowering rule: a <code>switch</code> step gates each case on one notifier's
+<code>changed</code> output, and each case references the same handler operation. Because
+<code>switch</code> executes at most one matching case, this preserves Ansible's
+run-once-at-end semantics without adding logical OR to UWS core. The Jinja2
+template (<code>nginx.conf.j2</code>) stays a file the <code>template</code> module consumes; UWS
+never parses it.</p>
+<h2 id="4-inventory-and-execution-targets">4. Inventory and Execution Targets</h2>
+<p>UWS has no host axis; an Ansible play's execution matrix is tasks × hosts. The
+adopted design takes the two-stage path browser profiles took:</p>
+<p><strong>Stage 1 — no core change.</strong> Inventory is input data. A <code>loop</code> construct with
+<code>items: $inputs.hosts</code> fans tasks out per host; connection details and
+credentials stay runtime-private (resolved per host by the bound runtime, in
+the same way credential bindings already resolve). This works today but treats
+hosts as untyped strings.</p>
+<p><strong>Stage 2 — <code>inventory.1.0</code> sub-spec.</strong> Publish
+<code>versions/inventory.1.0.{json,md}</code> alongside <code>runtime.1.0</code> / <code>browser.1.5</code>: a
+typed inventory document (hosts, groups, group/host variables — <strong>never</strong>
+secrets, connection passwords, or vault material) plus a step/operation-level
+execution-target extension (<code>x-uws-target: webservers</code>). Graduation of the
+target field into core happens only if multiple runtimes need interoperable
+inventory interchange — the same graduation bar every other profile met.</p>
+<h2 id="5-convergence-results-and-handlers">5. Convergence Results and Handlers</h2>
+<p>Ansible's result model is three-state (<code>ok</code> / <code>changed</code> / <code>failed</code>, plus
+<code>skipped</code>), and handler semantics depend on <code>changed</code>. UWS core stays binary
+(<code>successCriteria</code>); the <code>ansible.1.0</code> sub-spec layers the convention on top:</p>
+<ul>
+<li>Module operations SHOULD expose <code>changed: $response.body.changed</code> in
+  <code>outputs</code>. Module results are JSON; <code>changed</code> is already there.</li>
+<li><code>failed</code> maps to UWS failure via
+  <code>successCriteria: [{condition: $response.body.failed != true}]</code> or the
+  runtime's module-failure signaling.</li>
+<li><code>skipped</code> is represented structurally: a step whose <code>when</code> gate is false does
+  not execute — same semantics, no new state needed.</li>
+<li>Handlers lower to <code>when</code>-gated steps (single notifier) or switch-gated steps
+  (multiple notifiers), as in §3.3.</li>
+</ul>
+<p>A possible future core convenience — an <code>onChanged</code> action list parallel to
+<code>onSuccess</code>/<code>onFailure</code> — is explicitly <strong>not</strong> part of UWS 1.6. The
+convention covers the need without widening core.</p>
+<h2 id="51-converter-owned-playbook-lowering">5.1 Converter-Owned Playbook Lowering</h2>
+<p>Playbook directives are not part of the <code>ansible-module</code> source profile. A
+static converter can still represent a useful subset through existing UWS core
+objects:</p>
+<table>
+<thead>
+<tr>
+<th>Ansible construct</th>
+<th>UWS representation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ordered tasks</td>
+<td><code>workflow.type: sequence</code> with operation steps.</td>
+</tr>
+<tr>
+<td><code>when</code> simple comparison</td>
+<td>Step <code>when</code> expression.</td>
+</tr>
+<tr>
+<td><code>when</code> with AND</td>
+<td>Nested <code>switch</code> guards or equivalent sequential guards.</td>
+</tr>
+<tr>
+<td><code>when</code> with OR</td>
+<td><code>switch.cases</code>, one case per disjunct, when a stable output identity is not required.</td>
+</tr>
+<tr>
+<td><code>loop</code> / <code>with_items</code></td>
+<td>Step <code>forEach</code>; <code>$item</code> and <code>$index</code> stay expression-scope values.</td>
+</tr>
+<tr>
+<td><code>register</code> field reads</td>
+<td>Producer operation <code>outputs</code> plus consumer <code>$steps.&lt;step&gt;.outputs.&lt;field&gt;</code> references.</td>
+</tr>
+<tr>
+<td><code>changed_when</code></td>
+<td>Override the operation's <code>changed</code> output expression when statically expressible.</td>
+</tr>
+<tr>
+<td><code>failed_when</code></td>
+<td>Override or extend <code>successCriteria</code> when the condition can be represented as UWS comparisons.</td>
+</tr>
+<tr>
+<td><code>until</code> + <code>retries</code> + <code>delay</code></td>
+<td>Additional <code>successCriteria</code> plus <code>onFailure</code> retry metadata.</td>
+</tr>
+<tr>
+<td><code>notify</code> / handlers</td>
+<td>Changed-output gates or <code>switch</code> cases, as described above.</td>
+</tr>
+</tbody>
+</table>
+<p>Constructs that cannot be represented without changing UWS core remain
+converter diagnostics or runtime-owned behavior. In particular,
+<code>ignore_errors</code> requires continue-on-failure semantics that UWS 1.6 does not
+define; a future UWS version may add a narrow primitive for that behavior, but
+this source profile deliberately does not.</p>
+<h2 id="6-safety-integrity-controls">6. Safety &amp; Integrity Controls</h2>
+<ul>
+<li><strong>No secrets in the wire format.</strong> Vault-encrypted values, connection
+  passwords, and become passwords never appear in a UWS document or inventory
+  document. Credential bindings stay symbolic; the runtime resolves them. This
+  is the existing UWS posture applied unchanged.</li>
+<li><strong>Side-effect declaration.</strong> Module operations that mutate hosts (<code>state:
+  absent</code>, <code>service: restarted</code>, user/file deletion) SHOULD carry the same
+  side-effect/confirmation metadata conventions used elsewhere in UWS packages;
+  check-mode execution (dry run) is a runtime feature, not a wire-format field.</li>
+<li><strong>Fail closed on contract drift.</strong> If an FQCN does not resolve in the
+  referenced argspec document, or <code>request.body</code> violates the argspec,
+  source-aware tooling rejects the document before execution rather than
+  guessing — consistent with every other source family.</li>
+</ul>
+<h2 id="7-non-goals">7. Non-Goals</h2>
+<p>UWS 1.6 deliberately does NOT standardize:</p>
+<ul>
+<li><strong>Jinja2.</strong> Ansible's templating language never enters the UWS expression
+  grammar. Authoring tooling lowers templates: static values render inline,
+  dynamic references become UWS expressions, complex renders stay inside module
+  arguments (e.g. the <code>template</code> module's <code>src</code> file) where the module owns
+  evaluation. Precedent: <code>browser.1.5</code> keeps <code>{{param}}</code> templating
+  sub-spec-owned.</li>
+<li><strong>Connection and execution policy.</strong> Connection plugins, <code>become</code>,
+  forks/serial/strategy, async/poll, and check mode are runtime-owned, exactly
+  as HTTP transport and retries are for API sources.</li>
+<li><strong>Continue-on-error semantics.</strong> Ansible <code>ignore_errors</code> changes sequence
+  failure propagation. UWS 1.6 has no portable continue-on-failure primitive,
+  so converters must either fail closed or keep that behavior runtime-owned
+  until a future core or profile field is defined.</li>
+<li><strong>Roles and collection packaging.</strong> Galaxy packaging, role directory layout,
+  and dependency resolution stay in the Ansible ecosystem. UWS binds to module
+  contracts, not to distribution mechanics.</li>
+<li><strong>Block recovery flow (<code>rescue</code> / <code>always</code>).</strong> UWS 1.6 does not standardize
+  Ansible block failure recovery. Static <code>block</code> may be represented only as
+  ordinary structural grouping when its child tasks can be lowered with
+  existing UWS constructs. <code>rescue</code> and <code>always</code> are Ansible runtime error
+  handling behavior and remain out of scope for the <code>ansible-module</code> source
+  profile.</li>
+<li><strong>The Ansible execution engine.</strong> UWS does not re-specify task executor
+  internals, callback plugins, strategy plugins, inventory connections, or
+  module invocation. The <code>ansible-module</code> source profile is inert conversion
+  and review metadata, not an execution contract.</li>
+</ul>
+<h2 id="8-graduation-criteria-check">8. Graduation Criteria Check</h2>
+<p>Against the source-family baseline <code>future-source-profiles.md</code> applies
+(the UWS 1.4 standard):</p>
+<table>
+<thead>
+<tr>
+<th>Criterion</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Clear operation selector model</td>
+<td>FQCN as <code>sourceOperationId</code>; <code>#/modules/&lt;fqcn&gt;</code> as <code>sourceOperationRef</code>.</td>
+</tr>
+<tr>
+<td>Source-owned request/response metadata</td>
+<td>Collection argspecs own parameter schemas and return docs; UWS never restates them.</td>
+</tr>
+<tr>
+<td>Parser/index evidence or bounded tooling path</td>
+<td><code>ansible-doc --json</code> output is stable, machine-readable, and already shipped by every collection; an apitools-style argspec parser is a bounded effort.</td>
+</tr>
+<tr>
+<td>Static conversion path that preserves source semantics</td>
+<td>Playbook-to-UWS conversion binds module operations to inert argspec metadata instead of flattening them into shell strings; execution behavior remains outside UWS 1.6.</td>
+</tr>
+<tr>
+<td>No secrets / credentials in the wire format</td>
+<td>§6; vault and connection material stay runtime-private.</td>
+</tr>
+<tr>
+<td>Multi-tool review need</td>
+<td>Playbook-style automation is reviewed across many tools (ansible-core, AWX/Controller, custom converters); a neutral argspec binding lets UWS-authoring tools produce consistent review metadata without standardizing execution.</td>
+</tr>
+</tbody>
+</table>
+<p>The adopted implementation follows the established per-release recipe: schema
+enum + selector-description enrichment, Go constant + validation switch +
+<code>supports16</code> version gate, parametrized binding tests, and the
+conformance/convert round-trip extensions.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      © 2026 OpenUdon/uws · Udon Workflow Specification v1.9.1 · Apache 2.0
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
